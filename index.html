@@ -6,6 +6,7 @@
     <title>VIPTrack v0.0.1 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a2e">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="VIPTrack">
@@ -19,10 +20,9 @@
     <meta name="twitter:description" content="Track military and VIP aircraft in real-time. Defaults to showing military, government, and VIP flights.">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png">
     <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+    <link rel="dns-prefetch" href="https://api.adsb.one">
     <link rel="dns-prefetch" href="https://api.adsb.lol">
     <link rel="dns-prefetch" href="https://api.airplanes.live">
-    <link rel="dns-prefetch" href="https://api.allorigins.win">
-    <link rel="dns-prefetch" href="https://corsproxy.org">
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -2168,12 +2168,14 @@ if ('serviceWorker' in navigator) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title">OpenSky API Credentials</div>
+            <form autocomplete="off" onsubmit="return false;">
             <label class="settings-input-label">Client ID / Username</label>
             <input type="text" class="settings-input" id="apiClientId" placeholder="Enter Client ID...">
             <label class="settings-input-label">Client Secret / Password</label>
             <input type="password" class="settings-input" id="apiClientSecret" placeholder="Enter Client Secret..." autocomplete="off">
-            <button class="settings-btn" id="saveApiBtn">Save Credentials</button>
-            <button class="settings-btn secondary" id="clearApiBtn">Clear Credentials</button>
+            <button type="button" class="settings-btn" id="saveApiBtn">Save Credentials</button>
+            <button type="button" class="settings-btn secondary" id="clearApiBtn">Clear Credentials</button>
+            </form>
             <div class="api-status info" id="apiStatus">Credentials configured</div>
         </div>
         <div class="settings-section">
@@ -2492,9 +2494,8 @@ if ('serviceWorker' in navigator) {
         debug: (new URLSearchParams(window.location.search)).has('debug'),
         defaultCredentials: { clientId: 'mparker-api-client', clientSecret: 'aPEAJUp6WgZuN7UZxX83BionDNsozUTF' },
         corsProxies: [
-            url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-            url => 'https://corsproxy.org/?' + encodeURIComponent(url),
-            url => 'https://proxy.cors.sh/' + url
+            url => 'https://everyorigin.jwvbremen.nl/api/get?url=' + encodeURIComponent(url),
+            url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url)
         ],
         // Self-hosted asset URLs
         silhouetteUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
@@ -2901,7 +2902,7 @@ if ('serviceWorker' in navigator) {
         
         async checkConnection() {
             try {
-                const response = await fetchWithProxy('https://api.adsb.lol/v2/point/0/0/1');
+                const response = await fetch('https://api.adsb.one/v2/point/0/0/1', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
 
                 if (response?.ok && !this.isOnline) {
                     this.handleOnline();
@@ -3051,9 +3052,9 @@ if ('serviceWorker' in navigator) {
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
-            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false },
-            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false },
-            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false }
+            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: true },
+            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false },
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false }
         ],
         
         currentSource: null,
@@ -3066,6 +3067,7 @@ if ('serviceWorker' in navigator) {
         
         async checkAllSources() {
             for (const source of this.sources) {
+                if (source.cors === false && location.hostname.includes('github.io')) { source.status = 'degraded'; source.latency = 9999; continue; }
                 await this.checkSource(source);
             }
             
@@ -3086,7 +3088,8 @@ if ('serviceWorker' in navigator) {
                 const testUrl = source.buildUrl({ lat: 40, lng: -74 }, 10);
                 
                 let response;
-                response = await fetchWithProxy(testUrl); if (!response) throw new Error('No proxy');
+                if (source.cors) { response = await fetch(testUrl, { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(8000) }); }
+                else { response = await fetchWithProxy(testUrl); if (!response) throw new Error('No proxy'); }
                 
                 source.latency = Date.now() - startTime;
                 
@@ -5664,11 +5667,11 @@ if ('serviceWorker' in navigator) {
 
     // ============ DATA SOURCES ============
     const DATA_SOURCES = {
+        adsbone: { name: 'ADSB One', buildUrl: (b, c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null },
         adsblol: { name: 'ADSB.lol', buildUrl: (b, c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null },
-        airplaneslive: { name: 'Airplanes.live', buildUrl: (b, c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null },
-        adsbone: { name: 'ADSB One', buildUrl: (b, c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null }
+        airplaneslive: { name: 'Airplanes.live', buildUrl: (b, c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null }
     };
-    const SOURCE_ORDER = ['adsblol', 'airplaneslive', 'adsbone'];
+    const SOURCE_ORDER = ['adsbone', 'adsblol', 'airplaneslive'];
 
     // ============ STATE ============
     let apiCredentials = { clientId: '', clientSecret: '' };
@@ -6608,11 +6611,12 @@ if ('serviceWorker' in navigator) {
         if(!allSrc.length){_el('dataSource').textContent='No sources';gridFetch.inProgress=false;fetchInProgress=false;lastFetchTime=Date.now();return;}
         let success=false;
         // Try each source until one succeeds - fetch mil + pia in parallel
+        const _fetch = (url, cors) => cors ? fetchWithTimeout(url, {cache:'no-cache'}) : fetchWithProxy(url);
         for(const src of allSrc){
             try{
                 const [milResp,piaResp]=await Promise.all([
-                    fetchWithProxy(src.milUrl),
-                    fetchWithProxy(src.piaUrl)
+                    _fetch(src.milUrl, src.cors),
+                    _fetch(src.piaUrl, src.cors)
                 ]);
                 let allAc=[];
                 if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(ac)allAc.push(...ac);}
