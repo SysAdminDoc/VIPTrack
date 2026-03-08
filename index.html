@@ -7012,10 +7012,9 @@ if ('serviceWorker' in navigator) {
         else if (typeof alt === 'number') altBand = Math.floor(Math.min(alt, 50000) / 5000);
         const rot = Math.round((ac.track || 0) / 5) * 5;
         const sel = ac.hex === selectedHex ? 1 : 0;
-        const dim = (selectedHex && !sel) ? 1 : 0;
         const lbl = settings.showLabels ? 1 : 0;
         const bdg = settings.showInterestingBadges ? 1 : 0;
-        return ac.hex + '|' + altBand + '|' + rot + '|' + sel + dim + lbl + bdg + '|' + (ac.flight || '') + '|' + (ac.t || '');
+        return ac.hex + '|' + altBand + '|' + rot + '|' + sel + '0' + lbl + bdg + '|' + (ac.flight || '') + '|' + (ac.t || '');
     }
 
     function createIcon(ac) {
@@ -7028,7 +7027,7 @@ if ('serviceWorker' in navigator) {
         const size = sel ? 36 : 28;
         const isInteresting = ac.interesting || ac.militaryInfo || ac.piaInfo;
         const isVIP = ac.isVIP || badgersBestDB.isVIP(ac.hex);
-        const isDimmed = selectedHex && ac.hex !== selectedHex;
+        const isDimmed = false; // VIPTrack: never dim other aircraft
         const interestingCategory = ac.piaInfo ? 'PIA' : (ac.interesting?.category || ac.militaryInfo?.category);
         
         const spriteInfo = getSpriteIcon(ac);
