@@ -6781,11 +6781,12 @@ if ('serviceWorker' in navigator) {
                     lat: ac.lat, lon: ac.lon, alt_baro: ac.alt_baro, gs: ac.gs, track: ac.track, baro_rate: ac.baro_rate,
                     squawk: ac.squawk || '', category: ac.category || '', dbFlags: ac.dbFlags, from: ac.from || '', to: ac.to || '',
                     lastSeen: now, history, category_type: null, interesting: null, airlineName: null, militaryInfo: null, piaInfo: null, alliance: null, militaryRangeInfo: null, year: null, isVIP: false, civilianInteresting: null, _enriched: false };
-                // Enrich first to classify, then gate on mil/vip
+                // Enrich first to classify, then gate on mil/vip/pia
                 _enrichAircraft(cached, hex);
                 const isMil = cached.category_type === 'military' || cached.category_type === 'government' || cached.militaryInfo || cached.militaryRangeInfo;
                 const isVip = cached.isVIP || badgersBestDB.isVIP(hex);
-                if (!isMil && !isVip) return; // VIPTrack: skip non-military/VIP aircraft entirely
+                const isPia = !!cached.piaInfo;
+                if (!isMil && !isVip && !isPia) return; // VIPTrack: skip non-military/VIP/PIA aircraft entirely
                 aircraftCache[hex] = cached;
             }
             } catch(e) { _dbg('Error processing aircraft', ac?.hex, e); }
@@ -8904,8 +8905,8 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
                 map.setView([parseFloat(lat), parseFloat(lon)], parseInt(zoom) || 10);
             }
             
-            // Apply filter from URL
-            if (filter && filter !== 'all') {
+            // Apply filter from URL (VIPTrack: clamp to valid values)
+            if (filter && ['mil-vip','military','government','vip'].includes(filter)) {
                 settings.filter = filter;
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
@@ -9641,11 +9642,22 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
             // Map style URLs matching the main map
             const styleUrls = {
                 'dark': 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                'dark-nolabels': 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
                 'satellite': 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 'google-streets': 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
                 'google-satellite': 'https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
                 'google-hybrid': 'https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',
-                'google-terrain': 'https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'
+                'google-terrain': 'https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+                'osm': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'osm-topo': 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                'stadia-dark': 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
+                'stadia-satellite': 'https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.png',
+                'carto-voyager': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                'esri-topo': 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+                'esri-natgeo': 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+                'esri-gray': 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                'oam': 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+                'opnv': 'https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png'
             };
             
             const tileUrl = styleUrls[styleName] || styleUrls['dark'];
