@@ -441,7 +441,7 @@
         .session-stats { background: var(--bg-darker); border-radius: 8px; padding: 10px; }
         .session-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
         .session-row span:first-child { color: var(--text-muted); }
-        .bottom-panels { position: fixed; bottom: 10px; left: 10px; z-index: 500; display: flex; flex-direction: column; gap: 8px; }
+        .bottom-panels { position: fixed; bottom: 10px; right: 10px; z-index: 500; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
         .legend { position: fixed; right: 15px; top: 50%; transform: translateY(-50%); z-index: 500; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 10px; }
         .legend-title { font-weight: 600; margin-bottom: 6px; color: var(--text-dim); }
         .legend-items { display: flex; flex-direction: column; gap: 3px; }
@@ -450,7 +450,7 @@
         .aircraft-marker.dimmed { opacity: 0.8 !important; }
         .aircraft-marker.dimmed .sprite-icon { opacity: 0.4 !important; }
         .aircraft-marker.dimmed .aircraft-label { opacity: 0.8; }
-        .bookmarks-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; min-width: 150px; max-width: 200px; }
+        .bookmarks-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; min-width: 200px; max-width: 260px; backdrop-filter: blur(12px); }
         .bookmarks-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); }
         .bookmarks-title { font-size: 10px; font-weight: 600; color: var(--text-dim); }
         .bookmark-add-btn { width: 20px; height: 20px; background: var(--accent); border: none; border-radius: 4px; color: #000; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -486,7 +486,7 @@
         .data-source { font-size: 10px; color: var(--text-muted); text-align: center; padding: 4px; background: rgba(128,128,128,0.1); border-radius: 0 0 8px 8px; }
         .category-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; border: 1px solid; cursor: help; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
         .category-badge:hover { filter: brightness(1.2); }
-        @media (max-width: 768px) { .info-panel, .settings-panel, .airport-panel { width: calc(100% - 20px); left: 10px; right: 10px; } .bottom-panels { flex-direction: column; } .filter-bar { max-width: calc(100vw - 20px); right: 10px; } }
+        @media (max-width: 768px) { .info-panel, .settings-panel, .airport-panel { width: calc(100% - 20px); left: 10px; right: 10px; } .bottom-panels { flex-direction: row; right: 10px; bottom: 10px; align-items: flex-end; gap: 6px; } .bottom-panels .bookmarks-panel, .bottom-panels .watchlist-panel { min-width: 140px; max-width: 160px; } .filter-bar { max-width: calc(100vw - 20px); right: 10px; } }
         .install-prompt { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 12px; padding: 12px 16px; z-index: 2500; display: none; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
         .install-prompt.show { display: block; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
@@ -520,7 +520,7 @@
         body.compact-mode .info-header { padding: 10px 12px; }
         body.compact-mode .legend { padding: 6px 8px; font-size: 9px; }
         body.compact-mode .bottom-panels { gap: 6px; }
-        body.compact-mode .bookmarks-panel { min-width: 120px; }
+        body.compact-mode .bookmarks-panel { min-width: 150px; }
         body.compact-mode .altitude-chart-container { height: 80px; }
         /* Theme Editor */
         .color-picker { width: 50px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-darker); cursor: pointer; }
@@ -541,7 +541,7 @@
         .alert-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 0 4px; opacity: 0.6; }
         .alert-close:hover { opacity: 1; color: var(--text); }
         /* Watchlist Panel */
-        .watchlist-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; min-width: 180px; max-width: 220px; overflow: hidden; }
+        .watchlist-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; min-width: 220px; max-width: 280px; overflow: hidden; backdrop-filter: blur(12px); }
         .watchlist-header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .watchlist-title { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
         .watchlist-count { background: var(--accent); color: #000; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
