@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SkyTrack v4.2 - Live Flight Tracker</title>
+    <title>VIPTrack v0.0.1 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="SkyTrack">
-    <meta name="description" content="Real-time aircraft tracking with military, VIP, and interesting aircraft alerts. Live ADS-B data visualization.">
-    <meta property="og:title" content="SkyTrack - Live Flight Tracker">
-    <meta property="og:description" content="Track aircraft in real-time with military, VIP, and interesting aircraft alerts.">
+    <meta name="apple-mobile-web-app-title" content="VIPTrack">
+    <meta name="description" content="Real-time military and VIP aircraft tracking. Live ADS-B data with military, government, and VIP aircraft shown by default.">
+    <meta property="og:title" content="VIPTrack - Military & VIP Flight Tracker">
+    <meta property="og:description" content="Track military and VIP aircraft in real-time. Defaults to showing military, government, and VIP flights.">
     <meta property="og:image" content="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="SkyTrack - Live Flight Tracker">
-    <meta name="twitter:description" content="Track aircraft in real-time with military, VIP, and interesting aircraft alerts.">
+    <meta name="twitter:title" content="VIPTrack - Military & VIP Flight Tracker">
+    <meta name="twitter:description" content="Track military and VIP aircraft in real-time. Defaults to showing military, government, and VIP flights.">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png">
     <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
     <link rel="dns-prefetch" href="https://api.airplanes.live">
@@ -1432,9 +1432,9 @@
 <script>
 // Inline PWA manifest for single-file deployment
 const manifest = {
-    name: 'SkyTrack - Live Flight Tracker',
-    short_name: 'SkyTrack',
-    description: 'Real-time aircraft tracking with military and interesting aircraft alerts',
+    name: 'VIPTrack - Military & VIP Flight Tracker',
+    short_name: 'VIPTrack',
+    description: 'Real-time military and VIP aircraft tracking with alerts',
     start_url: window.location.href.split('?')[0],
     display: 'standalone',
     orientation: 'any',
@@ -1628,7 +1628,7 @@ if ('serviceWorker' in navigator) {
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png" alt="SkyTrack">
-            <span>SkyTrack<span class="version">v4.2</span></span>
+            <span>VIPTrack<span class="version">v0.0.1</span></span>
         </div>
         <div class="spinner"></div>
         <div class="loading-status" id="loadingStatus">Initializing...</div>
@@ -1740,7 +1740,7 @@ if ('serviceWorker' in navigator) {
     <div class="onboard-overlay" id="onboardOverlay">
         <div class="onboard-card">
             <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><polyline points="21 12 17 8 21 12 17 16"/></svg></div>
-            <div class="onboard-title">Welcome to SkyTrack</div>
+            <div class="onboard-title">Welcome to VIPTrack</div>
             <div class="onboard-desc">Real-time global aircraft tracking with military detection, 3D globe view, and aviation intelligence.</div>
             <div class="onboard-tips">
                 <div class="onboard-tip"><span class="onboard-tip-num">1</span><span>Click any aircraft on the map to see its details, route, and specs</span></div>
@@ -1759,7 +1759,7 @@ if ('serviceWorker' in navigator) {
         <div class="loading-text" id="loadingText">Scanning for aircraft...</div>
     </div>
     <div class="filter-bar" id="filterBar">
-        <div class="logo"><img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png" alt="SkyTrack"><span>SkyTrack</span></div>
+        <div class="logo"><img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png" alt="VIPTrack"><span>VIPTrack</span></div>
         <div class="connectivity-indicator" id="connectivityIndicator" title="Online"><div class="connectivity-dot online"></div></div>
         <div class="search-container" id="searchContainer">
             <div class="search-input-wrapper">
@@ -1861,7 +1861,8 @@ if ('serviceWorker' in navigator) {
         </div>
         <div class="filter-divider"></div>
         <div role="radiogroup" aria-label="Aircraft category filter" style="display:contents">
-        <button class="filter-btn active" data-filter="all">All <span class="count" id="countAll">0</span></button>
+        <button class="filter-btn" data-filter="all">All <span class="count" id="countAll">0</span></button>
+        <button class="filter-btn vip-btn active" data-filter="mil-vip" title="Military + VIP Aircraft">Mil+VIP <span class="count" id="countMilVIP">0</span></button>
         <button class="filter-btn" data-filter="commercial">Comm <span class="count" id="countComm">0</span></button>
         <button class="filter-btn" data-filter="military">Mil <span class="count" id="countMil">0</span></button>
         <button class="filter-btn" data-filter="government">Gov <span class="count" id="countGov">0</span></button>
@@ -1871,7 +1872,7 @@ if ('serviceWorker' in navigator) {
         <button class="filter-btn flagged" data-filter="interesting">Flagged <span class="count" id="countInteresting">0</span></button>
         <button class="filter-btn pia-btn" data-filter="pia">PIA <span class="count" id="countPIA">0</span></button>
         <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft">VIP <span class="count" id="countVIP">0</span></button>
-        <button class="filter-share-btn" id="filterShareBtn" title="Share this filter view" aria-label="Share filter link" style="display:none;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13"/></svg></button>
+        <button class="filter-share-btn" id="filterShareBtn" title="Share this filter view" aria-label="Share filter link" style="display:flex;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13"/></svg></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo">Loading...</div></div>
@@ -2458,7 +2459,7 @@ if ('serviceWorker' in navigator) {
     <div class="install-prompt" id="installPrompt">
         <div class="install-content">
             <span class="install-icon">+</span>
-            <span class="install-text">Install SkyTrack for offline access</span>
+            <span class="install-text">Install VIPTrack for offline access</span>
             <button class="install-btn" id="installBtn">Install</button>
             <button class="install-dismiss" id="installDismiss">x</button>
         </div>
@@ -5671,7 +5672,7 @@ if ('serviceWorker' in navigator) {
     let lastFetchTime = 0, fetchInProgress = false, lastSuccessfulSource = null, lastSuccessfulProxy = 0, animationRunning = false;
     const aircraftAnimation = {}, photoCache = {}, photoFailCache = {};
     let bookmarks = [];
-    const settings = { mapStyle: 'google-streets', showLabels: false, showAirports: false, showRadar: true, altitudeColors: true, showWiki: true, showInterestingBadges: false, filter: 'all', followMode: false, compactMode: false };
+    const settings = { mapStyle: 'google-streets', showLabels: false, showAirports: false, showRadar: true, altitudeColors: true, showWiki: true, showInterestingBadges: false, filter: 'mil-vip', followMode: false, compactMode: false };
     const baseMaps = {};
     const MILITARY_TYPES = ['F16', 'F15', 'F18', 'F22', 'F35', 'KC35', 'K35R', 'KC10', 'B52', 'A400', 'EUFI', 'RFAL', 'TORD', 'P8', 'U2', 'RC35', 'E6', 'E8', 'EA18', 'EP3', 'T38', 'T45'];
     const MILITARY_TYPES_EXACT = ['C17', 'C130', 'C5', 'C5M', 'B1', 'B1B', 'B2', 'A10', 'A10A', 'E3CF', 'E3TF', 'E3', 'V22', 'C2', 'C12', 'C30J', 'H60', 'C295', 'CN35', 'HAWK', 'MIAG', 'TUCA', 'F117', 'U28A', 'C146', 'C37A', 'C37B', 'C40A', 'C40B', 'P3', 'P8A', 'T6', 'T6A', 'T6B'];
@@ -6794,19 +6795,23 @@ if ('serviceWorker' in navigator) {
     }
 
     function updateCounts() {
-        const counts = { all: 0, commercial: 0, military: 0, government: 0, police: 0, medical: 0, cargo: 0, private: 0, helicopter: 0, ground: 0, interesting: 0, pia: 0, vip: 0 };
-        Object.values(aircraftCache).forEach(ac => { 
-            counts.all++; 
-            if (counts[ac.category_type] !== undefined) counts[ac.category_type]++; 
+        const counts = { all: 0, commercial: 0, military: 0, government: 0, police: 0, medical: 0, cargo: 0, private: 0, helicopter: 0, ground: 0, interesting: 0, pia: 0, vip: 0, milVip: 0 };
+        Object.values(aircraftCache).forEach(ac => {
+            counts.all++;
+            if (counts[ac.category_type] !== undefined) counts[ac.category_type]++;
             if (ac.interesting || ac.militaryInfo || ac.civilianInteresting) counts.interesting++;
             if (ac.piaInfo) counts.pia++;
             if (ac.isVIP) counts.vip++;
+            const isMil = ac.category_type === 'military' || ac.category_type === 'government' || ac.militaryInfo;
+            const isVip = ac.isVIP || (typeof badgersBestDB !== 'undefined' && badgersBestDB.isVIP(ac.hex));
+            if (isMil || isVip) counts.milVip++;
         });
         _el('countAll').textContent = counts.all; _el('countComm').textContent = counts.commercial; _el('countMil').textContent = counts.military;
         _el('countGov').textContent = counts.government; _el('countCargo').textContent = counts.cargo; _el('countPrivate').textContent = counts.private;
         _el('countHeli').textContent = counts.helicopter; _el('countInteresting').textContent = counts.interesting;
         _el('countPIA').textContent = counts.pia;
         _el('countVIP').textContent = counts.vip;
+        _el('countMilVIP').textContent = counts.milVip;
     }
 
     let _updateMarkersRaf = 0;
@@ -6847,14 +6852,18 @@ if ('serviceWorker' in navigator) {
                 if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; }
                 return;
             }
-            if (settings.filter !== 'all') { 
-                if (settings.filter === 'vip') {
+            if (settings.filter !== 'all') {
+                if (settings.filter === 'mil-vip') {
+                    const isMil = ac.category_type === 'military' || ac.category_type === 'government' || ac.militaryInfo;
+                    const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
+                    if (!isMil && !isVip) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                } else if (settings.filter === 'vip') {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
-                } else if (settings.filter === 'interesting') { 
-                    if (!ac.interesting && !ac.militaryInfo && !ac.civilianInteresting) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; } 
+                } else if (settings.filter === 'interesting') {
+                    if (!ac.interesting && !ac.militaryInfo && !ac.civilianInteresting) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
                 } else if (settings.filter === 'pia') {
                     if (!ac.piaInfo) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
-                } else if (ac.category_type !== settings.filter) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; } 
+                } else if (ac.category_type !== settings.filter) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
             }
             if (!bounds.pad(0.2).contains([ac.lat, ac.lon])) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
             // Decimation: skip non-priority aircraft that lost their grid cell
