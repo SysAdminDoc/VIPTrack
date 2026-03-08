@@ -1719,12 +1719,9 @@ if ('serviceWorker' in navigator) {
     <!-- Filter Chips Bar -->
     <button class="filter-chips-toggle" id="filterChipsToggle" title="Quick Filters" aria-label="Quick Filters" aria-expanded="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></button>
     <div class="filter-chips-bar" id="filterChipsBar">
-        <button class="filter-chip-btn" data-filter="commercial">Commercial</button>
         <button class="filter-chip-btn" data-filter="military">Military</button>
-        <button class="filter-chip-btn" data-filter="cargo">Cargo</button>
-        <button class="filter-chip-btn" data-filter="private">Private</button>
-        <button class="filter-chip-btn" data-filter="helicopter">Helicopter</button>
-        <button class="filter-chip-btn" data-filter="interesting">Interesting</button>
+        <button class="filter-chip-btn" data-filter="government">Government</button>
+        <button class="filter-chip-btn" data-filter="vip">VIP</button>
     </div>
     
     <!-- 3D HUD -->
@@ -1741,13 +1738,13 @@ if ('serviceWorker' in navigator) {
         <div class="onboard-card">
             <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><polyline points="21 12 17 8 21 12 17 16"/></svg></div>
             <div class="onboard-title">Welcome to VIPTrack</div>
-            <div class="onboard-desc">Real-time global aircraft tracking with military detection, 3D globe view, and aviation intelligence.</div>
+            <div class="onboard-desc">Real-time military and VIP aircraft tracking with 3D globe view and aviation intelligence.</div>
             <div class="onboard-tips">
-                <div class="onboard-tip"><span class="onboard-tip-num">1</span><span>Click any aircraft on the map to see its details, route, and specs</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">2</span><span>Use the search bar to find flights by callsign, registration, or airport</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">3</span><span>Click the globe icon to enter immersive 3D view</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">4</span><span>Open Map, Tools, and View menus for layers, heatmaps, and more</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">5</span><span>Use the filter button to show only military, cargo, or interesting aircraft</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">1</span><span>Only military, government, and VIP aircraft are shown</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">2</span><span>Click any aircraft on the map to see its details, route, and specs</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">3</span><span>Use the search bar to find flights by callsign, registration, or ICAO hex</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">4</span><span>Click the globe icon to enter immersive 3D view</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">5</span><span>Use the filter buttons to narrow by Military, Gov, or VIP</span></div>
             </div>
             <button class="onboard-btn" id="onboardDismiss">Start Tracking</button>
         </div>
@@ -1791,11 +1788,7 @@ if ('serviceWorker' in navigator) {
                         <div class="filter-section">
                             <div class="filter-label">Aircraft Type</div>
                             <div class="filter-chips" id="filterTypeChips">
-                                <button class="filter-chip" data-type="commercial">Commercial</button>
-                                <button class="filter-chip" data-type="cargo">Cargo</button>
                                 <button class="filter-chip" data-type="military">Military</button>
-                                <button class="filter-chip" data-type="private">Private</button>
-                                <button class="filter-chip" data-type="helicopter">Helicopter</button>
                                 <button class="filter-chip" data-type="government">Government</button>
                             </div>
                         </div>
@@ -1861,18 +1854,11 @@ if ('serviceWorker' in navigator) {
         </div>
         <div class="filter-divider"></div>
         <div role="radiogroup" aria-label="Aircraft category filter" style="display:contents">
-        <button class="filter-btn" data-filter="all">All <span class="count" id="countAll">0</span></button>
-        <button class="filter-btn vip-btn active" data-filter="mil-vip" title="Military + VIP Aircraft">Mil+VIP <span class="count" id="countMilVIP">0</span></button>
-        <button class="filter-btn" data-filter="commercial">Comm <span class="count" id="countComm">0</span></button>
+        <button class="filter-btn vip-btn active" data-filter="mil-vip" title="All Military + VIP Aircraft">All <span class="count" id="countMilVIP">0</span></button>
         <button class="filter-btn" data-filter="military">Mil <span class="count" id="countMil">0</span></button>
         <button class="filter-btn" data-filter="government">Gov <span class="count" id="countGov">0</span></button>
-        <button class="filter-btn" data-filter="cargo">Cargo <span class="count" id="countCargo">0</span></button>
-        <button class="filter-btn" data-filter="private">Private <span class="count" id="countPrivate">0</span></button>
-        <button class="filter-btn" data-filter="helicopter">Heli <span class="count" id="countHeli">0</span></button>
-        <button class="filter-btn flagged" data-filter="interesting">Flagged <span class="count" id="countInteresting">0</span></button>
-        <button class="filter-btn pia-btn" data-filter="pia">PIA <span class="count" id="countPIA">0</span></button>
         <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft">VIP <span class="count" id="countVIP">0</span></button>
-        <button class="filter-share-btn" id="filterShareBtn" title="Share this filter view" aria-label="Share filter link" style="display:flex;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13"/></svg></button>
+        <button class="filter-share-btn" id="filterShareBtn" title="Share this filter view" aria-label="Share filter link" style="display:none;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13"/></svg></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo">Loading...</div></div>
@@ -6276,7 +6262,8 @@ if ('serviceWorker' in navigator) {
     function saveAircraftCache() { try { const d = { ts: Date.now(), ac: {} }; const keys = Object.keys(aircraftCache); for (let i = 0; i < keys.length; i++) { const h = keys[i], a = aircraftCache[h]; d.ac[h] = { hex: a.hex, flight: a.flight, r: a.r, t: a.t, desc: a.desc, ownOp: a.ownOp, lat: a.lat, lon: a.lon, alt_baro: a.alt_baro, gs: a.gs, track: a.track, baro_rate: a.baro_rate, squawk: a.squawk, category: a.category, dbFlags: a.dbFlags, from: a.from, to: a.to, lastSeen: a.lastSeen, history: a.history?.slice(-50) || [] }; } localStorage.setItem('skytrack_aircraft', JSON.stringify(d)); } catch(e){} }
     function loadAircraftCache() { try { const s = localStorage.getItem('skytrack_aircraft'); if (s) { const d = JSON.parse(s); if (Date.now() - d.ts < CONFIG.cacheExpiry) { aircraftCache = d.ac; return true; } } } catch(e){} return false; }
     function saveSettings() { localStorage.setItem('skytrack_settings_v3', JSON.stringify(settings)); }
-    function loadSettings() { try { const s = localStorage.getItem('skytrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} }
+    function loadSettings() { try { const s = localStorage.getItem('skytrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to mil-vip subset
+        if (!['mil-vip','military','government','vip'].includes(settings.filter)) settings.filter = 'mil-vip'; }
     function loadBookmarks() { try { const s = localStorage.getItem('skytrack_bookmarks'); if (s) bookmarks = JSON.parse(s); } catch(e) { bookmarks = []; } renderBookmarks(); }
     function saveBookmarks() { localStorage.setItem('skytrack_bookmarks', JSON.stringify(bookmarks)); renderBookmarks(); }
     function addBookmark(name) { const c = map.getCenter(); bookmarks.push({ id: Date.now(), name, lat: c.lat, lng: c.lng, zoom: map.getZoom() }); saveBookmarks(); toast('Saved: ' + name); }
@@ -6762,10 +6749,12 @@ if ('serviceWorker' in navigator) {
                     lat: ac.lat, lon: ac.lon, alt_baro: ac.alt_baro, gs: ac.gs, track: ac.track, baro_rate: ac.baro_rate,
                     squawk: ac.squawk || '', category: ac.category || '', dbFlags: ac.dbFlags, from: ac.from || '', to: ac.to || '',
                     lastSeen: now, history, category_type: null, interesting: null, airlineName: null, militaryInfo: null, piaInfo: null, alliance: null, militaryRangeInfo: null, year: null, isVIP: false, civilianInteresting: null, _enriched: false };
-                aircraftCache[hex] = cached;
-                
-                // Full enrichment (only runs once per aircraft)
+                // Enrich first to classify, then gate on mil/vip
                 _enrichAircraft(cached, hex);
+                const isMil = cached.category_type === 'military' || cached.category_type === 'government' || cached.militaryInfo || cached.militaryRangeInfo;
+                const isVip = cached.isVIP || badgersBestDB.isVIP(hex);
+                if (!isMil && !isVip) return; // VIPTrack: skip non-military/VIP aircraft entirely
+                aircraftCache[hex] = cached;
             }
             } catch(e) { _dbg('Error processing aircraft', ac?.hex, e); }
         });
@@ -6795,23 +6784,17 @@ if ('serviceWorker' in navigator) {
     }
 
     function updateCounts() {
-        const counts = { all: 0, commercial: 0, military: 0, government: 0, police: 0, medical: 0, cargo: 0, private: 0, helicopter: 0, ground: 0, interesting: 0, pia: 0, vip: 0, milVip: 0 };
+        const counts = { milVip: 0, military: 0, government: 0, vip: 0 };
         Object.values(aircraftCache).forEach(ac => {
-            counts.all++;
-            if (counts[ac.category_type] !== undefined) counts[ac.category_type]++;
-            if (ac.interesting || ac.militaryInfo || ac.civilianInteresting) counts.interesting++;
-            if (ac.piaInfo) counts.pia++;
+            counts.milVip++;
+            if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
+            if (ac.category_type === 'government') counts.government++;
             if (ac.isVIP) counts.vip++;
-            const isMil = ac.category_type === 'military' || ac.category_type === 'government' || ac.militaryInfo;
-            const isVip = ac.isVIP || (typeof badgersBestDB !== 'undefined' && badgersBestDB.isVIP(ac.hex));
-            if (isMil || isVip) counts.milVip++;
         });
-        _el('countAll').textContent = counts.all; _el('countComm').textContent = counts.commercial; _el('countMil').textContent = counts.military;
-        _el('countGov').textContent = counts.government; _el('countCargo').textContent = counts.cargo; _el('countPrivate').textContent = counts.private;
-        _el('countHeli').textContent = counts.helicopter; _el('countInteresting').textContent = counts.interesting;
-        _el('countPIA').textContent = counts.pia;
-        _el('countVIP').textContent = counts.vip;
         _el('countMilVIP').textContent = counts.milVip;
+        _el('countMil').textContent = counts.military;
+        _el('countGov').textContent = counts.government;
+        _el('countVIP').textContent = counts.vip;
     }
 
     let _updateMarkersRaf = 0;
@@ -6852,18 +6835,15 @@ if ('serviceWorker' in navigator) {
                 if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; }
                 return;
             }
-            if (settings.filter !== 'all') {
-                if (settings.filter === 'mil-vip') {
-                    const isMil = ac.category_type === 'military' || ac.category_type === 'government' || ac.militaryInfo;
-                    const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
-                    if (!isMil && !isVip) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
-                } else if (settings.filter === 'vip') {
+            // VIPTrack: cache only contains mil/vip, so mil-vip shows all cached aircraft
+            if (settings.filter !== 'mil-vip') {
+                if (settings.filter === 'vip') {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
-                } else if (settings.filter === 'interesting') {
-                    if (!ac.interesting && !ac.militaryInfo && !ac.civilianInteresting) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
-                } else if (settings.filter === 'pia') {
-                    if (!ac.piaInfo) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
-                } else if (ac.category_type !== settings.filter) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                } else if (settings.filter === 'military') {
+                    if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                } else if (settings.filter === 'government') {
+                    if (ac.category_type !== 'government') { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                }
             }
             if (!bounds.pad(0.2).contains([ac.lat, ac.lon])) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
             // Decimation: skip non-priority aircraft that lost their grid cell
@@ -13911,12 +13891,9 @@ To create a timelapse video:
                 if (!ac) return;
                 let show = false;
                 const ct = ac.category_type || '';
-                if (activeChips.includes('military') && (ct === 'military' || ct === 'government' || ct === 'police')) show = true;
-                if (activeChips.includes('commercial') && (ct === 'commercial' || ct === 'cargo')) show = true;
-                if (activeChips.includes('cargo') && ct === 'cargo') show = true;
-                if (activeChips.includes('private') && ct === 'private') show = true;
-                if (activeChips.includes('helicopter') && ct === 'helicopter') show = true;
-                if (activeChips.includes('interesting') && (ac.interesting || ac.isVIP || ac.piaInfo || ct === 'interesting' || ct === 'vip' || ct === 'pia')) show = true;
+                if (activeChips.includes('military') && (ct === 'military' || ac.militaryInfo || ac.militaryRangeInfo)) show = true;
+                if (activeChips.includes('government') && ct === 'government') show = true;
+                if (activeChips.includes('vip') && ac.isVIP) show = true;
                 marker.setOpacity(show ? 1 : 0.08);
             });
         }
