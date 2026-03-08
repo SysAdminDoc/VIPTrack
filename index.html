@@ -2108,12 +2108,33 @@ if ('serviceWorker' in navigator) {
             <div class="settings-section-title">Map Style</div>
             <div class="setting-row"><span class="setting-label">Base Map</span>
                 <select id="mapStyleSelect" class="setting-select">
-                    <option value="dark">Dark (CartoDB)</option>
-                    <option value="satellite">Satellite (ArcGIS)</option>
-                    <option value="google-streets">Google Streets</option>
-                    <option value="google-satellite">Google Satellite</option>
-                    <option value="google-hybrid">Google Hybrid</option>
-                    <option value="google-terrain">Google Terrain</option>
+                    <optgroup label="Dark Themes">
+                        <option value="dark">Dark (CartoDB)</option>
+                        <option value="dark-nolabels">Dark No Labels</option>
+                        <option value="stadia-dark">Stadia Dark</option>
+                        <option value="esri-gray">ESRI Dark Gray</option>
+                    </optgroup>
+                    <optgroup label="Satellite">
+                        <option value="satellite">Satellite (ArcGIS)</option>
+                        <option value="google-satellite">Google Satellite</option>
+                        <option value="google-hybrid">Google Hybrid</option>
+                        <option value="stadia-satellite">Stadia Satellite</option>
+                    </optgroup>
+                    <optgroup label="Streets & Roads">
+                        <option value="google-streets">Google Streets</option>
+                        <option value="osm">OpenStreetMap</option>
+                        <option value="carto-voyager">CartoDB Voyager</option>
+                        <option value="oam">Humanitarian (HOT)</option>
+                    </optgroup>
+                    <optgroup label="Terrain & Topo">
+                        <option value="google-terrain">Google Terrain</option>
+                        <option value="osm-topo">OpenTopoMap</option>
+                        <option value="esri-topo">ESRI Topographic</option>
+                        <option value="esri-natgeo">ESRI National Geographic</option>
+                    </optgroup>
+                    <optgroup label="Transit">
+                        <option value="opnv">Public Transport</option>
+                    </optgroup>
                 </select>
             </div>
         </div>
@@ -6439,11 +6460,22 @@ if ('serviceWorker' in navigator) {
     function initMap() {
         map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true });
         baseMaps['dark'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+        baseMaps['dark-nolabels'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
         baseMaps['satellite'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
         baseMaps['google-streets'] = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
         baseMaps['google-satellite'] = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
         baseMaps['google-hybrid'] = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
         baseMaps['google-terrain'] = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+        baseMaps['osm'] = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+        baseMaps['osm-topo'] = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
+        baseMaps['stadia-dark'] = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { maxZoom: 20 });
+        baseMaps['stadia-satellite'] = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.png', { maxZoom: 20 });
+        baseMaps['carto-voyager'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+        baseMaps['esri-topo'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+        baseMaps['esri-natgeo'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
+        baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
+        baseMaps['oam'] = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { maxZoom: 19 });
+        baseMaps['opnv'] = L.tileLayer('https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png', { maxZoom: 18 });
         currentBaseMap = settings.mapStyle || 'google-streets'; baseMaps[currentBaseMap].addTo(map); document.getElementById('mapStyleSelect').value = currentBaseMap;
         airportLayer = L.layerGroup().addTo(map);
         let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); if (settings.showAirports) updateAirportMarkers(); }, 800); saveMapPosition(); });
@@ -7673,7 +7705,7 @@ if ('serviceWorker' in navigator) {
         document.getElementById('filterShareBtn')?.addEventListener('click', () => {
             if (settings.filter && settings.filter !== 'all') shareManager.shareFilter(settings.filter);
         });
-        document.getElementById('dayNightBtn').addEventListener('click', () => { const styles = ['dark', 'satellite', 'google-streets', 'google-satellite', 'google-hybrid', 'google-terrain']; const next = styles[(styles.indexOf(currentBaseMap) + 1) % styles.length]; changeBasemap(next); });
+        document.getElementById('dayNightBtn').addEventListener('click', () => { const styles = ['dark', 'dark-nolabels', 'stadia-dark', 'esri-gray', 'satellite', 'google-satellite', 'google-hybrid', 'stadia-satellite', 'google-streets', 'osm', 'carto-voyager', 'oam', 'google-terrain', 'osm-topo', 'esri-topo', 'esri-natgeo', 'opnv']; const next = styles[(styles.indexOf(currentBaseMap) + 1) % styles.length]; changeBasemap(next); });
         document.getElementById('labelBtn').addEventListener('click', function() { settings.showLabels = !settings.showLabels; this.classList.toggle('active', settings.showLabels); document.getElementById('toggleLabels').classList.toggle('on', settings.showLabels); saveSettings(); updateMarkers(); });
         document.getElementById('airportsBtn').addEventListener('click', function() { settings.showAirports = !settings.showAirports; this.classList.toggle('active', settings.showAirports); document.getElementById('toggleAirports').classList.toggle('on', settings.showAirports); saveSettings(); updateAirportMarkers(); });
         document.getElementById('radarBtn').addEventListener('click', toggleRadar);
