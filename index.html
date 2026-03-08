@@ -1631,7 +1631,7 @@ if ('serviceWorker' in navigator) {
 <body>
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
-            <img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png" alt="SkyTrack">
+            <img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png" alt="VIPTrack">
             <span>VIPTrack<span class="version">v0.0.1</span></span>
         </div>
         <div class="spinner"></div>
@@ -1673,7 +1673,7 @@ if ('serviceWorker' in navigator) {
         
         <!-- Map Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span>Map</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <button class="hv2-dropdown-trigger" aria-label="Map and layers menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span>Map</span><span class="hv2-dd-badge" style="display:none"></span></button>
             <div class="hv2-panel">
                 <div class="hv2-panel-title">Map & Layers</div>
                 <div class="hv2-item" data-btn="dayNightBtn"><div class="hv2-item-icon"><button class="header-btn" id="dayNightBtn" title="Map Style" aria-label="Map Style"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></button></div><div class="hv2-item-label">Map Style</div></div>
@@ -1689,7 +1689,7 @@ if ('serviceWorker' in navigator) {
         
         <!-- Tools Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span>Tools</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <button class="hv2-dropdown-trigger" aria-label="Tools menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span>Tools</span><span class="hv2-dd-badge" style="display:none"></span></button>
             <div class="hv2-panel">
                 <div class="hv2-panel-title">Tools</div>
                 <div class="hv2-item" data-btn="measureBtn"><div class="hv2-item-icon"><button class="header-btn" id="measureBtn" title="Measure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21L21 3M3 21h7v-7M21 3h-7v7"/></svg></button></div><div class="hv2-item-label">Measure Distance</div></div>
@@ -1704,7 +1704,7 @@ if ('serviceWorker' in navigator) {
         
         <!-- View Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>View</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <button class="hv2-dropdown-trigger" aria-label="View options menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span>View</span><span class="hv2-dd-badge" style="display:none"></span></button>
             <div class="hv2-panel">
                 <div class="hv2-panel-title">View Options</div>
                 <div class="hv2-item" data-btn="clusterBtn"><div class="hv2-item-icon"><button class="header-btn" id="clusterBtn" title="Cluster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.3"/></svg></button></div><div class="hv2-item-label">Clustering</div></div>
@@ -2627,7 +2627,7 @@ if ('serviceWorker' in navigator) {
     };
 
     // ============ DEBUG LOGGING ============
-    function _dbg(...args) { if (CONFIG.debug) _dbg('[SkyTrack]', ...args); }
+    function _dbg(...args) { if (CONFIG.debug) _dbg('[VIPTrack]', ...args); }
 
     // ============ ERROR HANDLING UTILITY ============
     const errorHandler = {
@@ -2648,9 +2648,9 @@ if ('serviceWorker' in navigator) {
             }
             
             if (severity === 'error') {
-                console.error(`[SkyTrack ${context}]`, error);
+                console.error(`[VIPTrack${context}]`, error);
             } else {
-                console.warn(`[SkyTrack ${context}]`, error);
+                console.warn(`[VIPTrack${context}]`, error);
             }
             
             // Update error indicator if visible
@@ -3001,14 +3001,14 @@ if ('serviceWorker' in navigator) {
                 timestamp: Date.now()
             });
             
-            localStorage.setItem('skytrack_sync_queue', JSON.stringify(
+            localStorage.setItem('viptrack_sync_queue', JSON.stringify(
                 this.syncQueue.map(item => ({ description: item.description, timestamp: item.timestamp }))
             ));
         },
         
         loadSyncQueue() {
             try {
-                const saved = localStorage.getItem('skytrack_sync_queue');
+                const saved = localStorage.getItem('viptrack_sync_queue');
                 if (saved) {
                     const items = JSON.parse(saved);
                     _dbg('Loaded sync queue with', items.length, 'items');
@@ -3039,7 +3039,7 @@ if ('serviceWorker' in navigator) {
                 }
             }
             
-            localStorage.removeItem('skytrack_sync_queue');
+            localStorage.removeItem('viptrack_sync_queue');
             
             if (syncIndicator) {
                 syncIndicator.classList.remove('show');
@@ -3436,7 +3436,7 @@ if ('serviceWorker' in navigator) {
 
     // ============ INDEXEDDB STORAGE ============
     const skytrackDB = {
-        dbName: 'SkyTrackDB',
+        dbName: 'VIPTrackDB',
         dbVersion: 1,
         db: null,
         
@@ -3617,13 +3617,13 @@ if ('serviceWorker' in navigator) {
                     saved.forEach(item => this.watchlist.set(item.hex.toUpperCase(), item));
                 }
             } catch (e) {
-                const ls = localStorage.getItem('skytrack_watchlist');
+                const ls = localStorage.getItem('viptrack_watchlist');
                 if (ls) {
                     JSON.parse(ls).forEach(item => this.watchlist.set(item.hex.toUpperCase(), item));
                 }
             }
             
-            const settings = JSON.parse(localStorage.getItem('skytrack_alert_settings') || '{}');
+            const settings = JSON.parse(localStorage.getItem('viptrack_alert_settings') || '{}');
             this.enabled = settings.enabled !== false;
             this.soundEnabled = settings.soundEnabled !== false;
             this.militaryAlertRadius = settings.militaryAlertRadius || 50;
@@ -3654,12 +3654,12 @@ if ('serviceWorker' in navigator) {
             try {
                 await skytrackDB.saveUserData('watchlist', data);
             } catch (e) {
-                localStorage.setItem('skytrack_watchlist', JSON.stringify(data));
+                localStorage.setItem('viptrack_watchlist', JSON.stringify(data));
             }
         },
         
         saveSettings() {
-            localStorage.setItem('skytrack_alert_settings', JSON.stringify({
+            localStorage.setItem('viptrack_alert_settings', JSON.stringify({
                 enabled: this.enabled,
                 soundEnabled: this.soundEnabled,
                 militaryAlertRadius: this.militaryAlertRadius,
@@ -3829,7 +3829,7 @@ if ('serviceWorker' in navigator) {
         
         showBrowserNotification(alert) {
             if (Notification.permission !== 'granted') return;
-            const notification = new Notification('SkyTrack: ' + alert.callsign, {
+            const notification = new Notification('VIPTrack: ' + alert.callsign, {
                 body: alert.message,
                 icon: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png',
                 tag: alert.aircraft.hex,
@@ -4430,7 +4430,7 @@ if ('serviceWorker' in navigator) {
             } catch (e) {}
             
             // Fallback to localStorage
-            const lsCached = localStorage.getItem('skytrack_airports_v3');
+            const lsCached = localStorage.getItem('viptrack_airports_v3');
             if (lsCached) {
                 try {
                     const data = JSON.parse(lsCached);
@@ -4473,7 +4473,7 @@ if ('serviceWorker' in navigator) {
                 await skytrackDB.saveDatabase('airports', data, 86400000);
             } catch (e) {
                 // Fallback to localStorage
-                try { localStorage.setItem('skytrack_airports_v3', JSON.stringify({ ts: Date.now(), airports: data })); } catch(e2) {}
+                try { localStorage.setItem('viptrack_airports_v3', JSON.stringify({ ts: Date.now(), airports: data })); } catch(e2) {}
             }
         },
         getByICAO(icao) { return this.airports.get(icao); },
@@ -4500,7 +4500,7 @@ if ('serviceWorker' in navigator) {
             }
             
             // Fallback to localStorage
-            const lsCached = localStorage.getItem('skytrack_registrations_v1');
+            const lsCached = localStorage.getItem('viptrack_registrations_v1');
             if (lsCached) {
                 try {
                     const data = JSON.parse(lsCached);
@@ -4553,7 +4553,7 @@ if ('serviceWorker' in navigator) {
             try {
                 const str = JSON.stringify({ ts: Date.now(), aircraft: data });
                 if (str.length < 5000000) {
-                    localStorage.setItem('skytrack_registrations_v1', str);
+                    localStorage.setItem('viptrack_registrations_v1', str);
                 }
             } catch(e) { console.warn('Could not cache registrations:', e); }
         },
@@ -5301,8 +5301,8 @@ if ('serviceWorker' in navigator) {
         
         init() {
             // Load today's aircraft from storage
-            const stored = localStorage.getItem('skytrack_today_aircraft');
-            const storedDate = localStorage.getItem('skytrack_today_date');
+            const stored = localStorage.getItem('viptrack_today_aircraft');
+            const storedDate = localStorage.getItem('viptrack_today_date');
             
             if (storedDate === this.lastTodayReset && stored) {
                 try {
@@ -5380,8 +5380,8 @@ if ('serviceWorker' in navigator) {
             
             // Save today's aircraft
             try {
-                localStorage.setItem('skytrack_today_aircraft', JSON.stringify([...this.todayAircraft]));
-                localStorage.setItem('skytrack_today_date', today);
+                localStorage.setItem('viptrack_today_aircraft', JSON.stringify([...this.todayAircraft]));
+                localStorage.setItem('viptrack_today_date', today);
             } catch(e) { /* ignore storage errors */ }
             
             // Update stats if panel is open
@@ -6282,22 +6282,22 @@ if ('serviceWorker' in navigator) {
     function getAirlineCode(cs) { return cs?.length >= 3 && /^[A-Z]{3}$/.test(cs.substring(0, 3)) ? cs.substring(0, 3) : null; }
     async function fetchWithProxy(url, options = {}) { try { const r = await fetchWithTimeout(url, options); if (r?.ok) return r; } catch(e) {} for (let i = 0; i < CONFIG.corsProxies.length; i++) { const idx = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length; try { const r = await fetchWithTimeout(CONFIG.corsProxies[idx](url), {}); if (r?.ok) { lastSuccessfulProxy = idx; return r; } } catch(e) {} } return null; }
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...options, signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
-    function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('skytrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
-    function loadMapPosition() { try { const s = localStorage.getItem('skytrack_map'); if (s) { const p = JSON.parse(s); CONFIG.center = [p.lat, p.lng]; CONFIG.zoom = p.zoom; return true; } } catch(e){} return false; }
-    function saveAircraftCache() { try { const d = { ts: Date.now(), ac: {} }; const keys = Object.keys(aircraftCache); for (let i = 0; i < keys.length; i++) { const h = keys[i], a = aircraftCache[h]; d.ac[h] = { hex: a.hex, flight: a.flight, r: a.r, t: a.t, desc: a.desc, ownOp: a.ownOp, lat: a.lat, lon: a.lon, alt_baro: a.alt_baro, gs: a.gs, track: a.track, baro_rate: a.baro_rate, squawk: a.squawk, category: a.category, dbFlags: a.dbFlags, from: a.from, to: a.to, lastSeen: a.lastSeen, history: a.history?.slice(-50) || [] }; } localStorage.setItem('skytrack_aircraft', JSON.stringify(d)); } catch(e){} }
-    function loadAircraftCache() { try { const s = localStorage.getItem('skytrack_aircraft'); if (s) { const d = JSON.parse(s); if (Date.now() - d.ts < CONFIG.cacheExpiry) { aircraftCache = d.ac; return true; } } } catch(e){} return false; }
-    function saveSettings() { localStorage.setItem('skytrack_settings_v3', JSON.stringify(settings)); }
-    function loadSettings() { try { const s = localStorage.getItem('skytrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to mil-vip subset
+    function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('viptrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
+    function loadMapPosition() { try { const s = localStorage.getItem('viptrack_map'); if (s) { const p = JSON.parse(s); CONFIG.center = [p.lat, p.lng]; CONFIG.zoom = p.zoom; return true; } } catch(e){} return false; }
+    function saveAircraftCache() { try { const d = { ts: Date.now(), ac: {} }; const keys = Object.keys(aircraftCache); for (let i = 0; i < keys.length; i++) { const h = keys[i], a = aircraftCache[h]; d.ac[h] = { hex: a.hex, flight: a.flight, r: a.r, t: a.t, desc: a.desc, ownOp: a.ownOp, lat: a.lat, lon: a.lon, alt_baro: a.alt_baro, gs: a.gs, track: a.track, baro_rate: a.baro_rate, squawk: a.squawk, category: a.category, dbFlags: a.dbFlags, from: a.from, to: a.to, lastSeen: a.lastSeen, history: a.history?.slice(-50) || [] }; } localStorage.setItem('viptrack_aircraft', JSON.stringify(d)); } catch(e){} }
+    function loadAircraftCache() { try { const s = localStorage.getItem('viptrack_aircraft'); if (s) { const d = JSON.parse(s); if (Date.now() - d.ts < CONFIG.cacheExpiry) { aircraftCache = d.ac; return true; } } } catch(e){} return false; }
+    function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
+    function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to mil-vip subset
         if (!['mil-vip','military','government','vip'].includes(settings.filter)) settings.filter = 'mil-vip'; }
-    function loadBookmarks() { try { const s = localStorage.getItem('skytrack_bookmarks'); if (s) bookmarks = JSON.parse(s); } catch(e) { bookmarks = []; } renderBookmarks(); }
-    function saveBookmarks() { localStorage.setItem('skytrack_bookmarks', JSON.stringify(bookmarks)); renderBookmarks(); }
+    function loadBookmarks() { try { const s = localStorage.getItem('viptrack_bookmarks'); if (s) bookmarks = JSON.parse(s); } catch(e) { bookmarks = []; } renderBookmarks(); }
+    function saveBookmarks() { localStorage.setItem('viptrack_bookmarks', JSON.stringify(bookmarks)); renderBookmarks(); }
     function addBookmark(name) { const c = map.getCenter(); bookmarks.push({ id: Date.now(), name, lat: c.lat, lng: c.lng, zoom: map.getZoom() }); saveBookmarks(); toast('Saved: ' + name); }
     function deleteBookmark(id) { bookmarks = bookmarks.filter(b => b.id !== id); saveBookmarks(); }
     function goToBookmark(id) { const b = bookmarks.find(x => x.id === id); if (b) { map.setView([b.lat, b.lng], b.zoom); toast('Jumped to ' + b.name); } }
     function renderBookmarks() { const list = document.getElementById('bookmarksList'); if (!bookmarks.length) { list.innerHTML = '<div class="bookmarks-empty">No saved locations</div>'; return; } list.innerHTML = bookmarks.map(b => '<div class="bookmark-item" data-id="' + b.id + '"><span class="bookmark-name">' + b.name + '</span><button class="bookmark-delete" data-id="' + b.id + '">&times;</button></div>').join(''); list.querySelectorAll('.bookmark-item').forEach(item => item.addEventListener('click', e => { if (!e.target.classList.contains('bookmark-delete')) goToBookmark(parseInt(item.dataset.id)); })); list.querySelectorAll('.bookmark-delete').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); deleteBookmark(parseInt(btn.dataset.id)); })); }
-    function loadApiCredentials() { try { const s = localStorage.getItem('skytrack_api_credentials'); apiCredentials = s ? JSON.parse(s) : { ...CONFIG.defaultCredentials }; } catch(e) { apiCredentials = { ...CONFIG.defaultCredentials }; } updateApiUI(); }
-    function saveApiCredentials() { const cid = document.getElementById('apiClientId').value.trim(), cs = document.getElementById('apiClientSecret').value.trim(); if (!cid || !cs) { toast('Enter both fields'); return; } apiCredentials = { clientId: cid, clientSecret: cs }; localStorage.setItem('skytrack_api_credentials', JSON.stringify(apiCredentials)); updateApiUI(); toast('Saved'); }
-    function clearApiCredentials() { apiCredentials = { ...CONFIG.defaultCredentials }; localStorage.removeItem('skytrack_api_credentials'); updateApiUI(); toast('Reset'); }
+    function loadApiCredentials() { try { const s = localStorage.getItem('viptrack_api_credentials'); apiCredentials = s ? JSON.parse(s) : { ...CONFIG.defaultCredentials }; } catch(e) { apiCredentials = { ...CONFIG.defaultCredentials }; } updateApiUI(); }
+    function saveApiCredentials() { const cid = document.getElementById('apiClientId').value.trim(), cs = document.getElementById('apiClientSecret').value.trim(); if (!cid || !cs) { toast('Enter both fields'); return; } apiCredentials = { clientId: cid, clientSecret: cs }; localStorage.setItem('viptrack_api_credentials', JSON.stringify(apiCredentials)); updateApiUI(); toast('Saved'); }
+    function clearApiCredentials() { apiCredentials = { ...CONFIG.defaultCredentials }; localStorage.removeItem('viptrack_api_credentials'); updateApiUI(); toast('Reset'); }
     function updateApiUI() { document.getElementById('apiClientId').value = apiCredentials.clientId || ''; document.getElementById('apiClientSecret').value = apiCredentials.clientSecret || ''; const s = document.getElementById('apiStatus'); s.textContent = apiCredentials.clientId === CONFIG.defaultCredentials.clientId ? 'Using defaults' : 'Custom set'; s.className = 'api-status connected'; }
     async function getWikipediaSummary(url) { if (!settings.showWiki || !url) return null; try { const m = url.match(/wikipedia\.org\/wiki\/(.+)$/); if (!m) return null; const r = await fetchWithTimeout('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(decodeURIComponent(m[1])), {}, 5000); if (!r?.ok) return null; const d = await r.json(); return { title: d.title, extract: d.extract, thumbnail: d.thumbnail?.source, url }; } catch(e) { return null; } }
     function setLoadingProgress(pct, status) { document.getElementById('loadingProgress').style.width = pct + '%'; document.getElementById('loadingStatus').textContent = status; }
@@ -6607,32 +6607,35 @@ if ('serviceWorker' in navigator) {
         if(Date.now()-lastFetchTime<2000)return;
         if(!offlineManager.isOnline){offlineManager.showCachedPositions();return;}
         gridFetch.inProgress=true;fetchInProgress=true;
-        const allSrc=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
-        if(!allSrc.length){_el('dataSource').textContent='No sources';gridFetch.inProgress=false;fetchInProgress=false;lastFetchTime=Date.now();return;}
-        let success=false;
-        // Try each source until one succeeds - fetch mil + pia in parallel
-        const _fetch = (url, cors) => cors ? fetchWithTimeout(url, {cache:'no-cache'}) : fetchWithProxy(url);
-        for(const src of allSrc){
-            try{
-                const [milResp,piaResp]=await Promise.all([
-                    _fetch(src.milUrl, src.cors),
-                    _fetch(src.piaUrl, src.cors)
-                ]);
-                let allAc=[];
-                if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(ac)allAc.push(...ac);}
-                if(piaResp?.ok){const d=await piaResp.json();const ac=src.parseResponse(d);if(ac)allAc.push(...ac);}
-                if(allAc.length){
-                    processAircraftData(allAc);
-                    const n=Object.keys(markers).length;
-                    _el('dataSource').textContent=src.name+' - '+n+' aircraft';
-                    lastSuccessfulSource=src.key;success=true;
-                    connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src);offlineManager.cachePositions();
-                    break;
-                }
-            }catch(e){dataSourceManager.recordFailure(src);}
+        try{
+            const allSrc=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
+            if(!allSrc.length){_el('dataSource').textContent='No sources';return;}
+            let success=false;
+            // Try each source until one succeeds - fetch mil + pia in parallel
+            const _fetch = (url, cors) => cors ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url);
+            for(const src of allSrc){
+                try{
+                    const [milResp,piaResp]=await Promise.all([
+                        _fetch(src.milUrl, src.cors),
+                        _fetch(src.piaUrl, src.cors)
+                    ]);
+                    let allAc=[];
+                    try{ if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
+                    try{ if(piaResp?.ok){const d=await piaResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
+                    if(allAc.length){
+                        processAircraftData(allAc);
+                        const n=Object.keys(markers).length;
+                        _el('dataSource').textContent=src.name+' - '+n+' aircraft';
+                        lastSuccessfulSource=src.key;success=true;
+                        connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src);offlineManager.cachePositions();
+                        break;
+                    }
+                }catch(e){dataSourceManager.recordFailure(src);}
+            }
+            if(!success){_el('dataSource').textContent='No sources';connectionMonitor.recordFailure();}
+        }finally{
+            lastFetchTime=Date.now();gridFetch.inProgress=false;fetchInProgress=false;
         }
-        if(!success){_el('dataSource').textContent='No sources';connectionMonitor.recordFailure();}
-        lastFetchTime=Date.now();gridFetch.inProgress=false;fetchInProgress=false;
     }
 
     // Enrich aircraft from static CSV databases (only runs once per aircraft)
@@ -6820,8 +6823,10 @@ if ('serviceWorker' in navigator) {
     function _updateMarkersCore() {
         if (!map) return;
         const bounds = map.getBounds();
+        const paddedBounds = bounds.pad(0.2);
         const zoom = map.getZoom();
-        
+        const _removeMarker = hex => { if (markers[hex]) { map.removeLayer(markers[hex]); delete markers[hex]; delete aircraftAnimation[hex]; } };
+
         // Grid-based decimation at low zoom to prevent rendering thousands of markers
         let decimationGrid = null;
         if (zoom < 7) {
@@ -6829,48 +6834,36 @@ if ('serviceWorker' in navigator) {
             const cellSize = zoom < 4 ? 2.0 : zoom < 5 ? 1.0 : zoom < 6 ? 0.5 : 0.25;
             Object.values(aircraftCache).forEach(ac => {
                 if (ac.lat === undefined || ac.lon === undefined) return;
-                // Always show selected, VIP, military, interesting
                 if (ac.hex === selectedHex || ac.isVIP || ac.interesting || ac.militaryInfo || ac.piaInfo) return;
                 const key = Math.floor(ac.lat / cellSize) + ',' + Math.floor(ac.lon / cellSize);
                 if (!decimationGrid[key]) decimationGrid[key] = ac.hex;
                 else {
-                    // Keep the one with higher altitude (more visible/interesting)
                     const existing = aircraftCache[decimationGrid[key]];
-                    if (existing && (ac.alt_baro || 0) > (existing.alt_baro || 0)) {
-                        decimationGrid[key] = ac.hex;
-                    }
+                    if (existing && (ac.alt_baro || 0) > (existing.alt_baro || 0)) decimationGrid[key] = ac.hex;
                 }
             });
-            // Build set of hexes that won the grid cell
-            const winners = new Set(Object.values(decimationGrid));
-            // Decorate: mark losers
-            decimationGrid._winners = winners;
+            decimationGrid._winners = new Set(Object.values(decimationGrid));
         }
-        
+
         Object.values(aircraftCache).forEach(ac => {
             if (ac.lat === undefined || ac.lon === undefined) return;
-            // Check search filters first
-            if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) {
-                if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; }
-                return;
-            }
+            // Bounds check first (cheapest filter, eliminates most aircraft)
+            if (!paddedBounds.contains([ac.lat, ac.lon])) { _removeMarker(ac.hex); return; }
+            // Search filters
+            if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) { _removeMarker(ac.hex); return; }
             // VIPTrack: cache only contains mil/vip, so mil-vip shows all cached aircraft
             if (settings.filter !== 'mil-vip') {
                 if (settings.filter === 'vip') {
-                    if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                    if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
-                    if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                    if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'government') {
-                    if (ac.category_type !== 'government') { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
+                    if (ac.category_type !== 'government') { _removeMarker(ac.hex); return; }
                 }
             }
-            if (!bounds.pad(0.2).contains([ac.lat, ac.lon])) { if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; } return; }
             // Decimation: skip non-priority aircraft that lost their grid cell
             if (decimationGrid && ac.hex !== selectedHex && !ac.isVIP && !ac.interesting && !ac.militaryInfo && !ac.piaInfo) {
-                if (!decimationGrid._winners.has(ac.hex)) {
-                    if (markers[ac.hex]) { map.removeLayer(markers[ac.hex]); delete markers[ac.hex]; delete aircraftAnimation[ac.hex]; }
-                    return;
-                }
+                if (!decimationGrid._winners.has(ac.hex)) { _removeMarker(ac.hex); return; }
             }
             if (markers[ac.hex]) updateMarker(ac); else createMarker(ac);
         });
@@ -7882,7 +7875,7 @@ if ('serviceWorker' in navigator) {
         
         init() {
             // Load history from storage
-            this.history = JSON.parse(localStorage.getItem('skytrack_search_history') || '[]');
+            this.history = JSON.parse(localStorage.getItem('viptrack_search_history') || '[]');
             
             const input = document.getElementById('searchInput');
             const container = document.getElementById('searchContainer');
@@ -8368,7 +8361,7 @@ if ('serviceWorker' in navigator) {
             this.history = this.history.slice(0, this.maxHistory);
             
             // Save
-            localStorage.setItem('skytrack_search_history', JSON.stringify(this.history));
+            localStorage.setItem('viptrack_search_history', JSON.stringify(this.history));
             
             this.renderHistory();
         },
@@ -8407,13 +8400,13 @@ if ('serviceWorker' in navigator) {
         
         removeFromHistory(index) {
             this.history.splice(index, 1);
-            localStorage.setItem('skytrack_search_history', JSON.stringify(this.history));
+            localStorage.setItem('viptrack_search_history', JSON.stringify(this.history));
             this.renderHistory();
         },
         
         clearHistory() {
             this.history = [];
-            localStorage.removeItem('skytrack_search_history');
+            localStorage.removeItem('viptrack_search_history');
             this.renderHistory();
             toast('History cleared');
         },
@@ -8615,7 +8608,7 @@ if ('serviceWorker' in navigator) {
 <kml xmlns="http://www.opengis.net/kml/2.2">
     <Document>
         <name>${name} - ${timestamp}</name>
-        <description>Flight track exported from SkyTrack</description>
+        <description>Flight track exported from VIPTrack</description>
         <Style id="flightPath">
             <LineStyle>
                 <color>ff00ffff</color>
@@ -8673,13 +8666,13 @@ ${trailData.map(p => `                    ${p.lon},${p.lat},${(p.alt || 0) * 0.3
             const timestamp = new Date().toISOString().split('T')[0];
             
             const gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="SkyTrack"
+<gpx version="1.1" creator="VIPTrack"
     xmlns="http://www.topografix.com/GPX/1/1"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
     <metadata>
         <name>${name}</name>
-        <desc>Flight track exported from SkyTrack</desc>
+        <desc>Flight track exported from VIPTrack</desc>
         <time>${new Date().toISOString()}</time>
     </metadata>
     <trk>
@@ -8846,7 +8839,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
             const link = this.generateLink(hex);
             if (!link) { toast('No aircraft selected'); return; }
             const ac = aircraftCache[hex];
-            const title = 'Track ' + (ac.flight?.trim() || ac.r || hex) + ' on SkyTrack';
+            const title = 'Track ' + (ac.flight?.trim() || ac.r || hex) + ' on VIPTrack';
             if (navigator.share) {
                 try { await navigator.share({ title, text: 'Follow this flight: ' + (ac.flight?.trim() || hex), url: link }); return; }
                 catch (e) { if (e.name !== 'AbortError') console.warn('Share failed:', e); }
@@ -8857,7 +8850,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         async shareFilter(filter) {
             const link = this.generateFilterLink(filter);
             const labels = { military: 'Military', vip: 'VIP', government: 'Government', police: 'Police', interesting: 'Flagged', pia: 'PIA', helicopter: 'Helicopter', cargo: 'Cargo', commercial: 'Commercial', private: 'Private' };
-            const title = (labels[filter] || filter) + ' Aircraft on SkyTrack';
+            const title = (labels[filter] || filter) + ' Aircraft on VIPTrack';
             if (navigator.share) {
                 try { await navigator.share({ title, text: 'View ' + (labels[filter] || filter) + ' aircraft live', url: link }); return; }
                 catch (e) { if (e.name !== 'AbortError') console.warn('Share failed:', e); }
@@ -9437,7 +9430,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         },
         
         load() {
-            const saved = JSON.parse(localStorage.getItem('skytrack_theme') || '{}');
+            const saved = JSON.parse(localStorage.getItem('viptrack_theme') || '{}');
             const theme = { ...this.defaults, ...saved };
             this.apply(theme);
             const accentPicker = document.getElementById('accentColorPicker');
@@ -9447,7 +9440,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         },
         
         save(theme) {
-            localStorage.setItem('skytrack_theme', JSON.stringify(theme));
+            localStorage.setItem('viptrack_theme', JSON.stringify(theme));
         },
         
         apply(theme) {
@@ -10099,7 +10092,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
             let mn=[Infinity,Infinity,Infinity],mx=[-Infinity,-Infinity,-Infinity];
             for(let i=0;i<verts.length;i+=3)for(let j=0;j<3;j++){mn[j]=Math.min(mn[j],verts[i+j]);mx[j]=Math.max(mx[j],verts[i+j]);}
             const gj=JSON.stringify({
-                asset:{version:"2.0",generator:"SkyTrack"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],
+                asset:{version:"2.0",generator:"VIPTrack"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],
                 meshes:[{primitives:[{attributes:{POSITION:0},indices:1,material:0}]}],
                 materials:[{pbrMetallicRoughness:{baseColorFactor:[0.88,0.90,0.93,1],metallicFactor:0.65,roughnessFactor:0.28},doubleSided:true,emissiveFactor:[0.1,0.1,0.14]}],
                 accessors:[{bufferView:0,componentType:5126,count:nV,type:"VEC3",max:mx,min:mn},{bufferView:1,componentType:5123,count:nI,type:"SCALAR"}],
@@ -10363,7 +10356,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         currentPreset: 'default',
         
         init() {
-            const saved = localStorage.getItem('skytrack_layout');
+            const saved = localStorage.getItem('viptrack_layout');
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
@@ -10384,7 +10377,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         },
         
         save() {
-            localStorage.setItem('skytrack_layout', JSON.stringify({
+            localStorage.setItem('viptrack_layout', JSON.stringify({
                 panels: this.panels,
                 preset: this.currentPreset
             }));
@@ -10495,7 +10488,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         autoMode: false,
         
         init() {
-            const saved = localStorage.getItem('skytrack_theme_v2');
+            const saved = localStorage.getItem('viptrack_theme_v2');
             if (saved) {
                 try {
                     const data = JSON.parse(saved);
@@ -10604,7 +10597,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         },
         
         save() {
-            localStorage.setItem('skytrack_theme_v2', JSON.stringify({
+            localStorage.setItem('viptrack_theme_v2', JSON.stringify({
                 theme: this.currentTheme,
                 custom: this.customColors,
                 autoMode: this.autoMode
@@ -10663,7 +10656,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         ],
         
         init() {
-            const saved = localStorage.getItem('skytrack_trail_options');
+            const saved = localStorage.getItem('viptrack_trail_options');
             if (saved) {
                 try {
                     this.options = { ...this.options, ...JSON.parse(saved) };
@@ -10692,7 +10685,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         },
         
         save() {
-            localStorage.setItem('skytrack_trail_options', JSON.stringify(this.options));
+            localStorage.setItem('viptrack_trail_options', JSON.stringify(this.options));
         },
         
         createGradientTrail(points, aircraft) {
@@ -10834,7 +10827,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         currentFilter: 'all',
         
         init() {
-            const saved = localStorage.getItem('skytrack_notifications');
+            const saved = localStorage.getItem('viptrack_notifications');
             if (saved) {
                 try {
                     this.notifications = JSON.parse(saved);
@@ -11006,7 +10999,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         },
         
         save() {
-            localStorage.setItem('skytrack_notifications', JSON.stringify(this.notifications));
+            localStorage.setItem('viptrack_notifications', JSON.stringify(this.notifications));
         }
     };
 
@@ -12137,7 +12130,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
         
         init() {
             // Load saved zones
-            const saved = localStorage.getItem('skytrack_geofences');
+            const saved = localStorage.getItem('viptrack_geofences');
             if (saved) {
                 try {
                     this.zones = JSON.parse(saved);
@@ -12470,7 +12463,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
                 alertOnExit: z.alertOnExit,
                 color: z.color
             }));
-            localStorage.setItem('skytrack_geofences', JSON.stringify(data));
+            localStorage.setItem('viptrack_geofences', JSON.stringify(data));
         }
     };
 
@@ -12612,7 +12605,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
             
             ctx.fillStyle = '#ffd700';
             ctx.font = `bold ${16 * scale}px -apple-system, sans-serif`;
-            ctx.fillText('SkyTrack', boxX + 10 * scale, boxY + 25 * scale);
+            ctx.fillText('VIPTrack', boxX + 10 * scale, boxY + 25 * scale);
             
             ctx.fillStyle = '#ffffff';
             ctx.font = `${12 * scale}px -apple-system, sans-serif`;
@@ -12652,13 +12645,13 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
                 ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg') || '#1a1a2e';
                 ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
                 
-                // Draw SkyTrack header
+                // Draw VIPTrack header
                 ctx.fillStyle = 'rgba(0,0,0,0.8)';
                 ctx.fillRect(10, 10, 280, 100);
                 
                 ctx.fillStyle = '#ffd700';
                 ctx.font = 'bold 20px -apple-system, sans-serif';
-                ctx.fillText('SkyTrack', 20, 40);
+                ctx.fillText('VIPTrack', 20, 40);
                 
                 ctx.fillStyle = '#fff';
                 ctx.font = '14px -apple-system, sans-serif';
@@ -12720,7 +12713,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
                 
                 ctx.fillStyle = '#ffd700';
                 ctx.font = 'bold 16px -apple-system, sans-serif';
-                ctx.fillText('SkyTrack', 20, 35);
+                ctx.fillText('VIPTrack', 20, 35);
                 
                 ctx.fillStyle = '#fff';
                 ctx.font = '12px -apple-system, sans-serif';
@@ -12758,7 +12751,7 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
             // Title
             ctx.fillStyle = '#ffd700';
             ctx.font = 'bold 32px -apple-system, sans-serif';
-            ctx.fillText('SkyTrack Flight Tracker', 40, 60);
+            ctx.fillText('VIPTrack Flight Tracker', 40, 60);
             
             // Stats
             ctx.fillStyle = '#fff';
@@ -13004,7 +12997,7 @@ To create a timelapse video:
                 this.initMobileUI();
             }
             
-            _dbg('[SkyTrack] Mobile support initialized:', {
+            _dbg('[VIPTrack] Mobile support initialized:', {
                 mobile: this.isMobile,
                 tablet: this.isTablet,
                 touch: this.isTouchDevice,
@@ -13781,7 +13774,7 @@ To create a timelapse video:
         
         // Show install prompt after 30 seconds if not dismissed
         setTimeout(() => {
-            if (deferredPrompt && !localStorage.getItem('skytrack_install_dismissed')) {
+            if (deferredPrompt && !localStorage.getItem('viptrack_install_dismissed')) {
                 document.getElementById('installPrompt').classList.add('show');
             }
         }, 30000);
@@ -13794,7 +13787,7 @@ To create a timelapse video:
         const { outcome } = await deferredPrompt.userChoice;
         
         if (outcome === 'accepted') {
-            toast('SkyTrack installed!');
+            toast('VIPTrack installed!');
         }
         
         deferredPrompt = null;
@@ -13803,13 +13796,13 @@ To create a timelapse video:
 
     document.getElementById('installDismiss')?.addEventListener('click', () => {
         document.getElementById('installPrompt').classList.remove('show');
-        localStorage.setItem('skytrack_install_dismissed', 'true');
+        localStorage.setItem('viptrack_install_dismissed', 'true');
     });
 
     window.addEventListener('appinstalled', () => {
         deferredPrompt = null;
         document.getElementById('installPrompt').classList.remove('show');
-        toast('SkyTrack installed successfully!');
+        toast('VIPTrack installed successfully!');
     });
 
     // ============ UI OVERHAUL: INITIALIZATION ============
@@ -13952,13 +13945,13 @@ To create a timelapse video:
         }
         
         // --- Onboarding ---
-        if (!localStorage.getItem('skytrack_onboarded')) {
+        if (!localStorage.getItem('viptrack_onboarded')) {
             const overlay = document.getElementById('onboardOverlay');
             if (overlay) {
                 setTimeout(() => overlay.classList.add('show'), 1500);
                 document.getElementById('onboardDismiss')?.addEventListener('click', () => {
                     overlay.classList.remove('show');
-                    localStorage.setItem('skytrack_onboarded', '1');
+                    localStorage.setItem('viptrack_onboarded', '1');
                 });
             }
         }
