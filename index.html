@@ -376,7 +376,7 @@
         .airport-actions { display: flex; gap: 8px; padding: 12px; }
         .airport-action-btn { flex: 1; padding: 8px 12px; background: rgba(128,128,128,0.15); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px; cursor: pointer; }
         .airport-action-btn:hover { background: rgba(128,128,128,0.25); }
-        .settings-panel { position: absolute; top: 60px; right: 10px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; z-index: 1001; display: none; max-height: calc(100vh - 80px); overflow-y: auto; }
+        .settings-panel { position: fixed; top: 60px; right: 10px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; z-index: 1001; display: none; max-height: calc(100vh - 80px); overflow-y: auto; }
         .settings-panel.show { display: block; }
         .settings-title { font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
         .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
@@ -2116,14 +2116,12 @@ if ('serviceWorker' in navigator) {
                     <optgroup label="Dark Themes">
                         <option value="dark">Dark (CartoDB)</option>
                         <option value="dark-nolabels">Dark No Labels</option>
-                        <option value="stadia-dark">Stadia Dark</option>
                         <option value="esri-gray">ESRI Dark Gray</option>
                     </optgroup>
                     <optgroup label="Satellite">
                         <option value="satellite">Satellite (ArcGIS)</option>
                         <option value="google-satellite">Google Satellite</option>
                         <option value="google-hybrid">Google Hybrid</option>
-                        <option value="stadia-satellite">Stadia Satellite</option>
                     </optgroup>
                     <optgroup label="Streets & Roads">
                         <option value="google-streets">Google Streets</option>
@@ -5683,7 +5681,7 @@ if ('serviceWorker' in navigator) {
     let lastFetchTime = 0, fetchInProgress = false, lastSuccessfulSource = null, lastSuccessfulProxy = 0, animationRunning = false;
     const aircraftAnimation = {}, photoCache = {}, photoFailCache = {};
     let bookmarks = [];
-    const settings = { mapStyle: 'google-streets', showLabels: false, showAirports: false, showRadar: true, altitudeColors: true, showWiki: true, showInterestingBadges: false, filter: 'mil-vip', followMode: false, compactMode: false };
+    const settings = { mapStyle: 'esri-gray', showLabels: false, showAirports: false, showRadar: true, altitudeColors: true, showWiki: true, showInterestingBadges: false, filter: 'mil-vip', followMode: false, compactMode: false };
     const baseMaps = {};
     const MILITARY_TYPES = ['F16', 'F15', 'F18', 'F22', 'F35', 'KC35', 'K35R', 'KC10', 'B52', 'A400', 'EUFI', 'RFAL', 'TORD', 'P8', 'U2', 'RC35', 'E6', 'E8', 'EA18', 'EP3', 'T38', 'T45'];
     const MILITARY_TYPES_EXACT = ['C17', 'C130', 'C5', 'C5M', 'B1', 'B1B', 'B2', 'A10', 'A10A', 'E3CF', 'E3TF', 'E3', 'V22', 'C2', 'C12', 'C30J', 'H60', 'C295', 'CN35', 'HAWK', 'MIAG', 'TUCA', 'F117', 'U28A', 'C146', 'C37A', 'C37B', 'C40A', 'C40B', 'P3', 'P8A', 'T6', 'T6A', 'T6B'];
@@ -6472,15 +6470,13 @@ if ('serviceWorker' in navigator) {
         baseMaps['google-terrain'] = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
         baseMaps['osm'] = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
         baseMaps['osm-topo'] = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
-        baseMaps['stadia-dark'] = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', { maxZoom: 20 });
-        baseMaps['stadia-satellite'] = L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.png', { maxZoom: 20 });
         baseMaps['carto-voyager'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
         baseMaps['esri-topo'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
         baseMaps['esri-natgeo'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
         baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
         baseMaps['oam'] = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { maxZoom: 19 });
         baseMaps['opnv'] = L.tileLayer('https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png', { maxZoom: 18 });
-        currentBaseMap = settings.mapStyle || 'google-streets'; baseMaps[currentBaseMap].addTo(map); document.getElementById('mapStyleSelect').value = currentBaseMap;
+        currentBaseMap = settings.mapStyle || 'esri-gray'; baseMaps[currentBaseMap].addTo(map); document.getElementById('mapStyleSelect').value = currentBaseMap;
         airportLayer = L.layerGroup().addTo(map);
         let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); if (settings.showAirports) updateAirportMarkers(); }, 800); saveMapPosition(); });
         map.on('zoomend', () => { if (settings.showAirports) updateAirportMarkers(); });
@@ -7685,7 +7681,7 @@ if ('serviceWorker' in navigator) {
         document.getElementById('filterShareBtn')?.addEventListener('click', () => {
             if (settings.filter && settings.filter !== 'all') shareManager.shareFilter(settings.filter);
         });
-        document.getElementById('dayNightBtn').addEventListener('click', () => { const styles = ['dark', 'dark-nolabels', 'stadia-dark', 'esri-gray', 'satellite', 'google-satellite', 'google-hybrid', 'stadia-satellite', 'google-streets', 'osm', 'carto-voyager', 'oam', 'google-terrain', 'osm-topo', 'esri-topo', 'esri-natgeo', 'opnv']; const next = styles[(styles.indexOf(currentBaseMap) + 1) % styles.length]; changeBasemap(next); });
+        document.getElementById('dayNightBtn').addEventListener('click', () => { const styles = ['dark', 'dark-nolabels', 'esri-gray', 'satellite', 'google-satellite', 'google-hybrid', 'google-streets', 'osm', 'carto-voyager', 'oam', 'google-terrain', 'osm-topo', 'esri-topo', 'esri-natgeo', 'opnv']; const next = styles[(styles.indexOf(currentBaseMap) + 1) % styles.length]; changeBasemap(next); });
         document.getElementById('labelBtn').addEventListener('click', function() { settings.showLabels = !settings.showLabels; this.classList.toggle('active', settings.showLabels); document.getElementById('toggleLabels').classList.toggle('on', settings.showLabels); saveSettings(); updateMarkers(); });
         document.getElementById('airportsBtn').addEventListener('click', function() { settings.showAirports = !settings.showAirports; this.classList.toggle('active', settings.showAirports); document.getElementById('toggleAirports').classList.toggle('on', settings.showAirports); saveSettings(); updateAirportMarkers(); });
         document.getElementById('radarBtn').addEventListener('click', toggleRadar);
@@ -9630,8 +9626,6 @@ ${trailData.map(p => `            <trkpt lat="${p.lat}" lon="${p.lon}">
                 'google-terrain': 'https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
                 'osm': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 'osm-topo': 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-                'stadia-dark': 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',
-                'stadia-satellite': 'https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.png',
                 'carto-voyager': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                 'esri-topo': 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
                 'esri-natgeo': 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
