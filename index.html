@@ -19,7 +19,10 @@
     <meta name="twitter:description" content="Track military and VIP aircraft in real-time. Defaults to showing military, government, and VIP flights.">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png">
     <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
+    <link rel="dns-prefetch" href="https://api.adsb.lol">
     <link rel="dns-prefetch" href="https://api.airplanes.live">
+    <link rel="dns-prefetch" href="https://api.allorigins.win">
+    <link rel="dns-prefetch" href="https://corsproxy.org">
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -441,7 +444,8 @@
         .session-stats { background: var(--bg-darker); border-radius: 8px; padding: 10px; }
         .session-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
         .session-row span:first-child { color: var(--text-muted); }
-        .bottom-panels { position: fixed; bottom: 10px; right: 10px; z-index: 500; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+        .bottom-panels { position: fixed; bottom: 10px; right: 10px; z-index: 500; display: none; flex-direction: column; gap: 8px; align-items: flex-end; }
+        .bottom-panels.visible { display: flex; }
         .legend { position: fixed; right: 15px; top: 50%; transform: translateY(-50%); z-index: 500; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 10px; }
         .legend-title { font-weight: 600; margin-bottom: 6px; color: var(--text-dim); }
         .legend-items { display: flex; flex-direction: column; gap: 3px; }
@@ -1694,6 +1698,7 @@ if ('serviceWorker' in navigator) {
                 <div class="hv2-item" data-btn="geofenceBtn"><div class="hv2-item-icon"><button class="header-btn" id="geofenceBtn" title="Geofence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="hv2-item-label">Geofencing</div></div>
                 <div class="hv2-item" data-btn="captureBtn"><div class="hv2-item-icon"><button class="header-btn" id="captureBtn" title="Screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M5 7h.01"/></svg></button></div><div class="hv2-item-label">Screenshot</div></div>
                 <div class="hv2-item" data-btn="statsBtn"><div class="hv2-item-icon"><button class="header-btn" id="statsBtn" title="Stats" aria-label="Statistics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></button></div><div class="hv2-item-label">Statistics</div></div>
+                <div class="hv2-item" data-btn="panelsBtn"><div class="hv2-item-icon"><button class="header-btn" id="panelsBtn" title="Saved & Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button></div><div class="hv2-item-label">Saved & Watchlist</div></div>
             </div>
         </div>
         
@@ -2488,7 +2493,8 @@ if ('serviceWorker' in navigator) {
         defaultCredentials: { clientId: 'mparker-api-client', clientSecret: 'aPEAJUp6WgZuN7UZxX83BionDNsozUTF' },
         corsProxies: [
             url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-            url => 'https://corsproxy.org/?' + encodeURIComponent(url)
+            url => 'https://corsproxy.org/?' + encodeURIComponent(url),
+            url => 'https://proxy.cors.sh/' + url
         ],
         // Self-hosted asset URLs
         silhouetteUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
@@ -2895,13 +2901,9 @@ if ('serviceWorker' in navigator) {
         
         async checkConnection() {
             try {
-                const response = await fetch('https://api.airplanes.live/v2/point/0/0/1', {
-                    method: 'HEAD',
-                    cache: 'no-cache',
-                    signal: AbortSignal.timeout(5000)
-                });
-                
-                if (response.ok && !this.isOnline) {
+                const response = await fetchWithProxy('https://api.adsb.lol/v2/point/0/0/1');
+
+                if (response?.ok && !this.isOnline) {
                     this.handleOnline();
                 }
             } catch (e) {
@@ -3049,9 +3051,9 @@ if ('serviceWorker' in navigator) {
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
-            { key: 'airplaneslive', name: 'Airplanes.live', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: true },
-            { key: 'adsbone', name: 'ADSB One', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: true },
-            { key: 'adsblol', name: 'ADSB.lol', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false }
+            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false },
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false },
+            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false }
         ],
         
         currentSource: null,
@@ -3084,8 +3086,7 @@ if ('serviceWorker' in navigator) {
                 const testUrl = source.buildUrl({ lat: 40, lng: -74 }, 10);
                 
                 let response;
-                if (source.cors === false) { response = await fetchWithProxy(testUrl); if (!response) throw new Error('No proxy'); }
-                else { response = await fetch(testUrl, { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(8000) }); }
+                response = await fetchWithProxy(testUrl); if (!response) throw new Error('No proxy');
                 
                 source.latency = Date.now() - startTime;
                 
@@ -5663,11 +5664,11 @@ if ('serviceWorker' in navigator) {
 
     // ============ DATA SOURCES ============
     const DATA_SOURCES = {
+        adsblol: { name: 'ADSB.lol', buildUrl: (b, c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null },
         airplaneslive: { name: 'Airplanes.live', buildUrl: (b, c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null },
-        adsbone: { name: 'ADSB One', buildUrl: (b, c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null },
-        adsblol: { name: 'ADSB.lol', buildUrl: (b, c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null }
+        adsbone: { name: 'ADSB One', buildUrl: (b, c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, parseResponse: d => d?.ac?.length ? d.ac : null }
     };
-    const SOURCE_ORDER = ['airplaneslive', 'adsbone', 'adsblol'];
+    const SOURCE_ORDER = ['adsblol', 'airplaneslive', 'adsbone'];
 
     // ============ STATE ============
     let apiCredentials = { clientId: '', clientSecret: '' };
@@ -6595,57 +6596,38 @@ if ('serviceWorker' in navigator) {
     }
 
     // ============ AIRCRAFT DATA ============
-    const gridFetch = {
-        inProgress: false, abortController: null,
-        generateGrid(bounds) {
-            const center = bounds.getCenter();
-            const n = bounds.getNorth(), s = bounds.getSouth(), e = bounds.getEast(), w = bounds.getWest();
-            const latSpan = n - s, lonSpan = (e >= w) ? (e - w) : (360 - w + e);
-            const spacingLat = 350/60, midLat = (n+s)/2;
-            const spacingLon = 350 / (60 * Math.max(Math.cos(midLat * Math.PI/180), 0.1));
-            if (latSpan < spacingLat && lonSpan < spacingLon) return [{lat:center.lat,lng:center.lng}];
-            const pts=[], rows=Math.ceil(latSpan/spacingLat), cols=Math.ceil(lonSpan/spacingLon);
-            const tot=(rows+1)*(cols+1), skip=tot>32?Math.ceil(tot/32):1;
-            for(let r=0;r<=rows;r++){const lat=s+r*spacingLat;if(lat<-85||lat>85)continue;
-                for(let cc=0;cc<=cols;cc++){if(skip>1&&((r*(cols+1)+cc)%skip)!==0)continue;
-                    let lon=w+cc*spacingLon;if(lon>180)lon-=360;pts.push({lat,lng:lon});}}
-            pts.sort((a,b)=>(Math.abs(a.lat-center.lat)+Math.abs(a.lng-center.lng))-(Math.abs(b.lat-center.lat)+Math.abs(b.lng-center.lng)));
-            return pts;
-        },
-        async fetchPoint(source, point, signal) {
-            const url=source.buildUrl(point,250);
-            try{let r;if(source.cors===false){r=await fetchWithProxy(url);}else{r=await fetch(url,{signal,cache:'no-cache'});}
-                if(r?.ok){const d=await r.json();return source.parseResponse(d)||[];}}catch(e){if(e.name==='AbortError')throw e;}return[];
-        }
-    };
+    // VIPTrack: Use dedicated /mil and /pia endpoints for global military data in a single request
+    const gridFetch = { inProgress: false, abortController: null };
     async function loadAircraft() {
-        if(!map)return; // Guard: map not yet initialized
-        if(gridFetch.inProgress){if(gridFetch.abortController)gridFetch.abortController.abort();return;}
+        if(!map)return;
+        if(gridFetch.inProgress)return;
         if(Date.now()-lastFetchTime<2000)return;
         if(!offlineManager.isOnline){offlineManager.showCachedPositions();return;}
-        gridFetch.abortController=new AbortController();const signal=gridFetch.abortController.signal;
         gridFetch.inProgress=true;fetchInProgress=true;
-        const grid=gridFetch.generateGrid(map.getBounds()),single=grid.length===1;
-        const corsSrc=dataSourceManager.sources.filter(s=>s.cors!==false&&s.status!=='unhealthy');
-        const allSrc=[...corsSrc,...dataSourceManager.sources.filter(s=>s.cors===false&&s.status!=='unhealthy')];
+        const allSrc=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
         if(!allSrc.length){_el('dataSource').textContent='No sources';gridFetch.inProgress=false;fetchInProgress=false;lastFetchTime=Date.now();return;}
-        let success=false;const names=new Set();
-        try{
-            if(single){for(const src of allSrc){try{const ac=await gridFetch.fetchPoint(src,grid[0],signal);
-                if(ac.length){processAircraftData(ac);const n=Object.keys(markers).length;
-                    _el('dataSource').textContent=src.name+' - '+n+' aircraft';lastSuccessfulSource=src.key;success=true;
-                    connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src);offlineManager.cachePositions();break;}}catch(e){if(e.name==='AbortError')break;dataSourceManager.recordFailure(src);}}}
-            else{const nc=corsSrc.length||1;
-                await Promise.all(grid.map((pt,i)=>{const src=corsSrc[i%nc]||allSrc[0];const delay=Math.floor(i/nc)*1050;
-                    return new Promise(async resolve=>{if(delay>0)await new Promise(r=>setTimeout(r,delay));if(signal.aborted){resolve([]);return;}
-                        try{const ac=await gridFetch.fetchPoint(src,pt,signal);names.add(src.name);
-                            if(ac.length){processAircraftData(ac);success=true;dataSourceManager.recordSuccess(src);}
-                            const n=Object.keys(markers).length;
-                            _el('dataSource').textContent=[...names].join(' + ')+' - '+n+' aircraft';resolve(ac);
-                        }catch(e){if(e.name!=='AbortError')dataSourceManager.recordFailure(src);resolve([]);}});}));
-                if(success){connectionMonitor.recordSuccess();offlineManager.cachePositions();}}
-            if(!success){_el('dataSource').textContent='No sources';connectionMonitor.recordFailure();}
-        }catch(e){if(e.name!=='AbortError')connectionMonitor.recordFailure();}
+        let success=false;
+        // Try each source until one succeeds - fetch mil + pia in parallel
+        for(const src of allSrc){
+            try{
+                const [milResp,piaResp]=await Promise.all([
+                    fetchWithProxy(src.milUrl),
+                    fetchWithProxy(src.piaUrl)
+                ]);
+                let allAc=[];
+                if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(ac)allAc.push(...ac);}
+                if(piaResp?.ok){const d=await piaResp.json();const ac=src.parseResponse(d);if(ac)allAc.push(...ac);}
+                if(allAc.length){
+                    processAircraftData(allAc);
+                    const n=Object.keys(markers).length;
+                    _el('dataSource').textContent=src.name+' - '+n+' aircraft';
+                    lastSuccessfulSource=src.key;success=true;
+                    connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src);offlineManager.cachePositions();
+                    break;
+                }
+            }catch(e){dataSourceManager.recordFailure(src);}
+        }
+        if(!success){_el('dataSource').textContent='No sources';connectionMonitor.recordFailure();}
         lastFetchTime=Date.now();gridFetch.inProgress=false;fetchInProgress=false;
     }
 
@@ -7747,6 +7729,7 @@ if ('serviceWorker' in navigator) {
         document.getElementById('bookmarkSaveBtn').addEventListener('click', () => { const name = document.getElementById('bookmarkNameInput').value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } else toast('Enter name'); });
         document.getElementById('bookmarkNameInput').addEventListener('keypress', e => { if (e.key === 'Enter') { const name = e.target.value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } } });
         document.getElementById('bookmarkModal').addEventListener('click', e => { if (e.target.id === 'bookmarkModal') document.getElementById('bookmarkModal').classList.remove('show'); });
+        document.getElementById('panelsBtn')?.addEventListener('click', () => { const bp = document.querySelector('.bottom-panels'); bp.classList.toggle('visible'); const btn = document.getElementById('panelsBtn'); if (bp.classList.contains('visible')) { btn.classList.add('active'); } else { btn.classList.remove('active'); } });
         document.getElementById('btnZoomAirport').addEventListener('click', () => { const p = _el('airportPanel'); if (p._airport) map.setView([p._airport.lat, p._airport.lon], 14); });
         document.getElementById('btnShowDepartures').addEventListener('click', () => { const p = _el('airportPanel'); if (p._airport) { const deps = Object.values(aircraftCache).filter(ac => ac.from === p._airport.icao || ac.from === p._airport.iata); if (deps.length) { toast('Found ' + deps.length + ' departures'); selectAircraft(deps[0].hex); } else toast('No departures found'); } });
         document.getElementById('btnShowArrivals').addEventListener('click', () => { const p = _el('airportPanel'); if (p._airport) { const arrs = Object.values(aircraftCache).filter(ac => ac.to === p._airport.icao || ac.to === p._airport.iata); if (arrs.length) { toast('Found ' + arrs.length + ' arrivals'); selectAircraft(arrs[0].hex); } else toast('No arrivals found'); } });
