@@ -1294,7 +1294,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.10';
+                const CACHE_NAME = 'viptrack-v4.11';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -5712,8 +5712,9 @@ if ('serviceWorker' in navigator) {
         const counts = { milVip: 0, military: 0, vip: 0 };
         Object.values(aircraftCache).forEach(ac => {
             counts.milVip++;
-            if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
-            if (ac.isVIP) counts.vip++;
+            const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
+            if (isVip) counts.vip++;
+            else if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
         });
         _el('countMilVIP').textContent = counts.milVip;
         _el('countMil').textContent = counts.military;
@@ -5753,6 +5754,7 @@ if ('serviceWorker' in navigator) {
                 if (settings.filter === 'vip') {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
+                    if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                     if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { _removeMarker(ac.hex); return; }
                 }
             }
