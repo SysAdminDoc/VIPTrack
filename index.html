@@ -252,7 +252,7 @@
         .info-panel::-webkit-scrollbar-track { background: transparent; }
         .info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
         .info-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-        #infoPanel.show { display: block !important; width: 100% !important; height: 100% !important; position: relative !important; top: auto !important; left: auto !important; max-height: none !important; overflow-y: auto !important; border-radius: 0 !important; border: none !important; background: transparent !important; }
+        #infoPanel.show, #sidebarWrapper #infoPanel.show { display: block !important; width: 100% !important; height: 100% !important; position: relative !important; top: auto !important; left: auto !important; max-height: none !important; overflow-y: auto !important; border-radius: 0 !important; border: none !important; background: transparent !important; }
         .aircraft-photo { width: 100%; height: 120px; background: #111; border-radius: 0; overflow: hidden; }
         .aircraft-photo img { width: 100%; height: 100%; object-fit: cover; }
         .aircraft-photo .no-photo { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 12px; }
@@ -1327,7 +1327,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.4';
+                const CACHE_NAME = 'viptrack-v4.5';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
