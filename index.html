@@ -1294,7 +1294,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.9';
+                const CACHE_NAME = 'viptrack-v4.10';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -5498,7 +5498,7 @@ if ('serviceWorker' in navigator) {
     });
 
     function initMap() {
-        map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true, zoomSnap: 1, zoomDelta: 1 });
+        map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true, zoomSnap: 1, zoomDelta: 1, worldCopyJump: true });
         baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
         currentBaseMap = 'esri-gray'; baseMaps[currentBaseMap].addTo(map);
         let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); }, 800); saveMapPosition(); });
