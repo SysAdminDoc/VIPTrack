@@ -1137,21 +1137,8 @@
 
         /* ============ UI OVERHAUL: MOBILE ============ */
         @media (max-width: 768px) {
-            /* Header: compact overlay at top-right corner */
-            .header {
-                top: 3px !important;
-                right: 4px !important;
-                padding: 3px 4px !important;
-                gap: 2px !important;
-                z-index: 1200 !important;
-                background: var(--bg-panel) !important;
-                -webkit-backdrop-filter: blur(12px);
-                backdrop-filter: blur(12px);
-                border: 1px solid rgba(255,255,255,0.08) !important;
-            }
-            .header .hv2-sep { display: none !important; }
-            .header .hv2-dropdown { display: none !important; }
-            .header .header-btn { width: 32px !important; height: 32px !important; min-height: 32px !important; min-width: 32px !important; }
+            /* Header: hidden on mobile — bottom nav has Settings, FAB has Locate */
+            .header { display: none !important; }
 
             /* Filter bar: full-width top bar */
             .filter-bar {
@@ -1162,19 +1149,23 @@
                 transform: none !important;
                 max-width: none !important;
                 border-radius: 0 !important;
-                padding: 6px 90px 6px 10px !important;
+                padding: 6px 10px !important;
                 gap: 6px !important;
                 flex-wrap: nowrap !important;
                 z-index: 1100 !important;
                 align-items: center !important;
                 border: none !important;
                 border-bottom: 1px solid var(--border) !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
             }
+            .filter-bar::-webkit-scrollbar { display: none; }
             .filter-bar .logo span { display: none; }
             .filter-bar .logo { gap: 0; flex-shrink: 0; }
             .filter-bar .filter-divider { display: none; }
             .filter-bar .connectivity-indicator { margin-left: -2px; margin-right: 2px; }
-            .filter-bar .search-container { flex: 1; min-width: 0; }
+            .filter-bar .search-container { flex: 1; min-width: 80px; }
             .filter-bar .search-container .search-box,
             .filter-bar .search-container .search-box:focus { width: 100% !important; }
             .filter-bar .search-input-wrapper { width: 100%; }
@@ -1336,7 +1327,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'skytrack-v4.3';
+                const CACHE_NAME = 'viptrack-v4.4';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
