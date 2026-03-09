@@ -1328,7 +1328,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.7';
+                const CACHE_NAME = 'viptrack-v4.8';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -6588,10 +6588,6 @@ if ('serviceWorker' in navigator) {
         _pnl.classList.add('show');
         if (_pnl.parentElement !== _sbw) _sbw.appendChild(_pnl);
         _sbw.style.display = 'block';
-        if (window.innerWidth > 768) {
-            document.getElementById('map').style.left = '360px';
-        }
-        if (map) setTimeout(() => map.invalidateSize(), 100);
         updateMarkers();
         shareManager.updateUrl();
     }
@@ -6605,7 +6601,6 @@ if ('serviceWorker' in navigator) {
         // Move panel back to body so DOM queries still work
         if (_pnl.parentElement !== document.body) document.body.appendChild(_pnl);
         document.getElementById('map').style.left = '0';
-        if (map) setTimeout(() => map.invalidateSize(), 100);
         routePredictor.clearAll(); updateMarkers(); shareManager.updateUrl();
     }
 
