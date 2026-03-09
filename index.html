@@ -1201,7 +1201,7 @@
                 border-top: 1px solid rgba(255,255,255,0.15) !important;
                 border-radius: 16px 16px 0 0 !important;
                 box-shadow: 0 -4px 20px rgba(0,0,0,0.4) !important;
-                transition: height 0.25s ease !important;
+                transition: height 0.25s ease, opacity 0.2s ease !important;
             }
 
             /* Settings panel: bottom sheet */
@@ -1328,7 +1328,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.6';
+                const CACHE_NAME = 'viptrack-v4.7';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -7967,13 +7967,23 @@ if ('serviceWorker' in navigator) {
             this.touchStartY = e.touches[0].clientY;
             this.touchStartX = e.touches[0].clientX;
             this._sidebarDrag = false;
-            this._sidebarStartY = this.touchStartY;
+            this._sidebarPending = false;
+            this._sidebarOffset = 0;
+            this._sidebarBaseHeight = 0;
 
-            // Check if touching sidebarWrapper handle (info panel dismiss)
+            // Check if touching inside sidebarWrapper (pull-to-dismiss candidate)
             const sbw = e.target.closest('#sidebarWrapper');
-            if (sbw && e.target.closest('.sheet-handle')) {
-                this._sidebarDrag = true;
-                this._sidebarCumulativeDelta = 0;
+            if (sbw && sbw.style.display !== 'none') {
+                // Handle bar always starts drag immediately
+                if (e.target.closest('.sheet-handle')) {
+                    this._sidebarDrag = true;
+                    this._sidebarOffset = 0;
+                    this._sidebarBaseHeight = sbw.offsetHeight;
+                } else {
+                    // Content area: mark pending, will activate when scrolled to top + swiping down
+                    this._sidebarPending = true;
+                    this._sidebarScrollEl = sbw.querySelector('#infoPanel') || sbw;
+                }
                 return;
             }
 
@@ -7985,25 +7995,48 @@ if ('serviceWorker' in navigator) {
         },
 
         handleTouchMove(e) {
-            // Sidebar drag: track cumulative distance and resize live
+            const currentY = e.touches[0].clientY;
+            const deltaFromStart = currentY - this.touchStartY;
+
+            // Sidebar pending: activate drag when content is scrolled to top and swiping down
+            if (this._sidebarPending && !this._sidebarDrag) {
+                const scrollEl = this._sidebarScrollEl;
+                const atTop = !scrollEl || scrollEl.scrollTop <= 0;
+                if (atTop && deltaFromStart > 5) {
+                    this._sidebarDrag = true;
+                    this._sidebarPending = false;
+                    this._sidebarOffset = 0;
+                    const sbw = _el('sidebarWrapper');
+                    this._sidebarBaseHeight = sbw ? sbw.offsetHeight : window.innerHeight * 0.55;
+                    // Reset start so the drag begins from this point
+                    this.touchStartY = currentY;
+                } else if (deltaFromStart < -5) {
+                    // Scrolling up inside content, not a dismiss gesture
+                    this._sidebarPending = false;
+                }
+            }
+
+            // Active sidebar drag: follow finger
             if (this._sidebarDrag) {
                 e.preventDefault();
-                const deltaY = e.touches[0].clientY - this.touchStartY;
-                this._sidebarCumulativeDelta += deltaY;
-                this.touchStartY = e.touches[0].clientY;
+                this._sidebarOffset = currentY - this.touchStartY;
+                // Clamp: allow pulling down freely, pulling up limited to base height
+                const offset = Math.max(-20, this._sidebarOffset);
                 const sbw = _el('sidebarWrapper');
                 if (sbw) {
-                    const baseHeight = window.innerHeight * 0.55;
-                    const newHeight = Math.max(0, baseHeight - this._sidebarCumulativeDelta);
+                    const newHeight = Math.max(0, this._sidebarBaseHeight - offset);
                     sbw.style.height = newHeight + 'px';
                     sbw.style.transition = 'none';
+                    // Fade out as it shrinks
+                    const ratio = newHeight / this._sidebarBaseHeight;
+                    sbw.style.opacity = Math.max(0.3, ratio);
                 }
                 return;
             }
 
             if (!this.activeSheet) return;
 
-            const deltaY = e.touches[0].clientY - this.touchStartY;
+            const deltaY = currentY - this.touchStartY;
             const sheet = this.activeSheet;
 
             // Prevent default to stop page scroll
@@ -8014,23 +8047,36 @@ if ('serviceWorker' in navigator) {
             const newHeight = Math.max(60, Math.min(window.innerHeight * 0.9, currentHeight - deltaY));
             sheet.style.height = newHeight + 'px';
 
-            this.touchStartY = e.touches[0].clientY;
+            this.touchStartY = currentY;
         },
 
         handleTouchEnd(e) {
-            // Sidebar drag end: dismiss if swiped down enough
+            // Sidebar drag end
             if (this._sidebarDrag) {
                 this._sidebarDrag = false;
+                this._sidebarPending = false;
                 const sbw = _el('sidebarWrapper');
+                const dismissed = this._sidebarOffset > 80;
                 if (sbw) {
                     sbw.style.transition = '';
-                    sbw.style.height = '';
-                }
-                if (this._sidebarCumulativeDelta > 80) {
-                    deselectAircraft();
+                    sbw.style.opacity = '';
+                    if (dismissed) {
+                        // Animate out then deselect
+                        sbw.style.height = '0px';
+                        sbw.style.opacity = '0';
+                        setTimeout(() => {
+                            sbw.style.height = '';
+                            sbw.style.opacity = '';
+                            deselectAircraft();
+                        }, 200);
+                    } else {
+                        // Snap back to original height
+                        sbw.style.height = '';
+                    }
                 }
                 return;
             }
+            this._sidebarPending = false;
 
             if (!this.activeSheet) return;
 
