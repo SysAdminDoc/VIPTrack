@@ -1201,6 +1201,7 @@
                 border-top: 1px solid rgba(255,255,255,0.15) !important;
                 border-radius: 16px 16px 0 0 !important;
                 box-shadow: 0 -4px 20px rgba(0,0,0,0.4) !important;
+                transition: height 0.25s ease !important;
             }
 
             /* Settings panel: bottom sheet */
@@ -1327,7 +1328,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.5';
+                const CACHE_NAME = 'viptrack-v4.6';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -7965,38 +7966,78 @@ if ('serviceWorker' in navigator) {
         handleTouchStart(e) {
             this.touchStartY = e.touches[0].clientY;
             this.touchStartX = e.touches[0].clientX;
-            
+            this._sidebarDrag = false;
+            this._sidebarStartY = this.touchStartY;
+
+            // Check if touching sidebarWrapper handle (info panel dismiss)
+            const sbw = e.target.closest('#sidebarWrapper');
+            if (sbw && e.target.closest('.sheet-handle')) {
+                this._sidebarDrag = true;
+                this._sidebarCumulativeDelta = 0;
+                return;
+            }
+
             // Check if touching a bottom sheet handle
             const sheet = e.target.closest('.bottom-sheet');
             if (sheet && e.target.closest('.sheet-handle')) {
                 this.activeSheet = sheet;
             }
         },
-        
+
         handleTouchMove(e) {
+            // Sidebar drag: track cumulative distance and resize live
+            if (this._sidebarDrag) {
+                e.preventDefault();
+                const deltaY = e.touches[0].clientY - this.touchStartY;
+                this._sidebarCumulativeDelta += deltaY;
+                this.touchStartY = e.touches[0].clientY;
+                const sbw = _el('sidebarWrapper');
+                if (sbw) {
+                    const baseHeight = window.innerHeight * 0.55;
+                    const newHeight = Math.max(0, baseHeight - this._sidebarCumulativeDelta);
+                    sbw.style.height = newHeight + 'px';
+                    sbw.style.transition = 'none';
+                }
+                return;
+            }
+
             if (!this.activeSheet) return;
-            
+
             const deltaY = e.touches[0].clientY - this.touchStartY;
             const sheet = this.activeSheet;
-            
+
             // Prevent default to stop page scroll
             e.preventDefault();
-            
+
             // Move sheet with finger
             const currentHeight = sheet.offsetHeight;
             const newHeight = Math.max(60, Math.min(window.innerHeight * 0.9, currentHeight - deltaY));
             sheet.style.height = newHeight + 'px';
-            
+
             this.touchStartY = e.touches[0].clientY;
         },
-        
+
         handleTouchEnd(e) {
+            // Sidebar drag end: dismiss if swiped down enough
+            if (this._sidebarDrag) {
+                this._sidebarDrag = false;
+                const sbw = _el('sidebarWrapper');
+                if (sbw) {
+                    sbw.style.transition = '';
+                    sbw.style.height = '';
+                }
+                if (this._sidebarCumulativeDelta > 80) {
+                    deselectAircraft();
+                }
+                return;
+            }
+
             if (!this.activeSheet) return;
-            
+
             const sheet = this.activeSheet;
             const height = sheet.offsetHeight;
             const maxHeight = window.innerHeight * 0.9;
-            
+
             // Snap to positions
             if (height < 100) {
                 this.collapseSheet(sheet);
@@ -8005,7 +8046,7 @@ if ('serviceWorker' in navigator) {
             } else {
                 this.halfExpandSheet(sheet);
             }
-            
+
             this.activeSheet = null;
         },
         
