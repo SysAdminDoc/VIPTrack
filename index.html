@@ -594,37 +594,20 @@
         
         /* Mobile Base Styles */
         @media (max-width: 768px) {
-            /* Header adjustments */
+            /* Header adjustments - overridden by UI overhaul mobile section */
             .header {
-                padding: 8px 12px;
-                height: 50px;
+                height: auto;
             }
-            
-            .header-logo {
-                font-size: 16px;
-            }
-            
-            .header-btn {
-                width: 36px;
-                height: 36px;
-            }
-            
-            .search-container .search-box {
-                width: 140px;
-            }
-            
+
+            /* Search box - overridden by UI overhaul mobile section */
+            .search-container .search-box,
             .search-container .search-box:focus {
-                width: 180px;
+                width: 100%;
             }
-            
-            /* Hide non-essential header items on mobile */
-            .header-controls > :not(.search-container):not(#settingsBtn) {
-                display: none;
-            }
-            
-            /* Map takes full screen */
+
+            /* Map positioning - overridden by UI overhaul mobile section */
             #map {
-                top: 50px;
+                top: 46px;
                 bottom: 60px;
                 left: 0;
                 right: 0;
@@ -1104,7 +1087,7 @@
         .header-btn.active { background: rgba(0,210,150,0.12) !important; color: var(--accent) !important; box-shadow: 0 0 12px rgba(0,210,150,0.2), inset 0 0 0 1px rgba(0,210,150,0.25) !important; }
 
         /* ============ UI OVERHAUL: STATUS DOCK ============ */
-        #map { bottom: 32px !important; }
+        #map { bottom: 0 !important; }
         .data-source-indicator { display: none !important; }
         .legend { display: none !important; }
 
@@ -1154,12 +1137,151 @@
 
         /* ============ UI OVERHAUL: MOBILE ============ */
         @media (max-width: 768px) {
+            /* Header: compact overlay at top-right corner */
+            .header {
+                top: 3px !important;
+                right: 4px !important;
+                padding: 3px 4px !important;
+                gap: 2px !important;
+                z-index: 1200 !important;
+                background: var(--bg-panel) !important;
+                -webkit-backdrop-filter: blur(12px);
+                backdrop-filter: blur(12px);
+                border: 1px solid rgba(255,255,255,0.08) !important;
+            }
+            .header .hv2-sep { display: none !important; }
+            .header .hv2-dropdown { display: none !important; }
+            .header .header-btn { width: 32px !important; height: 32px !important; min-height: 32px !important; min-width: 32px !important; }
+
+            /* Filter bar: full-width top bar */
+            .filter-bar {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                transform: none !important;
+                max-width: none !important;
+                border-radius: 0 !important;
+                padding: 6px 90px 6px 10px !important;
+                gap: 6px !important;
+                flex-wrap: nowrap !important;
+                z-index: 1100 !important;
+                align-items: center !important;
+                border: none !important;
+                border-bottom: 1px solid var(--border) !important;
+            }
+            .filter-bar .logo span { display: none; }
+            .filter-bar .logo { gap: 0; flex-shrink: 0; }
+            .filter-bar .filter-divider { display: none; }
+            .filter-bar .connectivity-indicator { margin-left: -2px; margin-right: 2px; }
+            .filter-bar .search-container { flex: 1; min-width: 0; }
+            .filter-bar .search-container .search-box,
+            .filter-bar .search-container .search-box:focus { width: 100% !important; }
+            .filter-bar .search-input-wrapper { width: 100%; }
+            .filter-bar .filter-btn { padding: 4px 8px; font-size: 10px; flex-shrink: 0; }
+
+            /* Search dropdown: full width on mobile */
+            .search-dropdown {
+                position: fixed !important;
+                top: 46px !important;
+                left: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                border-radius: 0 0 12px 12px !important;
+            }
+
+            /* Filter chips bar */
+            .filter-chips-bar { top: 46px; max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }
+            .filter-chips-bar::-webkit-scrollbar { display: none; }
+
+            /* Map: below top bar, above bottom nav */
+            #map { top: 46px !important; bottom: 60px !important; left: 0 !important; }
+
+            /* Sidebar wrapper: bottom sheet on mobile */
+            #sidebarWrapper {
+                top: auto !important;
+                bottom: 60px !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                height: 55vh !important;
+                max-height: calc(100vh - 106px) !important;
+                border-right: none !important;
+                border-top: 1px solid rgba(255,255,255,0.15) !important;
+                border-radius: 16px 16px 0 0 !important;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.4) !important;
+            }
+
+            /* Settings panel: bottom sheet */
+            .settings-panel {
+                position: fixed !important;
+                top: auto !important;
+                bottom: 60px !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                max-height: 70vh !important;
+                border-radius: 16px 16px 0 0 !important;
+                z-index: 1500 !important;
+            }
+
+            /* HUD above bottom nav */
+            .hud-3d { bottom: 72px !important; right: 8px; }
+
+            /* FAB above bottom nav */
+            .mobile-fab { bottom: 76px !important; }
+
+            /* Toast above bottom nav */
+            .toast { bottom: 80px !important; }
+
+            /* Alerts below top bar */
+            .alert-container { top: 54px; right: 8px; left: 8px; max-width: none; }
+
+            /* Install prompt above bottom nav */
+            .install-prompt { bottom: 80px !important; width: calc(100% - 32px); }
+
+            /* Modal */
+            .modal-overlay .modal { width: calc(100% - 32px); max-width: 400px; }
+
+            /* HV2 dropdowns (if visible) */
             .hv2-dropdown-trigger span:not(.hv2-dd-badge) { display: none; }
             .hv2-dropdown-trigger { padding: 5px 7px; }
-            .hv2-panel { min-width: 200px; left: auto; right: -10px; transform: translateY(-8px); }
-            .hv2-panel.show { transform: translateY(0); }
-            .filter-chips-bar { top: 46px; max-width: calc(100vw - 50px); overflow-x: auto; }
-            .hud-3d { bottom: 40px; right: 8px; }
+            .hv2-panel { min-width: 200px; }
+
+            /* Bottom panels: hidden on mobile (use bottom nav instead) */
+            .bottom-panels { display: none !important; }
+
+            /* Onboarding */
+            .onboard-card { width: 92%; max-width: 360px; padding: 24px 20px; }
+
+            /* Loading */
+            .loading-logo { font-size: 22px; }
+            .loading-logo img { width: 36px; height: 36px; }
+
+            /* Playback controls */
+            .playback-controls { bottom: 72px !important; }
+        }
+
+        /* Landscape phone: sidebar as side panel */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #sidebarWrapper {
+                left: auto !important;
+                right: 60px !important;
+                width: 50vw !important;
+                height: calc(100vh - 46px) !important;
+                max-height: none !important;
+                bottom: 0 !important;
+                top: 46px !important;
+                border-radius: 0 !important;
+                border-top: none !important;
+                border-left: 1px solid rgba(255,255,255,0.15) !important;
+            }
+        }
+
+        /* Tablet adjustments */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            #sidebarWrapper { width: 320px !important; }
+            .filter-bar { max-width: calc(100vw - 200px); }
         }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
@@ -6474,7 +6596,9 @@ if ('serviceWorker' in navigator) {
         _pnl.classList.add('show');
         if (_pnl.parentElement !== _sbw) _sbw.appendChild(_pnl);
         _sbw.style.display = 'block';
-        document.getElementById('map').style.left = '360px';
+        if (window.innerWidth > 768) {
+            document.getElementById('map').style.left = '360px';
+        }
         if (map) setTimeout(() => map.invalidateSize(), 100);
         updateMarkers();
         shareManager.updateUrl();
@@ -7832,6 +7956,9 @@ if ('serviceWorker' in navigator) {
             document.querySelectorAll('.bottom-sheet').forEach(sheet => {
                 sheet.classList.remove('bottom-sheet', 'collapsed', 'half', 'expanded', 'peek');
             });
+            // Remove sidebar drag handle added for mobile
+            const sbwHandle = _el('sidebarWrapper')?.querySelector('.sheet-handle');
+            if (sbwHandle) sbwHandle.remove();
         },
         
         initTouchHandlers() {
@@ -8022,16 +8149,16 @@ if ('serviceWorker' in navigator) {
         },
         
         convertPanelsToSheets() {
-            // Convert info panel to bottom sheet
-            const infoPanel = _el('infoPanel');
-            if (infoPanel && !infoPanel.classList.contains('bottom-sheet')) {
-                infoPanel.classList.add('bottom-sheet', 'collapsed');
+            // Info panel lives inside #sidebarWrapper which is styled as bottom sheet via CSS
+            // Only add drag handle to sidebarWrapper if needed
+            const sbw = _el('sidebarWrapper');
+            if (sbw && !sbw.querySelector('.sheet-handle')) {
                 const handle = document.createElement('div');
                 handle.className = 'sheet-handle';
                 handle.innerHTML = '<div class="handle-bar"></div>';
-                infoPanel.insertBefore(handle, infoPanel.firstChild);
+                sbw.insertBefore(handle, sbw.firstChild);
             }
-            
+
             // Convert settings panel to bottom sheet
             const settingsPanel = _el('settingsPanel');
             if (settingsPanel && !settingsPanel.classList.contains('bottom-sheet')) {
@@ -8180,11 +8307,11 @@ if ('serviceWorker' in navigator) {
         
         showInfoPanel() {
             this.hideAllPanels();
+            // Sidebar wrapper is styled as bottom sheet on mobile via CSS
+            const sbw = _el('sidebarWrapper');
+            if (sbw) sbw.style.display = 'block';
             const infoPanel = _el('infoPanel');
-            if (infoPanel) {
-                infoPanel.classList.add('bottom-sheet');
-                this.halfExpandSheet(infoPanel);
-            }
+            if (infoPanel) infoPanel.classList.add('show');
             // Update nav state
             const nav = document.querySelector('.mobile-bottom-nav');
             if (nav) {
