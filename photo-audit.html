@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIPTrack Photo Audit</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d0d1a; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; }
+h1 { color: #fff; margin-bottom: 4px; font-size: 22px; }
+.subtitle { color: #888; font-size: 13px; margin-bottom: 20px; }
+.controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+button { background: #1a1a2e; border: 1px solid #333; color: #e0e0e0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+button:hover { background: #252545; border-color: #555; }
+button.primary { background: #2563eb; border-color: #3b82f6; color: #fff; font-weight: 600; }
+button.primary:hover { background: #1d4ed8; }
+button.export { background: #059669; border-color: #10b981; }
+button.export:hover { background: #047857; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.progress-wrap { width: 100%; background: #1a1a2e; border-radius: 8px; overflow: hidden; height: 32px; margin-bottom: 10px; position: relative; display: none; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, #2563eb, #7c3aed); transition: width 0.3s; width: 0%; }
+.progress-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.stats { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat { background: #1a1a2e; border: 1px solid #252545; border-radius: 8px; padding: 12px 18px; min-width: 140px; }
+.stat-val { font-size: 24px; font-weight: 700; color: #fff; }
+.stat-label { font-size: 12px; color: #888; margin-top: 2px; }
+.stat.warn .stat-val { color: #f59e0b; }
+.stat.good .stat-val { color: #10b981; }
+.stat.bad .stat-val { color: #ef4444; }
+.filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-btn { background: #1a1a2e; border: 1px solid #333; color: #aaa; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.filter-btn.active { background: #2563eb; border-color: #3b82f6; color: #fff; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead { position: sticky; top: 0; z-index: 10; }
+th { background: #1a1a2e; color: #aaa; padding: 10px 12px; text-align: left; border-bottom: 1px solid #333; font-weight: 600; cursor: pointer; user-select: none; white-space: nowrap; }
+th:hover { color: #fff; }
+th .sort-arrow { margin-left: 4px; font-size: 10px; }
+td { padding: 8px 12px; border-bottom: 1px solid #1a1a2e; vertical-align: middle; }
+tr:hover td { background: #151528; }
+.photo-status { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.photo-status.has-photo { background: rgba(16,185,129,0.15); color: #10b981; }
+.photo-status.sil-only { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.photo-status.no-image { background: rgba(239,68,68,0.15); color: #ef4444; }
+.photo-status.checking { background: rgba(99,102,241,0.15); color: #818cf8; }
+.thumb { width: 60px; height: 40px; object-fit: cover; border-radius: 4px; background: #1a1a2e; }
+.thumb.sil { object-fit: contain; padding: 4px; }
+.type-code { font-family: monospace; font-weight: 600; color: #93c5fd; }
+.hex-code { font-family: monospace; color: #888; font-size: 11px; }
+.quick-links { display: flex; gap: 4px; flex-wrap: wrap; }
+.qlink { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 5px; font-size: 11px; font-weight: 700; text-decoration: none; color: #fff; transition: all 0.15s; opacity: 0.8; }
+.qlink:hover { opacity: 1; transform: scale(1.15); }
+.qlink.google { background: #4285f4; }
+.qlink.pspotters { background: #e67e22; }
+.qlink.wiki { background: #636978; }
+.qlink.jetphotos { background: #2ecc71; }
+.qlink.flickr { background: #ff0084; }
+.qlink.airliners { background: #c0392b; }
+.qlink.imglink { background: #6366f1; }
+.qlink[title]:hover::after { content: attr(title); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #000; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; pointer-events: none; }
+.count-badge { background: #252545; padding: 2px 8px; border-radius: 10px; font-size: 11px; color: #aaa; }
+.log { background: #0a0a14; border: 1px solid #1a1a2e; border-radius: 8px; padding: 12px; margin-top: 16px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #666; display: none; }
+.log.show { display: block; }
+.log div { padding: 1px 0; }
+.log .ok { color: #10b981; }
+.log .warn { color: #f59e0b; }
+.log .err { color: #ef4444; }
+.log .info { color: #60a5fa; }
+#tableWrap, #fullListWrap { max-height: calc(100vh - 380px); overflow-y: auto; border-radius: 8px; border: 1px solid #1a1a2e; }
+.tab-bar { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid #1a1a2e; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: #888; padding: 10px 20px; font-size: 14px; cursor: pointer; margin-bottom: -2px; transition: all 0.2s; border-radius: 0; }
+.tab-btn:hover { color: #ccc; background: rgba(255,255,255,0.03); }
+.tab-btn.active { color: #fff; border-bottom-color: #3b82f6; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.search-input { background: #1a1a2e; border: 1px solid #333; color: #e0e0e0; padding: 8px 14px; border-radius: 6px; font-size: 13px; width: 300px; margin-bottom: 12px; }
+.search-input::placeholder { color: #555; }
+.full-count { color: #888; font-size: 12px; margin-left: 8px; }
+.empty-state { text-align: center; padding: 60px 20px; color: #555; }
+.concurrency-label { color: #888; font-size: 12px; }
+select { background: #1a1a2e; border: 1px solid #333; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>VIPTrack Photo Audit Tool</h1>
+<div class="subtitle">Scans military/VIP aircraft feed and checks every photo source to find aircraft with missing images</div>
+
+<div class="controls">
+    <button class="primary" id="startBtn" onclick="startAudit()">Start Audit</button>
+    <button id="stopBtn" onclick="stopAudit()" disabled>Stop</button>
+    <button class="export" id="exportBtn" onclick="exportCSV()" disabled>Export CSV</button>
+    <button class="export" id="exportSilBtn" onclick="exportSilCSV()" disabled>Export Sil-Only CSV</button>
+    <button class="export" id="exportFullBtn" onclick="exportFullCSV()" disabled>Export Full Aircraft CSV</button>
+    <button class="export" id="downloadPhotosBtn" onclick="downloadAllPhotos()" disabled style="background:#7c3aed;border-color:#8b5cf6;">Download All Photos (.zip)</button>
+    <div>
+        <span class="concurrency-label">Concurrency:</span>
+        <select id="concurrency">
+            <option value="2">2 (gentle)</option>
+            <option value="3" selected>3 (balanced)</option>
+            <option value="10">10 (fast)</option>
+            <option value="20">20 (aggressive)</option>
+        </select>
+    </div>
+    <button id="logToggle" onclick="document.getElementById('log').classList.toggle('show')">Toggle Log</button>
+</div>
+
+<div class="progress-wrap" id="dlProgressWrap">
+    <div class="progress-bar" id="dlProgressBar" style="background:linear-gradient(90deg,#7c3aed,#a855f7);"></div>
+    <div class="progress-text" id="dlProgressText">0%</div>
+</div>
+
+<div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="progress-text" id="progressText">0%</div>
+</div>
+
+<div class="stats" id="stats" style="display:none;">
+    <div class="stat"><div class="stat-val" id="statTotal">0</div><div class="stat-label">Total Aircraft</div></div>
+    <div class="stat"><div class="stat-val" id="statTypes">0</div><div class="stat-label">Unique Types</div></div>
+    <div class="stat good"><div class="stat-val" id="statPhotos">0</div><div class="stat-label">Have Photos</div></div>
+    <div class="stat warn"><div class="stat-val" id="statSil">0</div><div class="stat-label">Silhouette Only</div></div>
+    <div class="stat bad"><div class="stat-val" id="statNone">0</div><div class="stat-label">No Image At All</div></div>
+    <div class="stat"><div class="stat-val" id="statChecked">0</div><div class="stat-label">Checked</div></div>
+</div>
+
+<div class="tab-bar" id="tabBar" style="display:none;">
+    <button class="tab-btn active" onclick="switchTab('types',this)">By Type</button>
+    <button class="tab-btn" onclick="switchTab('full',this)">Full Aircraft List<span class="full-count" id="fullListCount"></span></button>
+</div>
+
+<div class="tab-content active" id="tabTypes">
+    <div class="filters" id="filtersWrap" style="display:none;">
+        <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" data-filter="sil-only" onclick="setFilter('sil-only',this)">Silhouette Only</button>
+        <button class="filter-btn" data-filter="no-image" onclick="setFilter('no-image',this)">No Image</button>
+        <button class="filter-btn" data-filter="has-photo" onclick="setFilter('has-photo',this)">Has Photo</button>
+    </div>
+
+    <div id="tableWrap">
+        <div class="empty-state" id="emptyState">Click "Start Audit" to scan the military aircraft feed and check photo availability</div>
+        <table id="resultsTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th onclick="sortTable('thumb')">Image</th>
+                    <th onclick="sortTable('type')">Type Code <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('model')">Model <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('count')">Count <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('status')">Status <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('source')">Best Source <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('hex')">Sample Hex</th>
+                    <th onclick="sortTable('reg')">Sample Reg</th>
+                    <th onclick="sortTable('operator')">Sample Operator</th>
+                    <th>Quick Links</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="tab-content" id="tabFull">
+    <input type="text" class="search-input" id="fullSearch" placeholder="Search by hex, reg, type, operator..." oninput="renderFullList()">
+    <div id="fullListWrap">
+        <table id="fullTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th onclick="sortFullTable('hex')">Hex <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('reg')">Registration <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('type')">Type Code <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('model')">Model <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('flight')">Flight/Callsign <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('operator')">Operator <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('country')">Country <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('alt')">Altitude <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('speed')">Speed (kts) <span class="sort-arrow"></span></th>
+                    <th onclick="sortFullTable('squawk')">Squawk <span class="sort-arrow"></span></th>
+                    <th>Quick Links</th>
+                </tr>
+            </thead>
+            <tbody id="fullTbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const CORS_PROXIES = [
+    url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
+    url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+];
+let proxyIdx = 0;
+
+const API_SOURCES = [
+    { name: 'ADSB One', milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', cors: true },
+    { name: 'Airplanes.live', milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', cors: false },
+    { name: 'ADSB.lol', milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', cors: false }
+];
+
+const TYPES_CSV_URL = 'https://opensky-network.org/datasets/metadata/doc8643AircraftTypes.csv';
+
+let aborted = false;
+let results = new Map(); // typeCode -> { desc, count, hexSamples[], status, bestSource, thumbUrl, reg, operator }
+let typesDB = {};
+let currentFilter = 'all';
+let sortCol = 'count';
+let sortDir = -1;
+let fullSortCol = 'hex';
+let fullSortDir = 1;
+let allAircraftList = []; // stores all individual aircraft for full list view
+
+function log(msg, cls = '') {
+    const el = document.getElementById('log');
+    const div = document.createElement('div');
+    div.className = cls;
+    div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+}
+
+async function fetchWithProxy(url, opts = {}) {
+    const passStatus = opts.passStatus || []; // status codes to pass through (e.g. [429])
+    // Try direct first
+    try {
+        const r = await fetch(url, { cache: 'no-cache', signal: AbortSignal.timeout(8000) });
+        if (r?.ok) return r;
+        if (passStatus.includes(r?.status)) return r;
+    } catch(e) {}
+    // Try proxies
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        const idx = (proxyIdx + i) % CORS_PROXIES.length;
+        try {
+            const r = await fetch(CORS_PROXIES[idx](url), { signal: AbortSignal.timeout(10000) });
+            if (r?.ok) { proxyIdx = idx; return r; }
+            if (passStatus.includes(r?.status)) return r;
+        } catch(e) {}
+    }
+    return null;
+}
+
+function testImage(url, timeout = 6000) {
+    return new Promise(resolve => {
+        const img = new Image();
+        const timer = setTimeout(() => { img.src = ''; resolve(false); }, timeout);
+        img.onload = () => { clearTimeout(timer); resolve(true); };
+        img.onerror = () => { clearTimeout(timer); resolve(false); };
+        img.src = url;
+    });
+}
+
+async function fetchPlanespottersPhoto(path) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            const resp = await fetchWithProxy('https://api.planespotters.net/pub/photos/' + path, { passStatus: [429] });
+            if (resp) {
+                if (resp.status === 429) {
+                    const wait = (attempt + 1) * 2000;
+                    log('Planespotters rate limited, waiting ' + (wait/1000) + 's...', 'warn');
+                    await new Promise(r => setTimeout(r, wait));
+                    continue;
+                }
+                const data = await resp.json();
+                if (data.photos?.length) {
+                    return data.photos[0].thumbnail_large?.src || data.photos[0].thumbnail?.src || null;
+                }
+            }
+        } catch(e) {}
+        break;
+    }
+    return null;
+}
+
+async function fetchAirportDataPhoto(hex, reg) {
+    try {
+        let apiUrl = 'https://airport-data.com/api/ac_thumb.json?m=' + hex.toUpperCase() + '&n=1';
+        if (reg) apiUrl += '&r=' + encodeURIComponent(reg);
+        const resp = await fetchWithProxy(apiUrl);
+        if (resp) {
+            const data = await resp.json();
+            if (data.status === 200 && data.data?.length && data.data[0].image) {
+                return data.data[0].image;
+            }
+        }
+    } catch(e) {}
+    return null;
+}
+
+async function fetchWikipediaThumb(searchName) {
+    try {
+        const resp = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(searchName.replace(/\s+/g, '_')), { signal: AbortSignal.timeout(5000) });
+        if (resp?.ok) {
+            const data = await resp.json();
+            if (data.thumbnail?.source) return data.thumbnail.source;
+        }
+    } catch(e) {}
+    return null;
+}
+
+// Check all photo sources for a given aircraft sample
+async function checkPhotoSources(hex, reg, type) {
+    const hexUpper = hex.toUpperCase();
+
+    // 1. Planespotters by hex
+    let url = await fetchPlanespottersPhoto('hex/' + hexUpper);
+    if (url) return { source: 'planespotters-hex', url };
+
+    // 2. Planespotters by reg
+    if (reg) {
+        url = await fetchPlanespottersPhoto('reg/' + reg);
+        if (url) return { source: 'planespotters-reg', url };
+    }
+
+    // 3. airport-data.com
+    url = await fetchAirportDataPhoto(hexUpper, reg);
+    if (url) return { source: 'airport-data', url };
+
+    // 4. hexdb.io
+    const hexdbUrl = 'https://hexdb.io/hex-image-thumb?hex=' + hexUpper;
+    if (await testImage(hexdbUrl)) return { source: 'hexdb', url: hexdbUrl };
+
+    // 5. Wikipedia by type description
+    if (type) {
+        const typeInfo = typesDB[type.toUpperCase()];
+        let searchName = null;
+        if (typeInfo) {
+            if (Array.isArray(typeInfo)) searchName = (typeInfo[0] + ' ' + typeInfo[1]).trim();
+            else if (typeof typeInfo === 'string') searchName = typeInfo;
+            else if (typeInfo.manufacturer) searchName = (typeInfo.manufacturer + ' ' + (typeInfo.model || '')).trim();
+        }
+        if (searchName) {
+            url = await fetchWikipediaThumb(searchName);
+            if (url) return { source: 'wikipedia', url };
+        }
+        // Try raw type code as search
+        url = await fetchWikipediaThumb(type);
+        if (url) return { source: 'wikipedia-raw', url };
+    }
+
+    // 6. Check silhouettes
+    const silUrl = 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/' + (type || '').toUpperCase() + '.png';
+    if (type && await testImage(silUrl)) return { source: 'silhouette', url: silUrl };
+
+    const silUrl2 = 'https://globe.airplanes.live/aircraft_sil/' + (type || '').toUpperCase() + '.png';
+    if (type && await testImage(silUrl2)) return { source: 'silhouette-ext', url: silUrl2 };
+
+    return { source: 'none', url: null };
+}
+
+function getTypeDesc(type) {
+    if (!type) return '';
+    const info = typesDB[type.toUpperCase()];
+    if (!info) return '';
+    return info;
+}
+
+function parseDoc8643CSV(csvText) {
+    const lines = csvText.split('\n');
+    const db = {};
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        // CSV with quoted fields: "AircraftDescription","Description","Designator","EngineCount","EngineType","ManufacturerCode","ModelFullName","WTC"
+        const fields = [];
+        let field = '', inQuote = false;
+        for (let c = 0; c < line.length; c++) {
+            const ch = line[c];
+            if (ch === '"') { inQuote = !inQuote; continue; }
+            if (ch === ',' && !inQuote) { fields.push(field.trim()); field = ''; continue; }
+            field += ch;
+        }
+        fields.push(field.trim());
+        const designator = (fields[2] || '').toUpperCase();
+        const manufacturer = fields[5] || '';
+        const model = fields[6] || '';
+        if (designator && !db[designator]) {
+            db[designator] = (manufacturer + ' ' + model).trim();
+        }
+    }
+    return db;
+}
+
+function buildQuickLinks(searchName, hex, reg, thumbUrl) {
+    const enc = encodeURIComponent;
+    const imgSearch = searchName + ' aircraft';
+    const links = [];
+    // Google Images
+    links.push('<a class="qlink google" href="https://www.google.com/search?tbm=isch&q=' + enc(imgSearch + ' photo') + '" target="_blank" title="Google Images">G</a>');
+    // Planespotters search
+    if (reg) {
+        links.push('<a class="qlink pspotters" href="https://www.planespotters.net/search?q=' + enc(reg) + '" target="_blank" title="Planespotters (reg)">PS</a>');
+    } else {
+        links.push('<a class="qlink pspotters" href="https://www.planespotters.net/search?q=' + enc(searchName) + '" target="_blank" title="Planespotters (type)">PS</a>');
+    }
+    // Wikipedia
+    links.push('<a class="qlink wiki" href="https://en.wikipedia.org/w/index.php?search=' + enc(searchName) + '" target="_blank" title="Wikipedia">W</a>');
+    // JetPhotos
+    if (reg) {
+        links.push('<a class="qlink jetphotos" href="https://www.jetphotos.com/registration/' + enc(reg) + '" target="_blank" title="JetPhotos (reg)">JP</a>');
+    } else {
+        links.push('<a class="qlink jetphotos" href="https://www.jetphotos.com/search?keyword=' + enc(searchName) + '" target="_blank" title="JetPhotos (type)">JP</a>');
+    }
+    // Flickr
+    links.push('<a class="qlink flickr" href="https://www.flickr.com/search/?text=' + enc(imgSearch) + '&sort=relevance" target="_blank" title="Flickr">FL</a>');
+    // Airliners.net
+    links.push('<a class="qlink airliners" href="https://www.airliners.net/search?keywords=' + enc(searchName) + '" target="_blank" title="Airliners.net">AN</a>');
+    // Direct image link (if exists)
+    if (thumbUrl) {
+        links.push('<a class="qlink imglink" href="' + thumbUrl + '" target="_blank" title="Current Image">img</a>');
+    }
+    return '<div class="quick-links">' + links.join('') + '</div>';
+}
+
+function updateStats() {
+    let photos = 0, sils = 0, none = 0, checked = 0;
+    results.forEach(r => {
+        if (r.status === 'checking') return;
+        checked++;
+        if (r.status === 'has-photo') photos++;
+        else if (r.status === 'sil-only') sils++;
+        else if (r.status === 'no-image') none++;
+    });
+    document.getElementById('statTotal').textContent = [...results.values()].reduce((s, r) => s + r.count, 0);
+    document.getElementById('statTypes').textContent = results.size;
+    document.getElementById('statPhotos').textContent = photos;
+    document.getElementById('statSil').textContent = sils;
+    document.getElementById('statNone').textContent = none;
+    document.getElementById('statChecked').textContent = checked + '/' + results.size;
+
+    const total = results.size;
+    const pct = total ? Math.round((checked / total) * 100) : 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressText').textContent = pct + '% (' + checked + '/' + total + ' types checked)';
+}
+
+function renderTable() {
+    const tbody = document.getElementById('tbody');
+    let rows = [...results.entries()];
+
+    // Filter
+    if (currentFilter !== 'all') {
+        rows = rows.filter(([, r]) => r.status === currentFilter);
+    }
+
+    // Sort
+    rows.sort((a, b) => {
+        const ra = a[1], rb = b[1];
+        let va, vb;
+        switch (sortCol) {
+            case 'type': va = a[0]; vb = b[0]; break;
+            case 'model': va = ra.desc; vb = rb.desc; break;
+            case 'count': va = ra.count; vb = rb.count; break;
+            case 'status': va = ra.status; vb = rb.status; break;
+            case 'source': va = ra.bestSource; vb = rb.bestSource; break;
+            case 'hex': va = ra.hexSamples[0] || ''; vb = rb.hexSamples[0] || ''; break;
+            case 'reg': va = ra.reg || ''; vb = rb.reg || ''; break;
+            case 'operator': va = ra.operator || ''; vb = rb.operator || ''; break;
+            default: va = ra.count; vb = rb.count;
+        }
+        if (typeof va === 'number') return (va - vb) * sortDir;
+        return String(va).localeCompare(String(vb)) * sortDir;
+    });
+
+    tbody.innerHTML = rows.map(([type, r]) => {
+        const statusClass = r.status;
+        const statusLabel = r.status === 'has-photo' ? 'Photo' : r.status === 'sil-only' ? 'Sil Only' : r.status === 'no-image' ? 'No Image' : 'Checking...';
+        const thumbHtml = r.thumbUrl
+            ? '<img class="thumb' + (r.status === 'sil-only' ? ' sil' : '') + '" src="' + r.thumbUrl + '" onerror="this.style.display=\'none\'" loading="lazy">'
+            : '<div class="thumb" style="display:flex;align-items:center;justify-content:center;color:#444;font-size:10px;">---</div>';
+        const searchName = r.desc || type;
+        return '<tr>' +
+            '<td>' + thumbHtml + '</td>' +
+            '<td><span class="type-code">' + (type || '???') + '</span></td>' +
+            '<td>' + r.desc + '</td>' +
+            '<td><span class="count-badge">' + r.count + '</span></td>' +
+            '<td><span class="photo-status ' + statusClass + '">' + statusLabel + '</span></td>' +
+            '<td>' + (r.bestSource || '---') + '</td>' +
+            '<td><span class="hex-code">' + (r.hexSamples[0] || '') + '</span></td>' +
+            '<td>' + (r.reg || '---') + '</td>' +
+            '<td>' + (r.operator || '---') + '</td>' +
+            '<td>' + buildQuickLinks(searchName, r.hexSamples[0] || '', r.reg, r.thumbUrl) + '</td>' +
+            '</tr>';
+    }).join('');
+}
+
+function sortTable(col) {
+    if (sortCol === col) sortDir *= -1;
+    else { sortCol = col; sortDir = col === 'count' ? -1 : 1; }
+    renderTable();
+}
+
+function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+}
+
+function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(tab === 'types' ? 'tabTypes' : 'tabFull').classList.add('active');
+    if (tab === 'full') renderFullList();
+}
+
+function sortFullTable(col) {
+    if (fullSortCol === col) fullSortDir *= -1;
+    else { fullSortCol = col; fullSortDir = col === 'alt' || col === 'speed' ? -1 : 1; }
+    renderFullList();
+}
+
+function renderFullList() {
+    const tbody = document.getElementById('fullTbody');
+    const search = (document.getElementById('fullSearch').value || '').toLowerCase().trim();
+
+    let rows = allAircraftList;
+    if (search) {
+        rows = rows.filter(a =>
+            (a.hex || '').toLowerCase().includes(search) ||
+            (a.r || '').toLowerCase().includes(search) ||
+            (a.t || '').toLowerCase().includes(search) ||
+            (a.desc || '').toLowerCase().includes(search) ||
+            (a.flight || '').toLowerCase().includes(search) ||
+            (a.ownOp || '').toLowerCase().includes(search) ||
+            (a.operator || '').toLowerCase().includes(search) ||
+            (a.dbFlags || '').toLowerCase().includes(search)
+        );
+    }
+
+    rows = [...rows].sort((a, b) => {
+        let va, vb;
+        switch (fullSortCol) {
+            case 'hex': va = a.hex || ''; vb = b.hex || ''; break;
+            case 'reg': va = a.r || ''; vb = b.r || ''; break;
+            case 'type': va = a.t || ''; vb = b.t || ''; break;
+            case 'model': va = a.desc || ''; vb = b.desc || ''; break;
+            case 'flight': va = a.flight || ''; vb = b.flight || ''; break;
+            case 'operator': va = a.ownOp || a.operator || ''; vb = b.ownOp || b.operator || ''; break;
+            case 'country': va = a.dbFlags || ''; vb = b.dbFlags || ''; break;
+            case 'alt': va = parseFloat(a.alt_baro) || 0; vb = parseFloat(b.alt_baro) || 0; return (va - vb) * fullSortDir;
+            case 'speed': va = parseFloat(a.gs) || 0; vb = parseFloat(b.gs) || 0; return (va - vb) * fullSortDir;
+            case 'squawk': va = a.squawk || ''; vb = b.squawk || ''; break;
+            default: va = a.hex || ''; vb = b.hex || '';
+        }
+        return String(va).localeCompare(String(vb)) * fullSortDir;
+    });
+
+    document.getElementById('fullListCount').textContent = ' (' + rows.length + ')';
+
+    tbody.innerHTML = rows.map(a => {
+        const alt = a.alt_baro === 'ground' ? 'GND' : (a.alt_baro != null ? Math.round(a.alt_baro).toLocaleString() + ' ft' : '---');
+        const spd = a.gs != null ? Math.round(a.gs) : '---';
+        const searchName = a.desc || a.t || 'aircraft';
+        return '<tr>' +
+            '<td><span class="hex-code" style="font-size:12px;color:#93c5fd;">' + (a.hex || '').toUpperCase() + '</span></td>' +
+            '<td>' + (a.r || '---') + '</td>' +
+            '<td><span class="type-code">' + (a.t || '---') + '</span></td>' +
+            '<td>' + (a.desc || '---') + '</td>' +
+            '<td>' + ((a.flight || '').trim() || '---') + '</td>' +
+            '<td>' + (a.ownOp || a.operator || '---') + '</td>' +
+            '<td>' + (a.dbFlags || '---') + '</td>' +
+            '<td>' + alt + '</td>' +
+            '<td>' + spd + '</td>' +
+            '<td>' + (a.squawk || '---') + '</td>' +
+            '<td>' + buildQuickLinks(searchName, (a.hex || '').toUpperCase(), a.r, null) + '</td>' +
+            '</tr>';
+    }).join('');
+}
+
+function exportFullCSV() {
+    const rows = [['Hex', 'Registration', 'Type Code', 'Manufacturer / Model', 'Flight/Callsign', 'Operator', 'Country', 'Altitude', 'Speed (kts)', 'Squawk', 'Lat', 'Lon']];
+    allAircraftList.forEach(a => {
+        rows.push([
+            (a.hex || '').toUpperCase(),
+            a.r || '',
+            a.t || '',
+            '"' + (a.desc || '') + '"',
+            (a.flight || '').trim(),
+            '"' + (a.ownOp || a.operator || '') + '"',
+            a.dbFlags || '',
+            a.alt_baro === 'ground' ? 'GND' : (a.alt_baro || ''),
+            a.gs != null ? Math.round(a.gs) : '',
+            a.squawk || '',
+            a.lat || '',
+            a.lon || ''
+        ]);
+    });
+    downloadCSV(rows, 'viptrack-full-aircraft-list.csv');
+}
+
+async function startAudit() {
+    aborted = false;
+    results.clear();
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+    document.getElementById('exportBtn').disabled = true;
+    document.getElementById('exportSilBtn').disabled = true;
+    document.getElementById('progressWrap').style.display = 'block';
+    document.getElementById('stats').style.display = 'flex';
+    document.getElementById('filtersWrap').style.display = 'flex';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultsTable').style.display = 'table';
+    document.getElementById('log').classList.add('show');
+
+    log('Loading ICAO Doc 8643 aircraft types database...', 'info');
+    try {
+        const resp = await fetchWithProxy(TYPES_CSV_URL);
+        if (resp?.ok) {
+            const csvText = await resp.text();
+            typesDB = parseDoc8643CSV(csvText);
+            log('Loaded ' + Object.keys(typesDB).length + ' aircraft type designators', 'ok');
+        } else {
+            log('Types DB response not OK, model names will be unavailable', 'warn');
+        }
+    } catch(e) { log('Types DB failed: ' + e.message, 'warn'); }
+
+    // Fetch military aircraft from all sources
+    log('Fetching military aircraft feed...', 'info');
+    let allAircraft = new Map();
+
+    for (const src of API_SOURCES) {
+        if (aborted) break;
+        log('Trying ' + src.name + '...', 'info');
+        try {
+            const resp = await fetchWithProxy(src.milUrl);
+            if (resp?.ok) {
+                const data = await resp.json();
+                const ac = data?.ac;
+                if (Array.isArray(ac) && ac.length) {
+                    ac.forEach(a => { if (a.hex) allAircraft.set(a.hex.toUpperCase(), a); });
+                    log(src.name + ': got ' + ac.length + ' aircraft (' + allAircraft.size + ' unique total)', 'ok');
+                }
+            }
+        } catch(e) { log(src.name + ' failed: ' + e.message, 'err'); }
+
+        // Also try PIA feed
+        try {
+            const resp = await fetchWithProxy(src.piaUrl);
+            if (resp?.ok) {
+                const data = await resp.json();
+                const ac = data?.ac;
+                if (Array.isArray(ac) && ac.length) {
+                    ac.forEach(a => { if (a.hex) allAircraft.set(a.hex.toUpperCase(), a); });
+                    log(src.name + ' PIA: added ' + ac.length + ' aircraft (' + allAircraft.size + ' unique total)', 'ok');
+                }
+            }
+        } catch(e) {}
+    }
+
+    if (allAircraft.size === 0) {
+        log('No aircraft fetched from any source!', 'err');
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+        return;
+    }
+
+    log('Total unique aircraft: ' + allAircraft.size, 'info');
+
+    // Build full aircraft list with descriptions
+    allAircraftList = [...allAircraft.values()].map(a => {
+        const typeKey = (a.t || '').toUpperCase() || null;
+        const desc = getTypeDesc(typeKey);
+        return { ...a, desc: desc };
+    });
+
+    // Show tabs + full list table
+    document.getElementById('tabBar').style.display = 'flex';
+    document.getElementById('fullTable').style.display = 'table';
+    document.getElementById('exportFullBtn').disabled = false;
+    document.getElementById('fullListCount').textContent = ' (' + allAircraftList.length + ')';
+    renderFullList();
+
+    // Group by type code
+    const byType = new Map();
+    allAircraft.forEach((ac, hex) => {
+        const type = (ac.t || '').toUpperCase() || 'UNKNOWN';
+        if (!byType.has(type)) byType.set(type, []);
+        byType.get(type).push(ac);
+    });
+
+    log('Found ' + byType.size + ' unique aircraft types to check', 'info');
+
+    // Initialize results
+    byType.forEach((aircraft, type) => {
+        const sample = aircraft[0];
+        results.set(type, {
+            desc: getTypeDesc(type !== 'UNKNOWN' ? type : null),
+            count: aircraft.length,
+            hexSamples: aircraft.slice(0, 5).map(a => a.hex?.toUpperCase()),
+            status: 'checking',
+            bestSource: '',
+            thumbUrl: null,
+            reg: sample.r || '',
+            operator: sample.ownOp || sample.operator || ''
+        });
+    });
+
+    updateStats();
+    renderTable();
+
+    // Check photo sources for each type (use first hex sample as representative)
+    const concurrency = parseInt(document.getElementById('concurrency').value) || 3;
+    const typeEntries = [...byType.entries()];
+    let idx = 0;
+
+    async function worker() {
+        while (idx < typeEntries.length && !aborted) {
+            const myIdx = idx++;
+            const [type, aircraft] = typeEntries[myIdx];
+            // Throttle to avoid 429 rate limits from photo APIs
+            await new Promise(r => setTimeout(r, 400 + Math.random() * 200));
+            const sample = aircraft[0];
+            const hex = sample.hex || '';
+            const reg = sample.r || '';
+
+            try {
+                const result = await checkPhotoSources(hex, reg, type !== 'UNKNOWN' ? type : null);
+                const entry = results.get(type);
+                if (!entry) continue;
+
+                if (result.source === 'none') {
+                    entry.status = 'no-image';
+                    entry.bestSource = 'none';
+                    log('[NONE] ' + type + ' (' + entry.desc + ') - no image found anywhere', 'err');
+                } else if (result.source.startsWith('silhouette')) {
+                    entry.status = 'sil-only';
+                    entry.bestSource = result.source;
+                    entry.thumbUrl = result.url;
+                    log('[SIL] ' + type + ' (' + entry.desc + ') - only silhouette from ' + result.source, 'warn');
+                } else {
+                    entry.status = 'has-photo';
+                    entry.bestSource = result.source;
+                    entry.thumbUrl = result.url;
+                    log('[OK] ' + type + ' (' + entry.desc + ') - photo from ' + result.source, 'ok');
+                }
+            } catch(e) {
+                const entry = results.get(type);
+                if (entry) { entry.status = 'no-image'; entry.bestSource = 'error'; }
+                log('[ERR] ' + type + ': ' + e.message, 'err');
+            }
+
+            updateStats();
+            if (myIdx % 3 === 0) renderTable();
+        }
+    }
+
+    const workers = [];
+    for (let i = 0; i < concurrency; i++) workers.push(worker());
+    await Promise.all(workers);
+
+    renderTable();
+    updateStats();
+
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = true;
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('exportSilBtn').disabled = false;
+    document.getElementById('downloadPhotosBtn').disabled = false;
+
+    const silCount = [...results.values()].filter(r => r.status === 'sil-only').length;
+    const noneCount = [...results.values()].filter(r => r.status === 'no-image').length;
+    log('Audit complete! ' + silCount + ' types with silhouette only, ' + noneCount + ' types with no image at all.', 'info');
+}
+
+function stopAudit() {
+    aborted = true;
+    document.getElementById('stopBtn').disabled = true;
+    log('Audit stopped by user', 'warn');
+}
+
+function exportCSV() {
+    const rows = [['Type Code', 'Description', 'Count', 'Status', 'Best Source', 'Sample Hex', 'Sample Reg', 'Sample Operator', 'Thumb URL']];
+    const sorted = [...results.entries()].sort((a, b) => {
+        const order = { 'no-image': 0, 'sil-only': 1, 'has-photo': 2, 'checking': 3 };
+        return (order[a[1].status] ?? 9) - (order[b[1].status] ?? 9) || b[1].count - a[1].count;
+    });
+    sorted.forEach(([type, r]) => {
+        rows.push([type, '"' + r.desc + '"', r.count, r.status, r.bestSource, r.hexSamples[0] || '', r.reg, '"' + (r.operator || '') + '"', r.thumbUrl || '']);
+    });
+    downloadCSV(rows, 'viptrack-photo-audit-all.csv');
+}
+
+function exportSilCSV() {
+    const rows = [['Type Code', 'Description', 'Count', 'Status', 'Sample Hex', 'Sample Reg', 'Sample Operator']];
+    const sorted = [...results.entries()]
+        .filter(([, r]) => r.status === 'sil-only' || r.status === 'no-image')
+        .sort((a, b) => b[1].count - a[1].count);
+    sorted.forEach(([type, r]) => {
+        rows.push([type, '"' + r.desc + '"', r.count, r.status, r.hexSamples[0] || '', r.reg, '"' + (r.operator || '') + '"']);
+    });
+    downloadCSV(rows, 'viptrack-needs-photos.csv');
+}
+
+function downloadCSV(rows, filename) {
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function sanitizeFilename(str) {
+    return str.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+
+async function fetchImageAsBlob(url) {
+    // Try direct fetch first
+    try {
+        const r = await fetch(url, { mode: 'cors', signal: AbortSignal.timeout(10000) });
+        if (r.ok) return await r.blob();
+    } catch(e) {}
+    // Try CORS proxies
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        const idx = (proxyIdx + i) % CORS_PROXIES.length;
+        try {
+            const r = await fetch(CORS_PROXIES[idx](url), { signal: AbortSignal.timeout(12000) });
+            if (r.ok) {
+                const blob = await r.blob();
+                if (blob.size > 500 && blob.type.startsWith('image')) { proxyIdx = idx; return blob; }
+            }
+        } catch(e) {}
+    }
+    return null;
+}
+
+async function downloadAllPhotos() {
+    if (results.size === 0) return;
+
+    const btn = document.getElementById('downloadPhotosBtn');
+    btn.disabled = true;
+    btn.textContent = 'Preparing...';
+    const dlWrap = document.getElementById('dlProgressWrap');
+    const dlBar = document.getElementById('dlProgressBar');
+    const dlText = document.getElementById('dlProgressText');
+    dlWrap.style.display = 'block';
+
+    log('Starting photo download for ' + results.size + ' aircraft types...', 'info');
+
+    const zip = new JSZip();
+    const photosFolder = zip.folder('viptrack-type-photos');
+    const manifest = {};
+    const entries = [...results.entries()];
+    let done = 0;
+    let downloaded = 0;
+    let failed = 0;
+
+    const concurrency = 5;
+    let idx = 0;
+
+    async function worker() {
+        while (idx < entries.length) {
+            const myIdx = idx++;
+            const [type, r] = entries[myIdx];
+            const desc = r.desc || type;
+            const safeName = sanitizeFilename(type + '_' + desc);
+            const ext = (r.thumbUrl && r.thumbUrl.includes('.png')) ? '.png' : '.jpg';
+            const filename = safeName + ext;
+
+            if (r.thumbUrl) {
+                try {
+                    const blob = await fetchImageAsBlob(r.thumbUrl);
+                    if (blob && blob.size > 500) {
+                        photosFolder.file(filename, blob);
+                        manifest[type] = { filename, description: desc, status: r.status, source: r.bestSource };
+                        downloaded++;
+                        log('[DL] ' + filename + ' (' + Math.round(blob.size / 1024) + ' KB)', 'ok');
+                    } else {
+                        manifest[type] = { filename: null, description: desc, status: r.status, source: 'download-failed' };
+                        failed++;
+                        log('[SKIP] ' + type + ' - download returned empty/tiny response', 'warn');
+                    }
+                } catch(e) {
+                    manifest[type] = { filename: null, description: desc, status: r.status, source: 'error' };
+                    failed++;
+                    log('[ERR] ' + type + ' - ' + e.message, 'err');
+                }
+            } else {
+                manifest[type] = { filename: null, description: desc, status: 'no-image', source: 'none' };
+                failed++;
+            }
+
+            done++;
+            const pct = Math.round((done / entries.length) * 100);
+            dlBar.style.width = pct + '%';
+            dlText.textContent = 'Downloading: ' + done + '/' + entries.length + ' (' + downloaded + ' saved, ' + failed + ' missing)';
+        }
+    }
+
+    const workers = [];
+    for (let i = 0; i < concurrency; i++) workers.push(worker());
+    await Promise.all(workers);
+
+    // Add manifest JSON for VIPTrack integration
+    photosFolder.file('type-photos-manifest.json', JSON.stringify(manifest, null, 2));
+
+    // Add manifest CSV for human reference
+    const csvRows = [['Type Code', 'Filename', 'Description', 'Status', 'Source']];
+    Object.entries(manifest).forEach(([type, m]) => {
+        csvRows.push([type, m.filename || '(none)', '"' + m.description + '"', m.status, m.source]);
+    });
+    photosFolder.file('_manifest.csv', csvRows.map(r => r.join(',')).join('\n'));
+
+    dlText.textContent = 'Generating zip file...';
+    log('Generating zip with ' + downloaded + ' photos...', 'info');
+
+    try {
+        const content = await zip.generateAsync({ type: 'blob' }, meta => {
+            dlBar.style.width = meta.percent.toFixed(0) + '%';
+            dlText.textContent = 'Compressing: ' + meta.percent.toFixed(0) + '%';
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = 'viptrack-type-photos.zip';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        log('Download complete! ' + downloaded + ' photos saved, ' + failed + ' missing/failed.', 'ok');
+    } catch(e) {
+        log('Zip generation failed: ' + e.message, 'err');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Download All Photos (.zip)';
+    dlText.textContent = 'Done - ' + downloaded + ' photos, ' + failed + ' missing';
+}
+</script>
+</body>
+</html>

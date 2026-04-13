@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VIPTrack v0.0.1 - Military & VIP Flight Tracker</title>
-    <script>if(location.protocol!=='file:')document.write('<link rel="manifest" href="manifest.json">');</script>
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -69,9 +69,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         #map { position: absolute; inset: 0; z-index: 1; }
-        .leaflet-tile-container img, .leaflet-tile { outline: 0 !important; border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; image-rendering: -webkit-optimize-contrast; backface-visibility: hidden; }
-        .leaflet-tile-pane { will-change: auto !important; }
-        .leaflet-tile-pane, .leaflet-container { background: #323232 !important; }
+        .leaflet-tile-container img, .leaflet-tile { outline: 0 !important; border: none !important; box-shadow: none !important; }
         .leaflet-control-attribution { display: none !important; }
         .leaflet-top.leaflet-left { top: auto !important; bottom: 145px !important; left: auto !important; right: 15px !important; }
         .leaflet-control-zoom { margin-bottom: 0 !important; }
@@ -81,9 +79,14 @@
         .aircraft-marker .sprite-icon { image-rendering: auto; }
         .aircraft-marker.interesting { z-index: 5000 !important; }
         .aircraft-marker.vip { z-index: 6000 !important; }
-        .aircraft-marker.vip .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(35deg) brightness(1.2) drop-shadow(0 0 3px #ffd700) !important; }
-        .aircraft-marker.dimmed .sprite-icon { opacity: 0.4; }
+        .aircraft-marker.vip .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(35deg) brightness(1.3) drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 4px #ffd700) !important; }
+        .aircraft-marker.dimmed .sprite-icon { opacity: 0.3; }
         /* Phase 13: Multi-Select Mode */
+        body.multi-select-mode .aircraft-marker { cursor: crosshair; }
+        .aircraft-marker.multi-selected .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(270deg) brightness(1.2) drop-shadow(0 0 8px #ff00ff) drop-shadow(0 0 16px #ff00ff) !important; }
+        .aircraft-marker.multi-selected::after { content: ''; position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; background: #ff00ff; border-radius: 50%; border: 2px solid #fff; }
+        .multi-select-toolbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 16px; z-index: 2000; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transition: transform 0.3s ease; }
+        .multi-select-toolbar.show { transform: translateX(-50%) translateY(0); }
         .toolbar-count { font-size: 13px; font-weight: 600; color: var(--text); min-width: 80px; }
         .toolbar-count span { color: var(--accent); }
         .toolbar-actions { display: flex; gap: 8px; }
@@ -94,6 +97,8 @@
         .toolbar-btn svg { width: 18px; height: 18px; }
         /* Phase 13: Comparison Panel */
         /* Phase 6: Airport Board */
+        .airport-board { position: fixed; top: 70px; left: 15px; width: 380px; max-height: calc(100vh - 100px); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; z-index: 1500; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .airport-board.visible { display: flex; }
         .board-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: var(--bg-darker); }
         .board-title { font-weight: 600; font-size: 14px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .board-codes { font-size: 12px; color: var(--text-dim); font-family: monospace; }
@@ -118,6 +123,7 @@
         /* Phase 6: 3D View Container */
         .aircraft-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 600; padding: 1px 3px; border-radius: 2px; background: rgba(0,0,0,0.6); pointer-events: none; }
         body.day-mode .aircraft-label { background: rgba(255,255,255,0.85); color: #000; }
+        .interesting-badge { position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 1.5px solid rgba(255,255,255,0.7); box-shadow: 0 1px 4px rgba(0,0,0,0.4); z-index: 10; }
         .vip-badge { position: absolute; top: -10px; right: -10px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; background: linear-gradient(135deg, #ffd700, #ffaa00); border: 2px solid #fff; box-shadow: 0 2px 8px rgba(255,215,0,0.6); z-index: 11; animation: vip-pulse 2s infinite; }
         @keyframes vip-pulse { 0%, 100% { box-shadow: 0 2px 8px rgba(255,215,0,0.6); } 50% { box-shadow: 0 2px 16px rgba(255,215,0,0.9); } }
         /* Phase 16: Offline Mode Styles */
@@ -139,6 +145,12 @@
         .sync-spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .recovery-toast { background: rgba(59,130,246,0.95) !important; }
+        .airport-marker { display: flex; align-items: center; justify-content: center; }
+        .airport-icon { width: 24px; height: 24px; background: var(--accent-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
+        .airport-icon.military { background: #4a90d9; }
+        .airport-icon.small { width: 18px; height: 18px; border-width: 1px; }
+        .airport-icon svg { width: 14px; height: 14px; fill: #fff; }
+        .airport-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 9px; font-weight: 600; padding: 1px 4px; border-radius: 2px; background: rgba(0,0,0,0.7); color: #fff; margin-top: 2px; }
         .header { position: absolute; top: 10px; right: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; padding: 6px 8px; gap: 4px; z-index: 1000; }
         .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: var(--accent); }
         .logo img { width: 22px; height: 22px; }
@@ -235,7 +247,7 @@
         .status-dot.online { background: var(--success); }
         .status-dot.offline { background: var(--danger); }
         .status-dot.stale { background: var(--accent); }
-        .filter-bar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; gap: 6px; z-index: 1000; flex-wrap: wrap; max-width: calc(100vw - 280px); }
+        .filter-bar { position: absolute; top: 10px; left: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; gap: 6px; z-index: 1000; flex-wrap: wrap; max-width: calc(100vw - 280px); }
         .filter-btn { padding: 5px 10px; background: rgba(128,128,128,0.15); border: 1px solid var(--border); border-radius: 16px; color: var(--text-dim); font-size: 10px; font-weight: 500; cursor: pointer; white-space: nowrap; }
         .filter-btn:hover { background: rgba(128,128,128,0.25); color: var(--text); }
         .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
@@ -247,23 +259,21 @@
         .filter-btn.vip-btn { border-color: rgba(255,215,0,0.4); }
         .filter-btn.vip-btn:hover { background: rgba(255,215,0,0.1); border-color: rgba(255,215,0,0.6); }
         .filter-btn.vip-btn.active { background: linear-gradient(135deg, #ffd700, #ffaa00); border-color: #ffd700; color: #000; }
-        .info-panel { position: absolute; top: 60px; left: 10px; width: 340px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; z-index: 1000; display: none; max-height: calc(100vh - 80px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
-        .info-panel::-webkit-scrollbar { width: 6px; }
-        .info-panel::-webkit-scrollbar-track { background: transparent; }
-        .info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-        .info-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-        #infoPanel.show, #sidebarWrapper #infoPanel.show { display: block !important; width: 100% !important; height: 100% !important; position: relative !important; top: auto !important; left: auto !important; max-height: none !important; overflow-y: auto !important; border-radius: 0 !important; border: none !important; background: transparent !important; }
-        .aircraft-photo { width: 100%; height: 120px; background: #111; border-radius: 0; overflow: hidden; }
+        .filter-share-btn { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; margin-top: 2px; }
+        .filter-share-btn:hover { background: rgba(0,210,150,0.15); color: var(--accent); border-color: rgba(0,210,150,0.3); }
+        .info-panel { position: absolute; top: 60px; left: 10px; width: 340px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; z-index: 1000; display: none; max-height: calc(100vh - 80px); overflow-y: auto; }
+        .info-panel.show { display: block; }
+        .aircraft-photo { width: 100%; height: 160px; background: #111; border-radius: 8px 8px 0 0; overflow: hidden; }
         .aircraft-photo img { width: 100%; height: 100%; object-fit: cover; }
         .aircraft-photo .no-photo { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 12px; }
-        .airline-banner { width: 100%; height: 32px; background: #222; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border); }
+        .airline-banner { width: 100%; height: 45px; background: #222; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border); }
         .airline-banner img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .info-header { padding: 8px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
-        .info-header-left { display: flex; flex-direction: column; gap: 2px; }
-        .info-header-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .info-callsign { font-size: 17px; font-weight: 700; color: var(--selected); }
-        .info-hex { font-size: 10px; color: var(--text-muted); font-family: monospace; }
-        .info-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; }
+        .info-header { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+        .info-header-left { display: flex; flex-direction: column; gap: 4px; }
+        .info-header-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .info-callsign { font-size: 20px; font-weight: 700; color: var(--selected); }
+        .info-hex { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+        .info-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; line-height: 1; }
         .info-close:hover { color: var(--text); }
         .info-category-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
         .info-category-badge.military { background: rgba(74, 144, 217, 0.2); color: #4a90d9; }
@@ -274,26 +284,26 @@
         .info-category-badge.pia { background: rgba(236, 72, 153, 0.2); color: #ec4899; }
         .info-category-badge.vip { background: linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,170,0,0.2)); color: #ffd700; border: 1px solid rgba(255,215,0,0.4); }
         .info-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-darker); }
-        .tab-btn { flex: 1; padding: 7px 6px; background: none; border: none; color: var(--text-dim); font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab-btn { flex: 1; padding: 10px 8px; background: none; border: none; color: var(--text-dim); font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; }
         .tab-btn:hover { color: var(--text); }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .info-section { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+        .info-section { padding: 10px 14px; border-bottom: 1px solid var(--border); }
         .info-section:last-child { border-bottom: none; }
-        .info-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+        .info-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
         .info-label { color: var(--text-muted); }
         .info-value { font-weight: 500; text-align: right; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
-        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
-        .info-stat { background: rgba(128,128,128,0.1); padding: 5px 6px; border-radius: 4px; text-align: center; }
-        .info-stat-value { font-size: 13px; font-weight: 700; }
-        .info-stat-label { font-size: 8px; color: var(--text-muted); text-transform: uppercase; margin-top: 1px; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .info-stat { background: rgba(128,128,128,0.1); padding: 8px; border-radius: 6px; text-align: center; }
+        .info-stat-value { font-size: 15px; font-weight: 700; }
+        .info-stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
         .squawk-code { font-family: monospace; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
         .squawk-normal { background: rgba(128,128,128,0.2); }
         .squawk-7500, .squawk-7600, .squawk-7700 { background: #ef4444; color: #fff; }
-        .route-display { display: flex; align-items: center; justify-content: space-between; padding: 8px; background: var(--bg-darker); border-radius: 4px; margin-bottom: 6px; }
-        .route-airport { text-align: center; flex: 0 0 60px; }
-        .route-code { font-size: 16px; font-weight: 700; color: var(--accent); }
+        .route-display { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-darker); border-radius: 6px; margin-bottom: 8px; }
+        .route-airport { text-align: center; flex: 0 0 70px; }
+        .route-code { font-size: 20px; font-weight: 700; color: var(--accent); }
         .route-name { font-size: 9px; color: var(--text-muted); max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .route-line { flex: 1; height: 4px; background: var(--border); border-radius: 2px; position: relative; margin: 0 10px; }
         .route-progress { position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 2px; }
@@ -302,27 +312,47 @@
         .route-inferred::after { content: ' (likely)'; font-size: 9px; color: var(--text-muted); }
         .route-confirmed { color: var(--success); }
         .trail-status { padding: 6px 10px; background: rgba(128,128,128,0.1); border-radius: 4px; font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 6px; }
-        .altitude-chart-container { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+        .altitude-chart-container { padding: 10px 14px; border-bottom: 1px solid var(--border); }
         .altitude-chart-title { font-size: 10px; color: var(--text-muted); margin-bottom: 6px; }
-        #altitudeChart { width: 100%; height: 48px; background: var(--bg-darker); border-radius: 4px; }
-        .aircraft-specs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 6px 10px; }
-        .spec-item { background: var(--bg-darker); padding: 5px 6px; border-radius: 4px; text-align: center; }
-        .spec-value { font-size: 12px; font-weight: 600; color: var(--text); }
-        .spec-label { font-size: 8px; color: var(--text-muted); margin-top: 1px; }
-        .interesting-section { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 179, 8, 0.05)); border-left: 2px solid var(--historic); }
+        #altitudeChart { width: 100%; height: 60px; background: var(--bg-darker); border-radius: 4px; }
+        .aircraft-specs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 10px 14px; }
+        .spec-item { background: var(--bg-darker); padding: 8px; border-radius: 4px; text-align: center; }
+        .spec-value { font-size: 13px; font-weight: 600; color: var(--text); }
+        .spec-label { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+        .interesting-section { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 179, 8, 0.05)); border-left: 3px solid var(--historic); }
         .interesting-section.pia { background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(219, 39, 119, 0.05)); border-left: 3px solid var(--pia); }
         .interesting-section.vip { background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 170, 0, 0.08)); border-left: 3px solid var(--vip); }
-        .interesting-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 600; color: var(--historic); }
+        .interesting-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600; color: var(--historic); }
         .interesting-header.pia { color: var(--pia); }
         .interesting-header.vip { color: var(--vip); }
         .interesting-icon { font-size: 16px; }
         .interesting-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
         .alliance-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; color: white; margin-left: 6px; vertical-align: middle; }
+        .airport-panel { position: absolute; top: 60px; right: 10px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; z-index: 1100; display: none; max-height: calc(100vh - 80px); overflow-y: auto; }
+        .airport-panel.show { display: block; }
+        .airport-header { display: flex; align-items: center; padding: 12px; background: rgba(255, 149, 0, 0.1); border-bottom: 1px solid var(--border); gap: 12px; }
+        .airport-header.military { background: rgba(74, 144, 217, 0.1); }
+        .airport-flag { width: 32px; height: 24px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .airport-flag img { width: 100%; height: 100%; object-fit: cover; }
+        .airport-title { flex: 1; }
+        .airport-name { font-size: 14px; font-weight: 600; }
+        .airport-codes { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+        .airport-photo { width: 100%; height: 140px; background: #111; }
+        .airport-photo img { width: 100%; height: 100%; object-fit: cover; }
+        .airport-photo .no-photo { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 12px; }
+        .airport-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+        .airport-stat { text-align: center; }
+        .airport-stat-value { font-size: 14px; font-weight: 600; }
+        .airport-stat-label { font-size: 9px; color: var(--text-muted); }
+        .airport-frequencies { padding: 10px 14px; border-bottom: 1px solid var(--border); }
         .freq-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
-        .freq-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-        .freq-item { background: var(--bg-darker); padding: 4px 6px; border-radius: 4px; }
+        .freq-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .freq-item { background: var(--bg-darker); padding: 6px 8px; border-radius: 4px; }
         .freq-type { font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
         .freq-value { font-size: 13px; font-weight: 600; color: var(--accent); font-family: monospace; }
+        .airport-actions { display: flex; gap: 8px; padding: 12px; }
+        .airport-action-btn { flex: 1; padding: 8px 12px; background: rgba(128,128,128,0.15); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px; cursor: pointer; }
+        .airport-action-btn:hover { background: rgba(128,128,128,0.25); }
         .settings-panel { position: fixed; top: 60px; right: 10px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; z-index: 1001; display: none; max-height: calc(100vh - 80px); overflow-y: auto; }
         .settings-panel.show { display: block; }
         .settings-title { font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
@@ -386,8 +416,8 @@
         .modal-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .modal-btn.primary { background: var(--accent); color: #000; }
         .modal-btn.secondary { background: rgba(128,128,128,0.2); color: var(--text); }
-        #loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 24px; }
-        #loading.hidden { display: none; }
+        .loading-overlay { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 24px; }
+        .loading-overlay.hidden { display: none; }
         .loading-logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 28px; color: var(--accent); }
         .loading-logo img { width: 48px; height: 48px; }
         .loading-logo .version { font-size: 12px; color: var(--text-muted); font-weight: 400; margin-left: 4px; }
@@ -400,7 +430,7 @@
         .data-source { font-size: 10px; color: var(--text-muted); text-align: center; padding: 4px; background: rgba(128,128,128,0.1); border-radius: 0 0 8px 8px; }
         .category-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; border: 1px solid; cursor: help; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
         .category-badge:hover { filter: brightness(1.2); }
-        @media (max-width: 768px) { .info-panel, .settings-panel { width: calc(100% - 20px); left: 10px; right: 10px; } .bottom-panels { flex-direction: row; right: 10px; bottom: 10px; align-items: flex-end; gap: 6px; } .bottom-panels .bookmarks-panel, .bottom-panels .watchlist-panel { min-width: 140px; max-width: 160px; } .filter-bar { max-width: calc(100vw - 20px); right: 10px; } }
+        @media (max-width: 768px) { .info-panel, .settings-panel, .airport-panel { width: calc(100% - 20px); left: 10px; right: 10px; } .bottom-panels { flex-direction: row; right: 10px; bottom: 10px; align-items: flex-end; gap: 6px; } .bottom-panels .bookmarks-panel, .bottom-panels .watchlist-panel { min-width: 140px; max-width: 160px; } .filter-bar { max-width: calc(100vw - 20px); right: 10px; } }
         .install-prompt { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 12px; padding: 12px 16px; z-index: 2500; display: none; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
         .install-prompt.show { display: block; animation: slideUp 0.3s ease; }
         @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
@@ -428,6 +458,12 @@
         body.compact-mode .bottom-panels { gap: 6px; }
         body.compact-mode .bookmarks-panel { min-width: 150px; }
         body.compact-mode .altitude-chart-container { height: 80px; }
+        /* Theme Editor */
+        .color-picker { width: 50px; height: 28px; padding: 2px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-darker); cursor: pointer; }
+        .color-picker::-webkit-color-swatch-wrapper { padding: 2px; }
+        .color-picker::-webkit-color-swatch { border-radius: 2px; border: none; }
+        /* Dimmed aircraft when one is selected */
+        .aircraft-marker.dimmed { opacity: 0.8; }
         /* Alert Container */
         .alert-container { position: fixed; top: 70px; right: 15px; z-index: 2500; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
         .alert-notification { background: var(--bg-panel); border: 1px solid var(--border); border-left: 4px solid; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; animation: alertSlideIn 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.3); pointer-events: auto; cursor: pointer; }
@@ -467,6 +503,7 @@
         .info-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         
         /* Weather Display */
+        .airport-weather { padding: 12px; border-top: 1px solid var(--border); }
         .weather-loading { color: var(--text-muted); font-size: 11px; text-align: center; padding: 10px; }
         .weather-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .weather-category { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; }
@@ -570,6 +607,8 @@
         .notams-empty, .notams-more { text-align: center; padding: 12px; color: var(--text-muted); font-size: 11px; }
         
 
+        .airport-atc-section { padding: 10px 12px; border-top: 1px solid var(--border); }
+        .airport-atc-section .info-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; color: var(--text-dim); }
         .atc-feeds { margin-top: 8px; }
         .atc-loading, .atc-unavailable { font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px; }
         .atc-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--text); transition: all 0.15s; }
@@ -580,34 +619,119 @@
         .runway-label { font-size: 10px; font-weight: 600; background: rgba(0,0,0,0.7); color: #fff; padding: 2px 4px; border-radius: 3px; white-space: nowrap; }
         
         /* Phase 12: Enhanced Theme Grid */
+        .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .theme-option { padding: 12px 8px; background: var(--bg-darker); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.15s; }
+        .theme-option:hover { border-color: var(--accent); }
+        .theme-option.active { border-color: var(--accent); background: rgba(255, 215, 0, 0.1); }
+        .theme-preview { width: 100%; height: 24px; border-radius: 4px; margin-bottom: 6px; display: flex; overflow: hidden; }
+        .theme-preview-stripe { flex: 1; }
+        .theme-name { font-size: 10px; color: var(--text-dim); }
+        .theme-custom { padding-top: 12px; border-top: 1px solid var(--border); margin-top: 12px; }
         
         /* Phase 12: Trail Direction Arrows */
         .trail-arrow { color: rgba(255, 255, 255, 0.8); font-size: 10px; text-shadow: 0 0 3px rgba(0,0,0,0.8); }
         
         /* Phase 12: Notification Center */
+        .notification-center { position: fixed; top: 60px; right: 10px; width: 340px; max-height: calc(100vh - 80px); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; z-index: 2000; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .notification-center.show { display: flex; }
+        .notification-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg-darker); }
+        .notification-title { font-weight: 600; font-size: 14px; }
+        .notification-actions { display: flex; gap: 8px; }
+        .notif-action-btn, .notif-close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 4px; }
+        .notif-action-btn:hover, .notif-close-btn:hover { color: var(--text); }
+        .notification-filters { display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+        .notif-filter { padding: 4px 10px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 12px; color: var(--text-dim); font-size: 10px; cursor: pointer; }
+        .notif-filter.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        .notification-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .notif-item { display: flex; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; transition: background 0.15s; border-left: 3px solid var(--border); }
+        .notif-item:hover { background: rgba(255,255,255,0.05); }
+        .notif-item.unread { background: rgba(255,255,255,0.03); }
+        .notif-item.emergency { border-left-color: var(--danger); }
+        .notif-item.watchlist { border-left-color: var(--accent); }
+        .notif-item.military { border-left-color: var(--military); }
+        .notif-item.geofence { border-left-color: #ff00ff; }
+        .notif-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .notif-content { flex: 1; min-width: 0; }
+        .notif-text { font-size: 12px; margin-bottom: 2px; }
+        .notif-time { font-size: 10px; color: var(--text-muted); }
+        .notif-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 12px; }
+        .notif-badge { position: absolute; top: 2px; right: 2px; background: var(--danger); color: #fff; font-size: 9px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .header-btn { position: relative; }
         
         /* Phase 14: Time Machine Controls */
         
+        /* Phase 14: Geofencing Styles */
+        .geofence-controls { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; z-index: 2000; display: none; align-items: center; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .geofence-controls.show { display: flex; }
+        .geofence-controls span { font-size: 12px; color: var(--text-dim); }
+        .gf-btn { padding: 6px 12px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 11px; cursor: pointer; transition: all 0.15s; }
+        .gf-btn:hover { background: var(--border); color: var(--text); }
+        .gf-btn.danger:hover { background: rgba(239, 68, 68, 0.2); border-color: var(--danger); color: var(--danger); }
+        .zone-context-menu { position: absolute; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; z-index: 3000; min-width: 160px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .zone-menu-item { padding: 10px 14px; font-size: 12px; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
+        .zone-menu-item:hover { background: rgba(255,255,255,0.05); }
+        .zone-menu-item.danger { color: var(--danger); }
+        .zone-menu-item.danger:hover { background: rgba(239, 68, 68, 0.1); }
+        .geofence-list { position: fixed; bottom: 80px; right: 15px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; width: 220px; max-height: 300px; z-index: 1500; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .geofence-list.show { display: flex; }
+        .gf-list-header { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; background: var(--bg-darker); }
+        .gf-list-content { flex: 1; overflow-y: auto; }
+        .gf-list-item { padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s; }
+        .gf-list-item:hover { background: rgba(255,255,255,0.05); }
+        .gf-list-item:last-child { border-bottom: none; }
+        .gf-zone-name { font-size: 12px; font-weight: 500; }
+        .gf-zone-color { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .gf-list-empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 11px; }
+        
+        /* Phase 14: Screenshot & Recording */
+        #recordBtn.recording { background: var(--danger) !important; color: #fff !important; animation: pulse-record 1s infinite; }
+        @keyframes pulse-record { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .capture-menu { position: fixed; top: 60px; right: 120px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; z-index: 2000; display: none; flex-direction: column; min-width: 200px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .capture-menu.show { display: flex; }
+        .capture-menu-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; background: var(--bg-darker); }
+        .capture-menu-item { padding: 12px 16px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
+        .capture-menu-item:hover { background: rgba(255,255,255,0.05); }
+        .capture-menu-item svg { width: 18px; height: 18px; color: var(--text-dim); }
+        .capture-menu-item.recording { color: var(--danger); }
+        .capture-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+        
+        /* Phase 14: Time Machine History Indicator */
         
         /* ============ PHASE 15: MOBILE EXPERIENCE ============ */
         
         /* Mobile Base Styles */
         @media (max-width: 768px) {
-            /* Header adjustments - overridden by UI overhaul mobile section */
+            /* Header adjustments */
             .header {
-                height: auto;
+                padding: 8px 12px;
+                height: 50px;
             }
-
-            /* Search box - overridden by UI overhaul mobile section */
-            .search-container .search-box,
+            
+            .header-logo {
+                font-size: 16px;
+            }
+            
+            .header-btn {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .search-container .search-box {
+                width: 140px;
+            }
+            
             .search-container .search-box:focus {
-                width: 100%;
+                width: 180px;
             }
-
-            /* Map positioning - overridden by UI overhaul mobile section */
+            
+            /* Hide non-essential header items on mobile */
+            .header-controls > :not(.search-container):not(#settingsBtn):not(#notifBtn) {
+                display: none;
+            }
+            
+            /* Map takes full screen */
             #map {
-                top: 46px;
+                top: 50px;
                 bottom: 60px;
                 left: 0;
                 right: 0;
@@ -877,6 +1001,40 @@
                 height: 24px;
             }
             
+            /* Mobile context menu */
+            .mobile-context-menu {
+                position: fixed;
+                background: var(--bg-panel);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                z-index: 3000;
+                min-width: 180px;
+                overflow: hidden;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                transform: translate(-50%, -100%);
+            }
+            
+            .mobile-context-menu button {
+                display: block;
+                width: 100%;
+                padding: 14px 18px;
+                background: none;
+                border: none;
+                color: var(--text);
+                font-size: 14px;
+                text-align: left;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+            
+            .mobile-context-menu button:not(:last-child) {
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .mobile-context-menu button:active {
+                background: rgba(255,255,255,0.05);
+            }
+            
             /* Hide desktop-only elements */
             .mobile-view .bottom-panels,
             .mobile-view .leaflet-control-zoom {
@@ -888,7 +1046,22 @@
                 width: calc(100% - 32px);
                 max-width: 400px;
             }
-
+            
+            /* Mobile multi-select toolbar */
+            .mobile-view .multi-select-toolbar {
+                bottom: 80px;
+            }
+            
+            /* Mobile geofence controls */
+            .mobile-view .geofence-controls {
+                top: auto;
+                bottom: 140px;
+                transform: translateX(-50%);
+                flex-wrap: wrap;
+                max-width: calc(100% - 32px);
+                justify-content: center;
+            }
+            
         }
         
         /* Tablet adjustments */
@@ -1053,7 +1226,17 @@
         .header-btn.active { background: rgba(0,210,150,0.12) !important; color: var(--accent) !important; box-shadow: 0 0 12px rgba(0,210,150,0.2), inset 0 0 0 1px rgba(0,210,150,0.25) !important; }
 
         /* ============ UI OVERHAUL: STATUS DOCK ============ */
-        #map { bottom: 0 !important; }
+        .status-dock { position: fixed; bottom: 0; left: 0; right: 0; height: 32px; background: rgba(10,10,26,0.92); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 16px; padding: 0 16px; z-index: 1000; backdrop-filter: blur(12px); font-size: 11px; }
+        .status-dock-item { display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
+        .status-dock-item svg { width: 12px; height: 12px; opacity: 0.6; }
+        .status-dock-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .status-dock-dot.green { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+        .status-dock-dot.yellow { background: #eab308; box-shadow: 0 0 6px #eab30888; }
+        .status-dock-dot.red { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
+        .status-dock-dot.grey { background: #6b7280; }
+        .status-dock-value { color: var(--text-dim); font-weight: 500; }
+        .status-dock-sep { width: 1px; height: 14px; background: var(--border); opacity: 0.4; }
+        #map { bottom: 32px !important; }
         .data-source-indicator { display: none !important; }
         .legend { display: none !important; }
 
@@ -1063,6 +1246,9 @@
         .filter-chip-btn { padding: 4px 10px; border: 1px solid transparent; border-radius: 14px; background: rgba(255,255,255,0.04); color: var(--text-muted); font-size: 10px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
         .filter-chip-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-dim); }
         .filter-chip-btn.active { background: rgba(0,210,150,0.12); color: var(--accent); border-color: rgba(0,210,150,0.25); }
+        .filter-chips-toggle { position: fixed; top: 50px; right: 10px; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1100; transition: all 0.15s; }
+        .filter-chips-toggle:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+        .filter-chips-toggle.active { color: var(--accent); border-color: rgba(0,210,150,0.3); }
 
         /* ============ UI OVERHAUL: 3D HUD ============ */
         .hud-3d { position: fixed; bottom: 44px; right: 12px; background: rgba(10,10,26,0.88); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; z-index: 1200; backdrop-filter: blur(12px); display: none; min-width: 160px; }
@@ -1086,160 +1272,36 @@
         .onboard-btn:hover { opacity: 0.9; }
 
         /* ============ UI OVERHAUL: LOADING OVERLAY ============ */
-        #loadingOverlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 800; pointer-events: none; transition: opacity 0.5s; }
-        #loadingOverlay.hidden { opacity: 0; }
+        .loading-overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 800; pointer-events: none; transition: opacity 0.5s; }
+        .loading-overlay.hidden { opacity: 0; }
         .loading-pulse { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); opacity: 0.3; animation: loadPulse 1.5s ease-in-out infinite; }
         @keyframes loadPulse { 0%,100% { transform: scale(0.8); opacity: 0.2; } 50% { transform: scale(1.2); opacity: 0.5; } }
         .loading-text { margin-top: 14px; font-size: 12px; color: var(--text-muted); font-weight: 500; }
 
         /* ============ UI OVERHAUL: QUICKGLANCE ============ */
-        .info-quickglance { display: flex; gap: 2px; padding: 5px 10px; background: rgba(0,210,150,0.04); border-bottom: 1px solid var(--border); }
+        .info-quickglance { display: flex; gap: 2px; padding: 8px 12px; background: rgba(0,210,150,0.04); border-bottom: 1px solid var(--border); }
         .info-qg-item { flex: 1; text-align: center; }
-        .info-qg-val { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.2; }
-        .info-qg-label { font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+        .info-qg-val { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .info-qg-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
 
-        /* ============ UI OVERHAUL: SIDEBAR ============ */
-        /* Sidebar handled by #sidebarWrapper with inline styles + JS */
+        /* ============ UI OVERHAUL: WIDE SIDEBAR ============ */
+        @media (min-width: 1400px) {
+            .info-panel.show { position: fixed !important; top: 50px !important; left: 0 !important; bottom: 32px !important; width: 360px !important; max-height: none !important; border-radius: 0 !important; border-left: none !important; border-top: none !important; border-bottom: none !important; }
+            body.panel-pinned #map { left: 360px !important; }
+            body.panel-pinned .info-panel.show { box-shadow: 4px 0 20px rgba(0,0,0,0.3) !important; }
+        }
 
         /* ============ UI OVERHAUL: MOBILE ============ */
         @media (max-width: 768px) {
-            /* Header: hidden on mobile — bottom nav has Settings, FAB has Locate */
-            .header { display: none !important; }
-
-            /* Filter bar: full-width top bar */
-            .filter-bar {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                transform: none !important;
-                max-width: none !important;
-                border-radius: 0 !important;
-                padding: 6px 10px !important;
-                gap: 6px !important;
-                flex-wrap: nowrap !important;
-                z-index: 1100 !important;
-                align-items: center !important;
-                border: none !important;
-                border-bottom: 1px solid var(--border) !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-            }
-            .filter-bar::-webkit-scrollbar { display: none; }
-            .filter-bar .logo span { display: none; }
-            .filter-bar .logo { gap: 0; flex-shrink: 0; }
-            .filter-bar .filter-divider { display: none; }
-            .filter-bar .connectivity-indicator { margin-left: -2px; margin-right: 2px; }
-            .filter-bar .search-container { flex: 1; min-width: 80px; }
-            .filter-bar .search-container .search-box,
-            .filter-bar .search-container .search-box:focus { width: 100% !important; }
-            .filter-bar .search-input-wrapper { width: 100%; }
-            .filter-bar .filter-btn { padding: 4px 8px; font-size: 10px; flex-shrink: 0; }
-
-            /* Search dropdown: full width on mobile */
-            .search-dropdown {
-                position: fixed !important;
-                top: 46px !important;
-                left: 8px !important;
-                right: 8px !important;
-                width: auto !important;
-                border-radius: 0 0 12px 12px !important;
-            }
-
-            /* Filter chips bar */
-            .filter-chips-bar { top: 46px; max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }
-            .filter-chips-bar::-webkit-scrollbar { display: none; }
-
-            /* Map: below top bar, above bottom nav */
-            #map { top: 46px !important; bottom: 60px !important; left: 0 !important; }
-
-            /* Sidebar wrapper: bottom sheet on mobile */
-            #sidebarWrapper {
-                top: auto !important;
-                bottom: 60px !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                height: 55vh !important;
-                max-height: calc(100vh - 106px) !important;
-                border-right: none !important;
-                border-top: 1px solid rgba(255,255,255,0.15) !important;
-                border-radius: 16px 16px 0 0 !important;
-                box-shadow: 0 -4px 20px rgba(0,0,0,0.4) !important;
-                transition: height 0.25s ease, opacity 0.2s ease !important;
-            }
-
-            /* Settings panel: bottom sheet */
-            .settings-panel {
-                position: fixed !important;
-                top: auto !important;
-                bottom: 60px !important;
-                left: 0 !important;
-                right: 0 !important;
-                width: 100% !important;
-                max-height: 70vh !important;
-                border-radius: 16px 16px 0 0 !important;
-                z-index: 1500 !important;
-            }
-
-            /* HUD above bottom nav */
-            .hud-3d { bottom: 72px !important; right: 8px; }
-
-            /* FAB above bottom nav */
-            .mobile-fab { bottom: 76px !important; }
-
-            /* Toast above bottom nav */
-            .toast { bottom: 80px !important; }
-
-            /* Alerts below top bar */
-            .alert-container { top: 54px; right: 8px; left: 8px; max-width: none; }
-
-            /* Install prompt above bottom nav */
-            .install-prompt { bottom: 80px !important; width: calc(100% - 32px); }
-
-            /* Modal */
-            .modal-overlay .modal { width: calc(100% - 32px); max-width: 400px; }
-
-            /* HV2 dropdowns (if visible) */
             .hv2-dropdown-trigger span:not(.hv2-dd-badge) { display: none; }
             .hv2-dropdown-trigger { padding: 5px 7px; }
-            .hv2-panel { min-width: 200px; }
-
-            /* Bottom panels: hidden on mobile (use bottom nav instead) */
-            .bottom-panels { display: none !important; }
-
-            /* Onboarding */
-            .onboard-card { width: 92%; max-width: 360px; padding: 24px 20px; }
-
-            /* Loading */
-            .loading-logo { font-size: 22px; }
-            .loading-logo img { width: 36px; height: 36px; }
-
-            /* Playback controls */
-            .playback-controls { bottom: 72px !important; }
-        }
-
-        /* Landscape phone: sidebar as side panel */
-        @media (max-width: 768px) and (orientation: landscape) {
-            #sidebarWrapper {
-                left: auto !important;
-                right: 60px !important;
-                width: 50vw !important;
-                height: calc(100vh - 46px) !important;
-                max-height: none !important;
-                bottom: 0 !important;
-                top: 46px !important;
-                border-radius: 0 !important;
-                border-top: none !important;
-                border-left: 1px solid rgba(255,255,255,0.15) !important;
-            }
-        }
-
-        /* Tablet adjustments */
-        @media (min-width: 769px) and (max-width: 1024px) {
-            #sidebarWrapper { width: 320px !important; }
-            .filter-bar { max-width: calc(100vw - 200px); }
+            .hv2-panel { min-width: 200px; left: auto; right: -10px; transform: translateY(-8px); }
+            .hv2-panel.show { transform: translateY(0); }
+            .filter-chips-bar { top: 46px; max-width: calc(100vw - 50px); overflow-x: auto; }
+            .status-dock { font-size: 10px; gap: 8px; }
+            .status-dock-label { display: none; }
+            .hud-3d { bottom: 40px; right: 8px; }
+            .filter-chips-toggle { top: 46px; }
         }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
@@ -1283,18 +1345,14 @@ const manifest = {
 const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
 const manifestUrl = URL.createObjectURL(manifestBlob);
 document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestUrl);
-URL.revokeObjectURL(manifestUrl);
 </script>
 <script>
 // Service Worker Registration
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
         try {
-            // Clear old service workers first
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.14';
+                const CACHE_NAME = 'skytrack-v4.2';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -1436,7 +1494,6 @@ if ('serviceWorker' in navigator) {
             const swBlob = new Blob([swCode], { type: 'application/javascript' });
             const swUrl = URL.createObjectURL(swBlob);
             const registration = await navigator.serviceWorker.register(swUrl, { scope: '/' });
-            URL.revokeObjectURL(swUrl);
             _dbg('ServiceWorker registered:', registration.scope);
         } catch (error) {
             _dbg('ServiceWorker registration failed:', error);
@@ -1455,7 +1512,6 @@ if ('serviceWorker' in navigator) {
         <div class="loading-status" id="loadingStatus">Initializing...</div>
         <div class="loading-progress"><div class="loading-progress-bar" id="loadingProgress"></div></div>
     </div>
-    <div id="sidebarWrapper" style="display:none;position:fixed;top:0;left:0;width:360px;height:100vh;z-index:9999;background:#0d0d1a;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.1);box-shadow:4px 0 20px rgba(0,0,0,0.4);"></div>
     <div id="map"></div>
     <!-- Phase 16: Reliability Indicators -->
     <div class="data-source-indicator" id="dataSourceIndicator">
@@ -1485,6 +1541,7 @@ if ('serviceWorker' in navigator) {
         <button class="header-btn" id="locateBtn" title="My Location" aria-label="My Location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
 
         <button class="header-btn" id="settingsBtn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+        <button class="header-btn" id="notifBtn" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
         
         <div class="hv2-sep"></div>
         
@@ -1494,6 +1551,7 @@ if ('serviceWorker' in navigator) {
             <div class="hv2-panel">
                 <div class="hv2-panel-title">Map & Layers</div>
                 <div class="hv2-item" data-btn="labelBtn"><div class="hv2-item-icon"><button class="header-btn" id="labelBtn" title="Labels" aria-label="Toggle Labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button></div><div class="hv2-item-label">Labels</div><div class="hv2-item-status">OFF</div></div>
+                <div class="hv2-item" data-btn="radarBtn"><div class="hv2-item-icon"><button class="header-btn active" id="radarBtn" title="Radar" aria-label="Toggle Weather Radar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></button></div><div class="hv2-item-label">Weather Radar</div><div class="hv2-item-status">ON</div></div>
             </div>
         </div>
         
@@ -1503,13 +1561,25 @@ if ('serviceWorker' in navigator) {
             <div class="hv2-panel">
                 <div class="hv2-panel-title">Tools</div>
                 <div class="hv2-item" data-btn="followBtn"><div class="hv2-item-icon"><button class="header-btn" id="followBtn" title="Follow" aria-label="Follow Aircraft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><path d="M12 8v8M8 12h8" stroke-dasharray="2 2"/></svg></button></div><div class="hv2-item-label">Follow Aircraft</div></div>
+                <div class="hv2-item" data-btn="multiSelectBtn"><div class="hv2-item-icon"><button class="header-btn" id="multiSelectBtn" title="Multi-Select" aria-label="Multi-Select Mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button></div><div class="hv2-item-label">Multi-Select</div></div>
+                <div class="hv2-item" data-btn="geofenceBtn"><div class="hv2-item-icon"><button class="header-btn" id="geofenceBtn" title="Geofence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="hv2-item-label">Geofencing</div></div>
+                <div class="hv2-item" data-btn="captureBtn"><div class="hv2-item-icon"><button class="header-btn" id="captureBtn" title="Screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M5 7h.01"/></svg></button></div><div class="hv2-item-label">Screenshot</div></div>
                 <div class="hv2-item" data-btn="panelsBtn"><div class="hv2-item-icon"><button class="header-btn" id="panelsBtn" title="Saved & Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button></div><div class="hv2-item-label">Saved & Watchlist</div></div>
             </div>
         </div>
         
     </header>
+    <!-- Status Dock -->
+    <div class="status-dock" id="statusDock">
+        <div class="status-dock-item"><span class="status-dock-dot grey" id="dockDot"></span><span class="status-dock-value" id="dockSource">Connecting</span></div>
+        <div class="status-dock-sep"></div>
+        <div class="status-dock-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 110-14h8.5M21 12l-4-4m4 4l-4 4"/></svg><span class="status-dock-value" id="dockCount">0</span><span class="status-dock-label"> aircraft</span></div>
+        <div class="status-dock-sep"></div>
+        <div class="status-dock-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="status-dock-value" id="dockTime">---</span></div>
+    </div>
     
     <!-- Filter Chips Bar -->
+    <button class="filter-chips-toggle" id="filterChipsToggle" title="Quick Filters" aria-label="Quick Filters" aria-expanded="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></button>
     <div class="filter-chips-bar" id="filterChipsBar">
         <button class="filter-chip-btn" data-filter="military">Military</button>
         <button class="filter-chip-btn" data-filter="vip">VIP</button>
@@ -1529,12 +1599,13 @@ if ('serviceWorker' in navigator) {
         <div class="onboard-card">
             <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><polyline points="21 12 17 8 21 12 17 16"/></svg></div>
             <div class="onboard-title">Welcome to VIPTrack</div>
-            <div class="onboard-desc">Real-time military and VIP aircraft tracking with aviation intelligence.</div>
+            <div class="onboard-desc">Real-time military and VIP aircraft tracking with 3D globe view and aviation intelligence.</div>
             <div class="onboard-tips">
                 <div class="onboard-tip"><span class="onboard-tip-num">1</span><span>Only military, government, and VIP aircraft are shown</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">2</span><span>Tap any aircraft on the map to see its details, route, and specs</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">2</span><span>Click any aircraft on the map to see its details, route, and specs</span></div>
                 <div class="onboard-tip"><span class="onboard-tip-num">3</span><span>Use the search bar to find flights by callsign, registration, or ICAO hex</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">4</span><span>Use the filter buttons to narrow by Military, Gov, or VIP</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">4</span><span>Click the globe icon to enter immersive 3D view</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">5</span><span>Use the filter buttons to narrow by Military, Gov, or VIP</span></div>
             </div>
             <button class="onboard-btn" id="onboardDismiss">Start Tracking</button>
         </div>
@@ -1646,6 +1717,7 @@ if ('serviceWorker' in navigator) {
         <button class="filter-btn vip-btn active" data-filter="mil-vip" title="All Military + VIP Aircraft">All <span class="count" id="countMilVIP">0</span></button>
         <button class="filter-btn" data-filter="military">Mil <span class="count" id="countMil">0</span></button>
         <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft">VIP <span class="count" id="countVIP">0</span></button>
+        <button class="filter-share-btn" id="filterShareBtn" title="Share this filter view" aria-label="Share filter link" style="display:none;"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13"/></svg></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo">Loading...</div></div>
@@ -1833,13 +1905,61 @@ if ('serviceWorker' in navigator) {
         </div>
         <div class="data-source" id="dataSource">Connecting...</div>
     </div>
+    <div class="airport-panel" id="airportPanel" role="dialog" aria-label="Airport Details">
+        <div class="airport-header" id="airportHeader">
+            <div class="airport-flag" id="airportFlag"><img src="" alt=""></div>
+            <div class="airport-title"><div class="airport-name" id="airportName">---</div><div class="airport-codes" id="airportCodes">--- / ---</div></div>
+            <button class="info-close" id="airportClose" aria-label="Close airport details">&times;</button>
+        </div>
+        <div class="airport-photo" id="airportPhoto"><div class="no-photo">Loading...</div></div>
+        <div class="airport-stats">
+            <div class="airport-stat"><div class="airport-stat-value" id="airportElev">---</div><div class="airport-stat-label">Elevation</div></div>
+            <div class="airport-stat"><div class="airport-stat-value" id="airportTime">--:--</div><div class="airport-stat-label">Local Time</div></div>
+            <div class="airport-stat"><div class="airport-stat-value" id="airportType">---</div><div class="airport-stat-label">Type</div></div>
+        </div>
+        <div class="airport-frequencies" id="airportFrequencies" style="display:none;">
+            <div class="freq-title">Radio Frequencies</div>
+            <div class="freq-list" id="freqList"></div>
+        </div>
+        <div class="info-section">
+            <div class="info-row"><span class="info-label">City</span><span class="info-value" id="airportCity">---</span></div>
+            <div class="info-row"><span class="info-label">Country</span><span class="info-value" id="airportCountry">---</span></div>
+        </div>
+        <div class="wiki-section" id="airportWikiSection" style="display:none;">
+            <div class="wiki-summary" id="airportWikiSummary"></div>
+            <a class="wiki-link" id="airportWikiLink" href="#" target="_blank">Read more on Wikipedia</a>
+        </div>
+        <div class="airport-weather" id="airportWeather">
+            <div class="weather-loading">Loading weather...</div>
+        </div>
+        <div class="notams-section" id="notamsSection">
+            <div class="info-section-title">NOTAMs</div>
+            <div class="notams-list" id="airportNotams">
+                <div class="notams-empty">Loading NOTAMs...</div>
+            </div>
+        </div>
+        <div class="airport-atc-section" id="atcSection">
+            <div class="info-section-title">ATC Audio</div>
+            <div class="atc-feeds" id="atcFeeds">
+                <div class="atc-loading">Checking feeds...</div>
+            </div>
+        </div>
+        <div class="airport-actions">
+            <button class="airport-action-btn" id="btnShowDepartures">Departures</button>
+            <button class="airport-action-btn" id="btnShowArrivals">Arrivals</button>
+            <button class="airport-action-btn" id="btnZoomAirport">Zoom To</button>
+        </div>
+    </div>
     <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
         <div class="settings-title">Settings</div>
         <div class="settings-section">
             <div class="settings-section-title">Display Options</div>
             <div class="setting-row"><span class="setting-label">Show Labels</span><div class="toggle" id="toggleLabels"></div></div>
+            <div class="setting-row"><span class="setting-label">Show Airports</span><div class="toggle" id="toggleAirports"></div></div>
+            <div class="setting-row"><span class="setting-label">Weather Radar</span><div class="toggle on" id="toggleRadar"></div></div>
             <div class="setting-row"><span class="setting-label">Altitude-Colored Trails</span><div class="toggle on" id="toggleAltColors"></div></div>
             <div class="setting-row"><span class="setting-label">Wikipedia Info</span><div class="toggle on" id="toggleWiki"></div></div>
+            <div class="setting-row"><span class="setting-label">Interesting Badges</span><div class="toggle" id="toggleInterestingBadges"></div></div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Trail Display</div>
@@ -1853,6 +1973,57 @@ if ('serviceWorker' in navigator) {
                 </select>
             </div>
             <div class="setting-row"><span class="setting-label">Show Direction Arrows</span><div class="toggle on" id="toggleTrailArrows"></div></div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Theme</div>
+            <div class="theme-grid" id="themeGrid">
+                <div class="theme-option" data-theme="dark">
+                    <div class="theme-preview">
+                        <div class="theme-preview-stripe" style="background:#1a1a2e"></div>
+                        <div class="theme-preview-stripe" style="background:#ffd700"></div>
+                        <div class="theme-preview-stripe" style="background:#00ffff"></div>
+                    </div>
+                    <div class="theme-name">Dark</div>
+                </div>
+                <div class="theme-option active" data-theme="midnight">
+                    <div class="theme-preview">
+                        <div class="theme-preview-stripe" style="background:#0a0a14"></div>
+                        <div class="theme-preview-stripe" style="background:#00d4ff"></div>
+                        <div class="theme-preview-stripe" style="background:#ff00ff"></div>
+                    </div>
+                    <div class="theme-name">Midnight</div>
+                </div>
+                <div class="theme-option" data-theme="light">
+                    <div class="theme-preview">
+                        <div class="theme-preview-stripe" style="background:#f5f5f5"></div>
+                        <div class="theme-preview-stripe" style="background:#0066cc"></div>
+                        <div class="theme-preview-stripe" style="background:#ff6600"></div>
+                    </div>
+                    <div class="theme-name">Light</div>
+                </div>
+                <div class="theme-option" data-theme="highContrast">
+                    <div class="theme-preview">
+                        <div class="theme-preview-stripe" style="background:#000000"></div>
+                        <div class="theme-preview-stripe" style="background:#ffff00"></div>
+                        <div class="theme-preview-stripe" style="background:#00ff00"></div>
+                    </div>
+                    <div class="theme-name">High Contrast</div>
+                </div>
+                <div class="theme-option" data-theme="colorBlind">
+                    <div class="theme-preview">
+                        <div class="theme-preview-stripe" style="background:#1a1a2e"></div>
+                        <div class="theme-preview-stripe" style="background:#f0e442"></div>
+                        <div class="theme-preview-stripe" style="background:#56b4e9"></div>
+                    </div>
+                    <div class="theme-name">Color Blind</div>
+                </div>
+            </div>
+            <div class="setting-row"><span class="setting-label">Auto Day/Night</span><div class="toggle" id="toggleAutoTheme"></div></div>
+            <div class="theme-custom">
+                <div class="setting-row"><span class="setting-label">Accent Color</span><input type="color" id="accentColorPicker" value="#ffd700" class="color-picker"></div>
+                <div class="setting-row"><span class="setting-label">Selection Color</span><input type="color" id="selectionColorPicker" value="#00ffff" class="color-picker"></div>
+                <button class="settings-btn secondary" id="resetThemeBtn">Reset Colors</button>
+            </div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Alerts</div>
@@ -1875,6 +2046,58 @@ if ('serviceWorker' in navigator) {
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
             <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;">Check All Sources</button>
             <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;">Clear Offline Cache</button>
+        </div>
+    </div>
+    <!-- Phase 14: Geofencing Controls -->
+    <div class="geofence-controls" id="geofenceControls">
+        <span>Drawing zone - click to add points</span>
+        <button class="gf-btn" id="gfFinish">Finish</button>
+        <button class="gf-btn danger" id="gfCancel">Cancel</button>
+    </div>
+    <!-- Phase 14: Geofence Zone List -->
+    <div class="geofence-list" id="geofenceList">
+        <div class="gf-list-header">
+            <span>Alert Zones</span>
+            <button class="gf-btn" id="gfAddNew" title="Draw new zone">+ Add</button>
+        </div>
+        <div class="gf-list-content" id="gfListContent">
+            <div class="gf-list-empty">No zones defined<br>Click + Add to create one</div>
+        </div>
+    </div>
+    <!-- Phase 14: Capture Menu -->
+    <div class="capture-menu" id="captureMenu">
+        <div class="capture-menu-header">Capture</div>
+        <div class="capture-menu-item" id="captureScreenshot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M5 7h.01"/></svg>
+            <span>Screenshot (PNG)</span>
+        </div>
+        <div class="capture-menu-divider"></div>
+        <div class="capture-menu-item" id="captureRecord">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
+            <span>Start Recording</span>
+        </div>
+        <div class="capture-menu-item" id="captureTimelapse">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/><line x1="11" y1="5" x2="11" y2="19"/></svg>
+            <span>Create Timelapse</span>
+        </div>
+    </div>
+    <div class="notification-center" id="notificationCenter">
+        <div class="notification-header">
+            <span class="notification-title">Notifications</span>
+            <div class="notification-actions">
+                <button class="notif-action-btn" id="markAllRead" title="Mark all read">&#10003;</button>
+                <button class="notif-action-btn" id="clearNotifs" title="Clear all">&#128465;</button>
+                <button class="notif-close-btn" id="notifClose">&times;</button>
+            </div>
+        </div>
+        <div class="notification-filters">
+            <button class="notif-filter active" data-filter="all">All</button>
+            <button class="notif-filter" data-filter="emergency">Emergency</button>
+            <button class="notif-filter" data-filter="watchlist">Watchlist</button>
+            <button class="notif-filter" data-filter="military">Military</button>
+        </div>
+        <div class="notification-list" id="notificationList">
+            <div class="notif-empty">No notifications</div>
         </div>
     </div>
     <div class="bottom-panels">
@@ -1923,11 +2146,9 @@ if ('serviceWorker' in navigator) {
         debug: (new URLSearchParams(window.location.search)).has('debug'),
         defaultCredentials: { clientId: 'mparker-api-client', clientSecret: 'aPEAJUp6WgZuN7UZxX83BionDNsozUTF' },
         corsProxies: [
-            url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
-            url => 'https://corsproxy.io/?' + encodeURIComponent(url),
-            url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+            url => 'https://everyorigin.jwvbremen.nl/api/get?url=' + encodeURIComponent(url),
+            url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url)
         ],
-        isLocalFile: window.location.protocol === 'file:',
         // Self-hosted asset URLs
         silhouetteUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
         airlineBannerUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
@@ -1939,12 +2160,17 @@ if ('serviceWorker' in navigator) {
     const DATA_URLS = {
         // Aircraft Registration (tar1090-db)
         registrations: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/registrations.csv',
-            fallback: null
+            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/registrations.json',
+            fallback: 'https://raw.githubusercontent.com/wiedehopf/tar1090-db/master/db.json.gz'
         },
-        types: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/types.json',
+        types: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/types.json',
+        icaoTypes: {
+            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/icao_types.json',
             fallback: 'https://raw.githubusercontent.com/wiedehopf/tar1090-db/master/icao_aircraft_types.json'
+        },
+        ranges: {
+            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/ranges.json',
+            fallback: 'https://raw.githubusercontent.com/wiedehopf/tar1090-db/master/ranges.json'
         },
         
         // Interesting Aircraft (plane-alert-db)
@@ -2008,6 +2234,10 @@ if ('serviceWorker' in navigator) {
             primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airlines/airlines.csv',
             fallback: 'https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat'
         },
+        alliances: {
+            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airlines/alliances.csv',
+            fallback: null
+        },
         callsignPrefix: {
             primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airlines/callsign-prefix.json',
             fallback: null
@@ -2026,6 +2256,15 @@ if ('serviceWorker' in navigator) {
             primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airports/frequencies.csv',
             fallback: 'https://davidmegginson.github.io/ourairports-data/airport-frequencies.csv'
         },
+        runways: {
+            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airports/runways.csv',
+            fallback: 'https://davidmegginson.github.io/ourairports-data/runways.csv'
+        },
+        countries: {
+            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airports/countries.csv',
+            fallback: 'https://davidmegginson.github.io/ourairports-data/countries.csv'
+        },
+        
         // Routes
         routes: {
             primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/routes/routes.csv',
@@ -2034,14 +2273,13 @@ if ('serviceWorker' in navigator) {
         
         // Images (self-hosted)
         aircraftPhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/aircraft_photos/',
-        typePhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/type_photos/',
         airlineLogos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
         silhouettes: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
         flags: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/flags/'
     };
 
     // ============ DEBUG LOGGING ============
-    function _dbg(...args) { if (CONFIG.debug) console.log('[VIPTrack]', ...args); }
+    function _dbg(...args) { if (CONFIG.debug) _dbg('[VIPTrack]', ...args); }
 
     // ============ ERROR HANDLING UTILITY ============
     const errorHandler = {
@@ -2316,9 +2554,7 @@ if ('serviceWorker' in navigator) {
         
         async checkConnection() {
             try {
-                const response = CONFIG.isLocalFile
-                    ? await fetchWithProxy('https://api.adsb.one/v2/point/0/0/1')
-                    : await fetch('https://api.adsb.one/v2/point/0/0/1', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+                const response = await fetch('https://api.adsb.one/v2/point/0/0/1', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
 
                 if (response?.ok && !this.isOnline) {
                     this.handleOnline();
@@ -2504,7 +2740,7 @@ if ('serviceWorker' in navigator) {
                 const testUrl = source.buildUrl({ lat: 40, lng: -74 }, 10);
                 
                 let response;
-                if (source.cors && !CONFIG.isLocalFile) { response = await fetch(testUrl, { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(8000) }); }
+                if (source.cors) { response = await fetch(testUrl, { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(8000) }); }
                 else { response = await fetchWithProxy(testUrl); if (!response) throw new Error('No proxy'); }
                 
                 source.latency = Date.now() - startTime;
@@ -3916,7 +4152,7 @@ if ('serviceWorker' in navigator) {
             }
             
             // Fallback to localStorage
-            const lsCached = localStorage.getItem('viptrack_registrations_v2');
+            const lsCached = localStorage.getItem('viptrack_registrations_v1');
             if (lsCached) {
                 try {
                     const data = JSON.parse(lsCached);
@@ -3936,37 +4172,19 @@ if ('serviceWorker' in navigator) {
             try {
                 const result = await fetchWithFailover(DATA_URLS.registrations);
                 if (!result.ok) throw new Error('All sources failed');
-                const text = await result.text();
-
-                // Parse semicolon-delimited CSV: hex;reg;type;flags;description;year;owner
-                this.aircraft.clear();
-                const lines = text.split('\n');
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const fields = line.split(';');
-                    const hex = (fields[0] || '').trim().toUpperCase();
-                    if (!hex || hex.length < 4 || hex.length > 6) continue;
-                    this.aircraft.set(hex, {
-                        r: (fields[1] || '').trim(),
-                        t: (fields[2] || '').trim(),
-                        d: (fields[4] || '').trim(),
-                        y: (fields[5] || '').trim(),
-                        o: (fields[6] || '').trim()
-                    });
-                }
-                this.loaded = true;
-
-                // Save parsed data to IndexedDB for faster reload
+                const data = await result.json();
+                this.loadFromData(data);
+                
+                // Save to IndexedDB (can handle larger data)
                 try {
-                    const cacheObj = {};
-                    this.aircraft.forEach((v, k) => { cacheObj[k] = v; });
-                    await skytrackDB.saveDatabase('registrations', cacheObj, 86400000);
+                    await skytrackDB.saveDatabase('registrations', data, 86400000);
                     _dbg('Saved registrations to IndexedDB');
                 } catch (e) {
-                    this.saveToLocalStorage();
+                    // Fallback to localStorage
+                    this.saveToLocalStorage(data);
                 }
-
-                _dbg('Loaded', this.aircraft.size, 'registrations from CSV');
+                
+                _dbg('Loaded', this.aircraft.size, 'registrations from', result.url?.includes('SysAdminDoc') ? 'self-hosted' : 'fallback');
                 return true;
             }
             catch(e) { console.warn('Registration DB failed:', e); return false; }
@@ -3983,13 +4201,11 @@ if ('serviceWorker' in navigator) {
             }
             this.loaded = true;
         },
-        saveToLocalStorage() {
+        saveToLocalStorage(data) {
             try {
-                const cacheObj = {};
-                this.aircraft.forEach((v, k) => { cacheObj[k] = v; });
-                const str = JSON.stringify({ ts: Date.now(), aircraft: cacheObj });
+                const str = JSON.stringify({ ts: Date.now(), aircraft: data });
                 if (str.length < 5000000) {
-                    localStorage.setItem('viptrack_registrations_v2', str);
+                    localStorage.setItem('viptrack_registrations_v1', str);
                 }
             } catch(e) { console.warn('Could not cache registrations:', e); }
         },
@@ -4159,45 +4375,25 @@ if ('serviceWorker' in navigator) {
             'B412': { manufacturer: 'Bell', model: '412', engines: '2x PT6T-3B', wingspan: '14.0m', length: '17.1m', range: '656km', speed: '259km/h', pax: '13-15' },
             'R22': { manufacturer: 'Robinson', model: 'R22', engines: '1x Lycoming O-360', wingspan: '7.7m', length: '8.8m', range: '370km', speed: '180km/h', pax: '2' },
             'R44': { manufacturer: 'Robinson', model: 'R44', engines: '1x Lycoming IO-540', wingspan: '10.1m', length: '11.7m', range: '563km', speed: '209km/h', pax: '4' },
-            'R66': { manufacturer: 'Robinson', model: 'R66', engines: '1x RR300', wingspan: '10.7m', length: '11.7m', range: '602km', speed: '241km/h', pax: '5' },
-            // Military
-            'P8': { manufacturer: 'Boeing', model: 'P-8A Poseidon', engines: '2x CFM56-7B27A', wingspan: '37.6m', length: '39.5m', range: '7500km', speed: '907km/h', pax: 'Crew 9' },
-            'P8A': { manufacturer: 'Boeing', model: 'P-8A Poseidon', engines: '2x CFM56-7B27A', wingspan: '37.6m', length: '39.5m', range: '7500km', speed: '907km/h', pax: 'Crew 9' },
-            'H60': { manufacturer: 'Sikorsky', model: 'UH-60 Black Hawk', engines: '2x GE T700-701D', wingspan: '16.4m', length: '19.8m', range: '590km', speed: '295km/h', pax: 'Crew 4 + 11' },
-            'S70': { manufacturer: 'Sikorsky', model: 'S-70/UH-60 Black Hawk', engines: '2x GE T700', wingspan: '16.4m', length: '19.8m', range: '590km', speed: '295km/h', pax: 'Crew 4 + 11' },
-            'C17': { manufacturer: 'Boeing', model: 'C-17 Globemaster III', engines: '4x PW F117-PW-100', wingspan: '51.7m', length: '53.0m', range: '4482km', speed: '830km/h', pax: '102 troops' },
-            'F16': { manufacturer: 'Lockheed Martin', model: 'F-16 Fighting Falcon', engines: '1x P&W F100/GE F110', wingspan: '9.96m', length: '15.06m', range: '3222km', speed: '2120km/h', pax: 'Crew 1-2' },
-            'F15': { manufacturer: 'Boeing', model: 'F-15 Eagle', engines: '2x P&W F100', wingspan: '13.05m', length: '19.43m', range: '5745km', speed: '2655km/h', pax: 'Crew 1-2' },
-            'F35': { manufacturer: 'Lockheed Martin', model: 'F-35 Lightning II', engines: '1x P&W F135', wingspan: '10.7m', length: '15.7m', range: '2220km', speed: '1960km/h', pax: 'Crew 1' },
-            'F18': { manufacturer: 'Boeing', model: 'F/A-18 Super Hornet', engines: '2x GE F414', wingspan: '13.62m', length: '18.31m', range: '2346km', speed: '1915km/h', pax: 'Crew 1-2' },
-            'V22': { manufacturer: 'Bell-Boeing', model: 'V-22 Osprey', engines: '2x Rolls-Royce AE 1107C', wingspan: '14.0m', length: '17.5m', range: '3593km', speed: '509km/h', pax: 'Crew 4 + 24' },
-            'KC35': { manufacturer: 'Boeing', model: 'KC-135 Stratotanker', engines: '4x CFM56-2B-1', wingspan: '39.9m', length: '41.5m', range: '2419km', speed: '933km/h', pax: 'Crew 3' },
-            'K35R': { manufacturer: 'Boeing', model: 'KC-135R Stratotanker', engines: '4x CFM56-2B-1', wingspan: '39.9m', length: '41.5m', range: '2419km', speed: '933km/h', pax: 'Crew 3' },
-            'C130': { manufacturer: 'Lockheed Martin', model: 'C-130 Hercules', engines: '4x Allison T56-A-15', wingspan: '40.4m', length: '29.8m', range: '3800km', speed: '592km/h', pax: '92 troops' },
-            'C30J': { manufacturer: 'Lockheed Martin', model: 'C-130J Super Hercules', engines: '4x Rolls-Royce AE 2100D3', wingspan: '40.4m', length: '29.8m', range: '5250km', speed: '671km/h', pax: '92 troops' },
-            'A10': { manufacturer: 'Fairchild Republic', model: 'A-10 Thunderbolt II', engines: '2x GE TF34-GE-100A', wingspan: '17.5m', length: '16.3m', range: '463km', speed: '706km/h', pax: 'Crew 1' },
-            'B52': { manufacturer: 'Boeing', model: 'B-52 Stratofortress', engines: '8x P&W TF33-PW-103', wingspan: '56.4m', length: '48.5m', range: '14162km', speed: '1000km/h', pax: 'Crew 5' },
-            'E6': { manufacturer: 'Boeing', model: 'E-6B Mercury', engines: '4x CFM56-2A-2', wingspan: '45.2m', length: '46.6m', range: '11760km', speed: '980km/h', pax: 'Crew 22' },
-            'E3': { manufacturer: 'Boeing', model: 'E-3 Sentry AWACS', engines: '4x P&W TF33', wingspan: '44.4m', length: '46.6m', range: '7400km', speed: '855km/h', pax: 'Crew 19-34' }
+            'R66': { manufacturer: 'Robinson', model: 'R66', engines: '1x RR300', wingspan: '10.7m', length: '11.7m', range: '602km', speed: '241km/h', pax: '5' }
         },
         async init() {
             Object.entries(this.fallbackSpecs).forEach(([code, data]) => { this.types.set(code, { ...data, source: 'fallback' }); });
-            try { const result = await fetchWithFailover(DATA_URLS.types); if (!result.ok) throw new Error('All sources failed'); const data = await result.json(); this.parseTypesJSON(data); _dbg('Loaded ' + this.types.size + ' aircraft types'); }
+            try { const resp = await fetch(DATA_URLS.types); if (!resp.ok) throw new Error('HTTP ' + resp.status); const data = await resp.json(); this.parseTypesJSON(data); _dbg('Loaded ' + this.types.size + ' aircraft types'); }
             catch(e) { console.warn('Types DB load failed, using fallbacks:', e); }
             this.loaded = true; return true;
         },
         parseTypesJSON(data) {
             if (typeof data === 'object' && !Array.isArray(data)) {
                 Object.entries(data).forEach(([code, info]) => {
-                    if (Array.isArray(info)) { const fullName = info[0] || ''; const parts = fullName.split(' '); this.types.set(code.toUpperCase(), { manufacturer: parts[0] || '', model: parts.slice(1).join(' ') || '', fullName: fullName, desc: info[1] || '', wtc: info[2] || '', source: 'external' }); }
-                    else if (typeof info === 'object' && info.desc && !info.manufacturer) { this.types.set(code.toUpperCase(), { manufacturer: '', model: '', desc: info.desc || '', wtc: info.wtc || '', source: 'external' }); }
+                    if (Array.isArray(info)) { this.types.set(code.toUpperCase(), { manufacturer: info[0] || '', model: info[1] || '', source: 'external' }); }
                     else if (typeof info === 'object') { this.types.set(code.toUpperCase(), { ...info, source: 'external' }); }
                     else if (typeof info === 'string') { const parts = info.split(' '); this.types.set(code.toUpperCase(), { manufacturer: parts[0] || '', model: parts.slice(1).join(' ') || '', source: 'external' }); }
                 });
             }
         },
         getByDesignator(code) { if (!code) return null; return this.types.get(code.toUpperCase()) || null; },
-        getDescription(code) { const t = this.getByDesignator(code); if (!t) return code; if (t.fullName) return t.fullName; return t.manufacturer && t.model ? t.manufacturer + ' ' + t.model : (t.model || t.manufacturer || code); }
+        getDescription(code) { const t = this.getByDesignator(code); if (!t) return code; return t.manufacturer && t.model ? t.manufacturer + ' ' + t.model : (t.model || t.manufacturer || code); }
     };
 
     // ============ INTERESTING AIRCRAFT DATABASE ============
@@ -4756,7 +4952,8 @@ if ('serviceWorker' in navigator) {
     const SOURCE_ORDER = ['adsbone', 'adsblol', 'airplaneslive'];
 
     // ============ STATE ============
-    let map, currentBaseMap, aircraftCache = {}, markers = {}, trailLine = null, selectedHex = null;
+    let apiCredentials = { clientId: '', clientSecret: '' };
+    let map, currentBaseMap, aircraftCache = {}, markers = {}, trailLine = null, selectedHex = null, airportLayer = null, radarLayer = null;
     
     // Cached DOM references for hot-path access
     const _dom = {};
@@ -4764,7 +4961,7 @@ if ('serviceWorker' in navigator) {
     let lastFetchTime = 0, fetchInProgress = false, lastSuccessfulSource = null, lastSuccessfulProxy = 0, animationRunning = false;
     const aircraftAnimation = {}, photoCache = {}, photoFailCache = {};
     let bookmarks = [];
-    const settings = { mapStyle: 'esri-gray', showLabels: false, altitudeColors: true, showWiki: true, filter: 'mil-vip', followMode: false, compactMode: false };
+    const settings = { mapStyle: 'esri-gray', showLabels: false, showAirports: false, showRadar: true, altitudeColors: true, showWiki: true, showInterestingBadges: false, filter: 'mil-vip', followMode: false, compactMode: false };
     const baseMaps = {};
     const MILITARY_TYPES = ['F16', 'F15', 'F18', 'F22', 'F35', 'KC35', 'K35R', 'KC10', 'B52', 'A400', 'EUFI', 'RFAL', 'TORD', 'P8', 'U2', 'RC35', 'E6', 'E8', 'EA18', 'EP3', 'T38', 'T45'];
     const MILITARY_TYPES_EXACT = ['C17', 'C130', 'C5', 'C5M', 'B1', 'B1B', 'B2', 'A10', 'A10A', 'E3CF', 'E3TF', 'E3', 'V22', 'C2', 'C12', 'C30J', 'H60', 'C295', 'CN35', 'HAWK', 'MIAG', 'TUCA', 'F117', 'U28A', 'C146', 'C37A', 'C37B', 'C40A', 'C40B', 'P3', 'P8A', 'T6', 'T6A', 'T6B'];
@@ -5361,7 +5558,7 @@ if ('serviceWorker' in navigator) {
         return 'commercial';
     }
     function getAirlineCode(cs) { return cs?.length >= 3 && /^[A-Z]{3}$/.test(cs.substring(0, 3)) ? cs.substring(0, 3) : null; }
-    async function fetchWithProxy(url, options = {}) { if (!CONFIG.isLocalFile) { try { const r = await fetchWithTimeout(url, options); if (r?.ok) return r; } catch(e) {} } for (let i = 0; i < CONFIG.corsProxies.length; i++) { const idx = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length; try { const r = await fetchWithTimeout(CONFIG.corsProxies[idx](url), {}); if (r?.ok) { lastSuccessfulProxy = idx; return r; } } catch(e) {} } return null; }
+    async function fetchWithProxy(url, options = {}) { try { const r = await fetchWithTimeout(url, options); if (r?.ok) return r; } catch(e) {} for (let i = 0; i < CONFIG.corsProxies.length; i++) { const idx = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length; try { const r = await fetchWithTimeout(CONFIG.corsProxies[idx](url), {}); if (r?.ok) { lastSuccessfulProxy = idx; return r; } } catch(e) {} } return null; }
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...options, signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
     function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('viptrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
     function loadMapPosition() { try { const s = localStorage.getItem('viptrack_map'); if (s) { const p = JSON.parse(s); CONFIG.center = [p.lat, p.lng]; CONFIG.zoom = p.zoom; return true; } } catch(e){} return false; }
@@ -5376,6 +5573,10 @@ if ('serviceWorker' in navigator) {
     function deleteBookmark(id) { bookmarks = bookmarks.filter(b => b.id !== id); saveBookmarks(); }
     function goToBookmark(id) { const b = bookmarks.find(x => x.id === id); if (b) { map.setView([b.lat, b.lng], b.zoom); toast('Jumped to ' + b.name); } }
     function renderBookmarks() { const list = document.getElementById('bookmarksList'); if (!bookmarks.length) { list.innerHTML = '<div class="bookmarks-empty">No saved locations</div>'; return; } list.innerHTML = bookmarks.map(b => '<div class="bookmark-item" data-id="' + b.id + '"><span class="bookmark-name">' + b.name + '</span><button class="bookmark-delete" data-id="' + b.id + '">&times;</button></div>').join(''); list.querySelectorAll('.bookmark-item').forEach(item => item.addEventListener('click', e => { if (!e.target.classList.contains('bookmark-delete')) goToBookmark(parseInt(item.dataset.id)); })); list.querySelectorAll('.bookmark-delete').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); deleteBookmark(parseInt(btn.dataset.id)); })); }
+    function loadApiCredentials() { try { const s = localStorage.getItem('viptrack_api_credentials'); apiCredentials = s ? JSON.parse(s) : { ...CONFIG.defaultCredentials }; } catch(e) { apiCredentials = { ...CONFIG.defaultCredentials }; } updateApiUI(); }
+    function saveApiCredentials() { const cid = document.getElementById('apiClientId').value.trim(), cs = document.getElementById('apiClientSecret').value.trim(); if (!cid || !cs) { toast('Enter both fields'); return; } apiCredentials = { clientId: cid, clientSecret: cs }; localStorage.setItem('viptrack_api_credentials', JSON.stringify(apiCredentials)); updateApiUI(); toast('Saved'); }
+    function clearApiCredentials() { apiCredentials = { ...CONFIG.defaultCredentials }; localStorage.removeItem('viptrack_api_credentials'); updateApiUI(); toast('Reset'); }
+    function updateApiUI() { document.getElementById('apiClientId').value = apiCredentials.clientId || ''; document.getElementById('apiClientSecret').value = apiCredentials.clientSecret || ''; const s = document.getElementById('apiStatus'); s.textContent = apiCredentials.clientId === CONFIG.defaultCredentials.clientId ? 'Using defaults' : 'Custom set'; s.className = 'api-status connected'; }
     async function getWikipediaSummary(url) { if (!settings.showWiki || !url) return null; try { const m = url.match(/wikipedia\.org\/wiki\/(.+)$/); if (!m) return null; const r = await fetchWithTimeout('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(decodeURIComponent(m[1])), {}, 5000); if (!r?.ok) return null; const d = await r.json(); return { title: d.title, extract: d.extract, thumbnail: d.thumbnail?.source, url }; } catch(e) { return null; } }
     function setLoadingProgress(pct, status) { document.getElementById('loadingProgress').style.width = pct + '%'; document.getElementById('loadingStatus').textContent = status; }
     async function getInitialLocation() { if (loadMapPosition()) { setLoadingProgress(5, 'Restoring view...'); return; } if (!navigator.geolocation) { setLoadingProgress(5, 'Using default...'); return; } setLoadingProgress(3, 'Getting location...'); return new Promise(resolve => { navigator.geolocation.getCurrentPosition(pos => { CONFIG.center = [pos.coords.latitude, pos.coords.longitude]; CONFIG.zoom = CONFIG.localZoom; setLoadingProgress(5, 'Found!'); resolve(); }, () => { setLoadingProgress(5, 'Using default...'); resolve(); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }); }); }
@@ -5393,7 +5594,7 @@ if ('serviceWorker' in navigator) {
             console.warn('IndexedDB not available, using localStorage fallback');
         }
         
-        loadSettings(); loadBookmarks();
+        loadSettings(); loadApiCredentials(); loadBookmarks();
         const hadCache = loadAircraftCache();
         await getInitialLocation();
         
@@ -5437,6 +5638,8 @@ if ('serviceWorker' in navigator) {
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
         
+        // Initialize theme manager
+        themeManager.init();
         
         // Check URL params for shared flight links
         shareManager.checkUrlParams();
@@ -5521,13 +5724,122 @@ if ('serviceWorker' in navigator) {
     });
 
     function initMap() {
-        map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true, zoomSnap: 1, zoomDelta: 1, worldCopyJump: true });
+        map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true });
         baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
         currentBaseMap = 'esri-gray'; baseMaps[currentBaseMap].addTo(map);
-        let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); }, 800); saveMapPosition(); });
-        map.on('click', () => { deselectAircraft(); _el('settingsPanel').classList.remove('show'); });
+        airportLayer = L.layerGroup().addTo(map);
+        let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); if (settings.showAirports) updateAirportMarkers(); }, 800); saveMapPosition(); });
+        map.on('zoomend', () => { if (settings.showAirports) updateAirportMarkers(); });
+        map.on('click', () => { deselectAircraft(); _el('settingsPanel').classList.remove('show'); _el('airportPanel').classList.remove('show'); });
+        if (settings.showAirports) updateAirportMarkers();
     }
 
+    function updateAirportMarkers() {
+        if (!airportDB.loaded || !settings.showAirports) { airportLayer.clearLayers(); return; }
+        const zoom = map.getZoom(); airportLayer.clearLayers(); if (zoom < 6) return;
+        const bounds = map.getBounds(), airports = airportDB.findInBounds(bounds);
+        const filtered = airports.filter(apt => { if (zoom >= 10) return true; if (zoom >= 8) return apt.type === 'large_airport' || apt.type === 'medium_airport'; return apt.type === 'large_airport'; }).slice(0, zoom >= 10 ? 200 : 100);
+        filtered.forEach(apt => {
+            const size = apt.type === 'large_airport' ? 24 : 18;
+            const icon = L.divIcon({ className: 'airport-marker', html: '<div class="airport-icon ' + (apt.isMilitary ? 'military' : '') + ' ' + (apt.type !== 'large_airport' ? 'small' : '') + '"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>' + (zoom >= 9 ? '<div class="airport-label">' + (apt.iata || apt.icao) + '</div>' : ''), iconSize: [size, size], iconAnchor: [size/2, size/2] });
+            const marker = L.marker([apt.lat, apt.lon], { icon }); marker.on('click', e => { L.DomEvent.stopPropagation(e); showAirportPanel(apt); }); airportLayer.addLayer(marker);
+        });
+    }
+
+    function showAirportPanel(apt) {
+        const panel = _el('airportPanel');
+        panel._airport = apt; // Store for Flight Board access
+        document.getElementById('airportHeader').className = 'airport-header' + (apt.isMilitary ? ' military' : '');
+        document.getElementById('airportName').textContent = apt.name; document.getElementById('airportCodes').textContent = (apt.iata || '---') + ' / ' + apt.icao;
+        document.getElementById('airportElev').textContent = apt.elevation ? apt.elevation + ' ft' : '---'; document.getElementById('airportCity').textContent = apt.city || '---'; document.getElementById('airportCountry').textContent = apt.country || '---';
+        const typeMap = { large_airport: 'Large', medium_airport: 'Medium', small_airport: 'Small', seaplane_base: 'Seaplane' }; document.getElementById('airportType').textContent = typeMap[apt.type] || apt.type || '---';
+        const offset = Math.round(apt.lon / 15); const now = new Date(); now.setHours(now.getUTCHours() + offset); document.getElementById('airportTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        
+        // Flag loading with self-hosted fallback
+        const flagImg = document.querySelector('#airportFlag img');
+        if (apt.country) {
+            const countryCode = apt.country.toLowerCase();
+            const selfHostedUrl = CONFIG.flagUrl + countryCode + '.png';
+            const externalUrl = 'https://flagcdn.com/w40/' + countryCode + '.png';
+            flagImg.onerror = function() {
+                if (this.src !== externalUrl) {
+                    this.src = externalUrl;
+                } else {
+                    this.style.display = 'none';
+                }
+            };
+            flagImg.onload = () => flagImg.style.display = 'block';
+            flagImg.src = selfHostedUrl;
+        } else {
+            flagImg.style.display = 'none';
+        }
+        
+        // Show frequencies
+        const freqSection = document.getElementById('airportFrequencies');
+        const freqList = document.getElementById('freqList');
+        if (frequencyDB.loaded) {
+            const freqs = frequencyDB.getByAirport(apt.icao);
+            if (freqs.length > 0) {
+                freqList.innerHTML = freqs.slice(0, 8).map(f => 
+                    '<div class="freq-item"><div class="freq-type">' + (f.type || f.description) + '</div><div class="freq-value">' + f.frequency.toFixed(3) + '</div></div>'
+                ).join('');
+                freqSection.style.display = 'block';
+            } else {
+                freqSection.style.display = 'none';
+            }
+        } else {
+            freqSection.style.display = 'none';
+        }
+        
+        const photoDiv = document.getElementById('airportPhoto'); photoDiv.innerHTML = '<div class="no-photo">Loading...</div>';
+        const wikiSection = document.getElementById('airportWikiSection'); wikiSection.style.display = 'none';
+        if (apt.wiki && settings.showWiki) { getWikipediaSummary(apt.wiki).then(wiki => { if (wiki) { if (wiki.thumbnail) photoDiv.innerHTML = '<img src="' + wiki.thumbnail + '" alt="' + apt.name + '">'; document.getElementById('airportWikiSummary').textContent = wiki.extract ? wiki.extract.substring(0, 200) + '...' : ''; document.getElementById('airportWikiLink').href = wiki.url; wikiSection.style.display = 'block'; } else photoDiv.innerHTML = '<div class="no-photo">No photo</div>'; }); } else photoDiv.innerHTML = '<div class="no-photo">No photo</div>';
+        
+        // Fetch and display weather
+        const weatherDiv = document.getElementById('airportWeather');
+        if (weatherDiv) {
+            weatherDiv.innerHTML = '<div class="weather-loading">Loading weather...</div>';
+            
+            weatherSystem.getMETAR(apt.icao).then(metar => {
+                if (metar) {
+                    const catColor = weatherSystem.getFlightCategoryColor(metar.flightCategory);
+                    let weatherHtml = '<div class="weather-header">' +
+                        '<span class="weather-category" style="background:' + catColor + '">' + metar.flightCategory + '</span>' +
+                        '<span class="weather-time">' + (metar.time ? new Date(metar.time).toLocaleTimeString() : '') + '</span>' +
+                    '</div>' +
+                    '<div class="weather-grid">' +
+                        '<div class="weather-item"><span class="weather-label">Temperature</span><span class="weather-value">' + (metar.temp !== null ? metar.temp + ' C' : '---') + '</span></div>' +
+                        '<div class="weather-item"><span class="weather-label">Dewpoint</span><span class="weather-value">' + (metar.dewpoint !== null ? metar.dewpoint + ' C' : '---') + '</span></div>' +
+                        '<div class="weather-item"><span class="weather-label">Wind</span><span class="weather-value">' + weatherSystem.formatWind(metar.wind) + '</span></div>' +
+                        '<div class="weather-item"><span class="weather-label">Visibility</span><span class="weather-value">' + (metar.visibility !== null ? metar.visibility + ' mi' : '---') + '</span></div>' +
+                        '<div class="weather-item"><span class="weather-label">Altimeter</span><span class="weather-value">' + (metar.altimeter ? (metar.altimeter / 100).toFixed(2) + '"' : '---') + '</span></div>' +
+                        '<div class="weather-item"><span class="weather-label">Ceiling</span><span class="weather-value">' + (metar.ceiling ? metar.ceiling.toLocaleString() + ' ft' : 'None') + '</span></div>' +
+                    '</div>';
+                    if (metar.weather) {
+                        weatherHtml += '<div class="weather-alert">Weather: ' + metar.weather + '</div>';
+                    }
+                    weatherHtml += '<div class="weather-raw">' + metar.raw + '</div>';
+                    weatherDiv.innerHTML = weatherHtml;
+                } else {
+                    weatherDiv.innerHTML = '<div class="weather-loading">Weather unavailable</div>';
+                }
+            });
+        }
+        
+        // Phase 11: Load NOTAMs
+        const notamsContainer = document.getElementById('airportNotams');
+        if (notamsContainer) {
+            notamsContainer.innerHTML = '<div class="notams-empty">Loading NOTAMs...</div>';
+            notamsSystem.getForAirport(apt.icao).then(notams => {
+                notamsContainer.innerHTML = notamsSystem.renderForPanel(notams);
+            });
+        }
+        
+        // Phase 11: Show runways
+        runwayDisplay.show(apt);
+        
+        panel._airport = apt; panel.classList.add('show'); _el('infoPanel').classList.remove('show'); _el('settingsPanel').classList.remove('show');
+    }
 
     // ============ AIRCRAFT DATA ============
     // VIPTrack: Use dedicated /mil and /pia endpoints for global military data in a single request
@@ -5543,7 +5855,7 @@ if ('serviceWorker' in navigator) {
             if(!allSrc.length){_el('dataSource').textContent='No sources';return;}
             let success=false;
             // Try each source until one succeeds - fetch mil + pia in parallel
-            const _fetch = (url, cors) => (cors && !CONFIG.isLocalFile) ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url);
+            const _fetch = (url, cors) => cors ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url);
             for(const src of allSrc){
                 try{
                     const [milResp,piaResp]=await Promise.all([
@@ -5735,9 +6047,8 @@ if ('serviceWorker' in navigator) {
         const counts = { milVip: 0, military: 0, vip: 0 };
         Object.values(aircraftCache).forEach(ac => {
             counts.milVip++;
-            const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
-            if (isVip) counts.vip++;
-            else if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
+            if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
+            if (ac.isVIP) counts.vip++;
         });
         _el('countMilVIP').textContent = counts.milVip;
         _el('countMil').textContent = counts.military;
@@ -5747,6 +6058,8 @@ if ('serviceWorker' in navigator) {
     let _updateMarkersRaf = 0;
     function _updateMarkersCore() {
         if (!map) return;
+        const bounds = map.getBounds();
+        const paddedBounds = bounds.pad(0.2);
         const zoom = map.getZoom();
         const _removeMarker = hex => { if (markers[hex]) { map.removeLayer(markers[hex]); delete markers[hex]; delete aircraftAnimation[hex]; } };
 
@@ -5770,6 +6083,8 @@ if ('serviceWorker' in navigator) {
 
         Object.values(aircraftCache).forEach(ac => {
             if (ac.lat === undefined || ac.lon === undefined) return;
+            // Bounds check first (cheapest filter, eliminates most aircraft)
+            if (!paddedBounds.contains([ac.lat, ac.lon])) { _removeMarker(ac.hex); return; }
             // Search filters
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) { _removeMarker(ac.hex); return; }
             // VIPTrack: cache only contains mil/vip, so mil-vip shows all cached aircraft
@@ -5777,7 +6092,6 @@ if ('serviceWorker' in navigator) {
                 if (settings.filter === 'vip') {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
-                    if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                     if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { _removeMarker(ac.hex); return; }
                 }
             }
@@ -5793,7 +6107,7 @@ if ('serviceWorker' in navigator) {
     // Synchronous version for processAircraftData (needs immediate update after new data)
     function updateMarkersSync() { if (_updateMarkersRaf) { cancelAnimationFrame(_updateMarkersRaf); _updateMarkersRaf = 0; } _updateMarkersCore(); }
 
-    function createMarker(ac) { const marker = L.marker([ac.lat, ac.lon], { icon: createIcon(ac), zIndexOffset: getZIndex(ac) }); marker.on('click', e => { L.DomEvent.stopPropagation(e); selectAircraft(ac.hex); }); marker.addTo(map); markers[ac.hex] = marker; }
+    function createMarker(ac) { const marker = L.marker([ac.lat, ac.lon], { icon: createIcon(ac), zIndexOffset: getZIndex(ac) }); marker.on('click', e => { L.DomEvent.stopPropagation(e); if (e.originalEvent?.ctrlKey || e.originalEvent?.metaKey) { if (!multiSelect.enabled) { multiSelect.enabled = true; document.getElementById('multiSelectBtn')?.classList.add('active'); document.body.classList.add('multi-select-mode'); multiSelect.showToolbar(); toast('Multi-select ON - Ctrl+click to select more'); } multiSelect.toggleSelection(ac.hex); return; } selectAircraft(ac.hex); }); marker.addTo(map); markers[ac.hex] = marker; }
     function updateMarker(ac) { const marker = markers[ac.hex]; if (!marker) return; const hash = _iconHash(ac); const cached = _iconCache[ac.hex]; const iconChanged = !cached || cached.hash !== hash; const pos = marker.getLatLng(); if (Math.abs(pos.lat - ac.lat) + Math.abs(pos.lng - ac.lon) < 0.00001) { if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } return; } aircraftAnimation[ac.hex] = { startLat: pos.lat, startLon: pos.lng, targetLat: ac.lat, targetLon: ac.lon, startTime: performance.now(), duration: CONFIG.refreshInterval * 0.95 }; if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } if (!animationRunning) { animationRunning = true; requestAnimationFrame(animateAircraft); } }
     function animateAircraft(ts) { let active = false; Object.entries(aircraftAnimation).forEach(([hex, a]) => { const m = markers[hex]; if (!m) { delete aircraftAnimation[hex]; return; } const p = Math.min((ts - a.startTime) / a.duration, 1); if (p < 1) { active = true; const lat = a.startLat + (a.targetLat - a.startLat) * p, lon = a.startLon + (a.targetLon - a.startLon) * p; m.setLatLng([lat, lon]); if (hex === selectedHex && trailLine?._lastSegment) { const ll = trailLine._lastSegment.getLatLngs(); if (ll.length) { ll[ll.length - 1] = L.latLng(lat, lon); trailLine._lastSegment.setLatLngs(ll); } } } else { m.setLatLng([a.targetLat, a.targetLon]); delete aircraftAnimation[hex]; } }); if (active) requestAnimationFrame(animateAircraft); else animationRunning = false; }
     // ============ TAR1090 SPRITE ICON SYSTEM ============
@@ -5920,20 +6234,20 @@ if ('serviceWorker' in navigator) {
     }
 
     function getAltitudeCSSFilter(alt, selected) {
-        if (selected) return 'brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(140deg) brightness(1.1) drop-shadow(0 0 4px cyan)';
+        if (selected) return 'brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(140deg) brightness(1.2) drop-shadow(0 0 6px cyan) drop-shadow(0 0 12px cyan)';
         if (alt === 'ground' || alt === 0) return 'brightness(0) invert(0.55) sepia(0.3) saturate(0.5)';
         if (typeof alt !== 'number') return 'brightness(0) invert(0.85)';
         const a = Math.max(0, Math.min(alt, 50000));
-        if (a < 1000) return 'brightness(0) invert(0.6) sepia(1) saturate(3) hue-rotate(65deg)';
-        if (a < 5000) return 'brightness(0) invert(0.7) sepia(1) saturate(3) hue-rotate(50deg)';
-        if (a < 10000) return 'brightness(0) invert(0.8) sepia(1) saturate(3) hue-rotate(30deg)';
-        if (a < 15000) return 'brightness(0) invert(0.85) sepia(1) saturate(3) hue-rotate(10deg)';
-        if (a < 20000) return 'brightness(0) invert(0.7) sepia(1) saturate(4) hue-rotate(0deg)';
-        if (a < 25000) return 'brightness(0) invert(0.6) sepia(1) saturate(4) hue-rotate(340deg)';
-        if (a < 30000) return 'brightness(0) invert(0.5) sepia(1) saturate(5) hue-rotate(325deg)';
-        if (a < 35000) return 'brightness(0) invert(0.55) sepia(1) saturate(4) hue-rotate(310deg)';
-        if (a < 40000) return 'brightness(0) invert(0.5) sepia(1) saturate(4) hue-rotate(280deg)';
-        return 'brightness(0) invert(0.6) sepia(1) saturate(3) hue-rotate(260deg)';
+        if (a < 1000) return 'brightness(0) invert(0.6) sepia(1) saturate(4) hue-rotate(65deg)';
+        if (a < 5000) return 'brightness(0) invert(0.7) sepia(1) saturate(5) hue-rotate(50deg)';
+        if (a < 10000) return 'brightness(0) invert(0.8) sepia(1) saturate(5) hue-rotate(30deg)';
+        if (a < 15000) return 'brightness(0) invert(0.85) sepia(1) saturate(5) hue-rotate(10deg)';
+        if (a < 20000) return 'brightness(0) invert(0.7) sepia(1) saturate(8) hue-rotate(0deg)';
+        if (a < 25000) return 'brightness(0) invert(0.6) sepia(1) saturate(8) hue-rotate(340deg)';
+        if (a < 30000) return 'brightness(0) invert(0.5) sepia(1) saturate(10) hue-rotate(325deg)';
+        if (a < 35000) return 'brightness(0) invert(0.55) sepia(1) saturate(8) hue-rotate(310deg)';
+        if (a < 40000) return 'brightness(0) invert(0.5) sepia(1) saturate(6) hue-rotate(280deg)';
+        return 'brightness(0) invert(0.6) sepia(1) saturate(5) hue-rotate(260deg)';
     }
 
     const _iconCache = {};
@@ -5945,7 +6259,8 @@ if ('serviceWorker' in navigator) {
         const rot = Math.round((ac.track || 0) / 5) * 5;
         const sel = ac.hex === selectedHex ? 1 : 0;
         const lbl = settings.showLabels ? 1 : 0;
-        return ac.hex + '|' + altBand + '|' + rot + '|' + sel + '0' + lbl + '|' + (ac.flight || '') + '|' + (ac.t || '');
+        const bdg = settings.showInterestingBadges ? 1 : 0;
+        return ac.hex + '|' + altBand + '|' + rot + '|' + sel + '0' + lbl + bdg + '|' + (ac.flight || '') + '|' + (ac.t || '');
     }
 
     function createIcon(ac) {
@@ -5959,6 +6274,7 @@ if ('serviceWorker' in navigator) {
         const isInteresting = ac.interesting || ac.militaryInfo || ac.piaInfo;
         const isVIP = ac.isVIP || badgersBestDB.isVIP(ac.hex);
         const isDimmed = false; // VIPTrack: never dim other aircraft
+        const interestingCategory = ac.piaInfo ? 'PIA' : (ac.interesting?.category || ac.militaryInfo?.category);
         
         const spriteInfo = getSpriteIcon(ac);
         const col = spriteInfo.idx % 16;
@@ -5970,6 +6286,12 @@ if ('serviceWorker' in navigator) {
             label = '<div class="aircraft-label" style="color:' + labelColor + '">' + (ac.flight || ac.hex) + '</div>';
         }
         
+        let badge = '';
+        if (isInteresting && !sel && settings.showInterestingBadges) {
+            const badgeColor = interestingDB.getCategoryColor(interestingCategory);
+            const badgeIcon = interestingDB.getCategoryIcon(interestingCategory);
+            badge = '<div class="interesting-badge" style="background:' + badgeColor + '">' + badgeIcon + '</div>';
+        }
         
         const cssFilter = getAltitudeCSSFilter(ac.alt_baro, sel);
         const bgW = (1376 * size / 86);
@@ -5990,7 +6312,7 @@ if ('serviceWorker' in navigator) {
         
         const icon = L.divIcon({
             className: className,
-            html: sprite + label,
+            html: sprite + badge + label,
             iconSize: [size, size],
             iconAnchor: [size/2, size/2]
         });
@@ -6139,7 +6461,7 @@ if ('serviceWorker' in navigator) {
         trailLine._group = group; trailLine._lastSegment = lastSeg;
     }
     function drawSimpleTrail(trace, ac) { const points = trace.filter(p => p[1] && p[2]).map(p => [p[1], p[2]]); if (ac.lat && ac.lon) { const last = points[points.length - 1]; if (!last || last[0] !== ac.lat || last[1] !== ac.lon) points.push([ac.lat, ac.lon]); } if (points.length > 1) { trailLine = L.polyline(points, { color: getAltitudeColor(ac.alt_baro || 0), weight: 3, opacity: 0.85 }).addTo(map); const origin = createOriginMarker(points[0][0], points[0][1]); origin.addTo(map); trailLine._originMarker = origin; trailLine._lastSegment = trailLine; } }
-    function createOriginMarker(lat, lon) { const m = L.circleMarker([lat, lon], { radius: 8, color: '#fff', fillColor: '#00ff00', fillOpacity: 1, weight: 2 }); m.on('click', e => { L.DomEvent.stopPropagation(e); const nearby = airportDB.findNearby(lat, lon, 15); if (nearby.length) toast(nearby[0].name + ' (' + nearby[0].icao + ')'); else toast('No airport found near origin'); }); m.bindTooltip('Takeoff origin', { permanent: false, direction: 'top' }); return m; }
+    function createOriginMarker(lat, lon) { const m = L.circleMarker([lat, lon], { radius: 8, color: '#fff', fillColor: '#00ff00', fillOpacity: 1, weight: 2 }); m.on('click', e => { L.DomEvent.stopPropagation(e); const nearby = airportDB.findNearby(lat, lon, 15); if (nearby.length) showAirportPanel(nearby[0]); else toast('No airport found near origin'); }); m.bindTooltip('Takeoff - Click for airport', { permanent: false, direction: 'top' }); return m; }
     function filterToCurrentFlight(trace) { if (!trace || trace.length < 2) return trace; let idx = 0; for (let i = trace.length - 1; i >= 0; i--) { const alt = trace[i][3], gs = trace[i][4]; if (alt === 'ground' || alt === null || (typeof alt === 'number' && alt < 500 && gs < 50)) { for (let j = i; j < trace.length; j++) { if (typeof trace[j][3] === 'number' && trace[j][3] > 500 && trace[j][4] > 80) { idx = Math.max(0, i - 2); break; } } break; } if (i > 0 && trace[i][0] - trace[i-1][0] > 1800) { idx = i; break; } } return trace.slice(idx); }
     function renderAltitudeChart(history) { const canvas = document.getElementById('altitudeChart'); if (!canvas || !history || history.length < 2) return; const ctx = canvas.getContext('2d'); canvas.width = canvas.offsetWidth; canvas.height = 60; const alts = history.map(p => typeof p[2] === 'number' ? p[2] : 0); const maxAlt = Math.max(...alts, 1000), minAlt = Math.min(...alts, 0), range = maxAlt - minAlt || 1000; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.beginPath(); const step = canvas.width / (alts.length - 1); alts.forEach((alt, i) => { const x = i * step, y = canvas.height - ((alt - minAlt) / range) * (canvas.height - 10) - 5; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height); ctx.closePath(); ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; ctx.fill(); ctx.beginPath(); alts.forEach((alt, i) => { const x = i * step, y = canvas.height - ((alt - minAlt) / range) * (canvas.height - 10) - 5; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.strokeStyle = '#ffa500'; ctx.lineWidth = 2; ctx.stroke(); }
 
@@ -6189,155 +6511,80 @@ if ('serviceWorker' in navigator) {
     }
 
     // ============ PHOTOS ============
-    // Photo source priority chain:
-    // 1. Preloaded images DB (CSV cache - instant, no network)
-    // 2. Self-hosted photos by hex (GitHub repo - fast CDN)
-    // 3. Self-hosted type photos (one per ICAO type code - fast CDN)
-    // 4. Planespotters API by hex (largest aviation photo DB)
-    // 5. Planespotters API by registration (catches military indexed by reg)
-    // 6. airport-data.com API by hex+reg (free JSON API, real user photos)
-    // 7. hexdb.io image by hex (direct image endpoint)
-    // 8. Wikipedia thumbnail by type/desc (generic type photo from article)
-    // 9. Silhouette outline (absolute last resort - self-hosted then airplanes.live)
-
-    async function loadAircraftPhoto(hex, ac) {
+    async function loadAircraftPhoto(hex, reg, type) {
         const div = document.getElementById('aircraftPhoto');
-
+        
         // Check memory cache first
         if (photoCache[hex]) { displayPhoto(photoCache[hex]); return; }
-        if (photoFailCache[hex]) { showFallbackPhoto(ac, div); return; }
-
+        if (photoFailCache[hex]) { showFallbackPhoto(type, div); return; }
+        
         div.innerHTML = '<div class="no-photo">Loading...</div>';
-
-        // PRIORITY 1: Preloaded images database (fastest - no API call)
+        
+        // PRIORITY 1: Check preloaded images database (fastest - no API call)
         if (preloadedImagesDB.loaded && preloadedImagesDB.hasImage(hex)) {
             const preloadedUrl = preloadedImagesDB.getFirstImage(hex);
             if (preloadedUrl) {
-                const ok = await testImage(preloadedUrl);
-                if (ok) { cacheAndShow(hex, preloadedUrl, 'preloaded'); return; }
+                // Verify the image loads
+                const img = new Image();
+                img.onload = () => {
+                    photoCache[hex] = { url: preloadedUrl, source: 'preloaded' };
+                    displayPhoto(photoCache[hex]);
+                };
+                img.onerror = () => {
+                    // Preloaded URL failed, try next source
+                    loadPhotoFromSelfHosted(hex, reg, type, div);
+                };
+                img.src = preloadedUrl;
+                return;
             }
         }
+        
+        // PRIORITY 2: Try self-hosted photos
+        await loadPhotoFromSelfHosted(hex, reg, type, div);
+    }
 
-        // PRIORITY 2: Self-hosted photos by hex
+    async function loadPhotoFromSelfHosted(hex, reg, type, div) {
+        // Try self-hosted aircraft photo
         const selfHostedUrl = DATA_URLS.aircraftPhotos + hex.toUpperCase() + '.jpg';
-        if (await testImage(selfHostedUrl)) { cacheAndShow(hex, selfHostedUrl, 'self-hosted'); return; }
-
-        // PRIORITY 3: Self-hosted type photos (one photo per aircraft type)
-        const typeCode = (ac.t || '').toUpperCase();
-        if (typeCode) {
-            const typePhotoUrl = DATA_URLS.typePhotos + typeCode + '.jpg';
-            if (await testImage(typePhotoUrl)) { cacheAndShow(hex, typePhotoUrl, 'type-photo'); return; }
-        }
-
-        // PRIORITY 4: Planespotters API by hex (live API)
-        const psHexUrl = await fetchPlanespottersPhoto('hex/' + hex);
-        if (psHexUrl) { cacheAndShow(hex, psHexUrl, 'planespotters'); return; }
-
-        // PRIORITY 5: Planespotters API by registration
-        if (ac.r) {
-            const psRegUrl = await fetchPlanespottersPhoto('reg/' + ac.r);
-            if (psRegUrl) { cacheAndShow(hex, psRegUrl, 'planespotters-reg'); return; }
-        }
-
-        // PRIORITY 6: airport-data.com API (by hex + optional reg)
-        const adUrl = await fetchAirportDataPhoto(hex, ac.r);
-        if (adUrl) { cacheAndShow(hex, adUrl, 'airport-data'); return; }
-
-        // PRIORITY 7: hexdb.io image by hex (returns image directly)
-        const hexdbUrl = 'https://hexdb.io/hex-image-thumb?hex=' + hex.toUpperCase();
-        if (await testImage(hexdbUrl)) { cacheAndShow(hex, hexdbUrl, 'hexdb'); return; }
-
-        // PRIORITY 8: Wikipedia thumbnail from all available aircraft data fields
-        const wikiUrl = await fetchWikipediaPhoto(ac);
-        if (wikiUrl) { cacheAndShow(hex, wikiUrl, 'wikipedia'); return; }
-
-        // PRIORITY 9: Silhouette outline (absolute last resort)
-        photoFailCache[hex] = true;
-        showFallbackPhoto(ac, div);
+        
+        const img = new Image();
+        img.onload = () => {
+            photoCache[hex] = { url: selfHostedUrl, source: 'self-hosted' };
+            displayPhoto(photoCache[hex]);
+        };
+        img.onerror = () => {
+            // Self-hosted not available, try Planespotters API
+            loadPhotoFromPlanespotters(hex, reg, type, div);
+        };
+        img.src = selfHostedUrl;
     }
 
-    // Helper: test if an image URL loads successfully
-    function testImage(url) {
-        return new Promise(resolve => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = url;
-        });
-    }
-
-    // Helper: cache result and display
-    function cacheAndShow(hex, url, source) {
-        photoCache[hex] = { url, source };
-        displayPhoto(photoCache[hex]);
-    }
-
-    // Planespotters.net API - returns photo URL or null
-    async function fetchPlanespottersPhoto(path) {
+    async function loadPhotoFromPlanespotters(hex, reg, type, div) {
+        // PRIORITY 3: Planespotters API (slowest, rate-limited)
         try {
-            const resp = await fetchWithProxy('https://api.planespotters.net/pub/photos/' + path);
+            const resp = await fetchWithProxy('https://api.planespotters.net/pub/photos/hex/' + hex);
             if (resp) {
                 const data = await resp.json();
                 if (data.photos?.length) {
-                    return data.photos[0].thumbnail_large?.src || data.photos[0].thumbnail?.src || null;
+                    const photo = data.photos[0];
+                    const url = photo.thumbnail_large?.src || photo.thumbnail?.src;
+                    if (url) {
+                        photoCache[hex] = { url, source: 'planespotters' };
+                        displayPhoto(photoCache[hex]);
+                        return;
+                    }
                 }
             }
-        } catch(e) {}
-        return null;
-    }
-
-    // airport-data.com API - returns photo URL or null
-    async function fetchAirportDataPhoto(hex, reg) {
-        try {
-            let apiUrl = 'https://airport-data.com/api/ac_thumb.json?m=' + hex.toUpperCase() + '&n=1';
-            if (reg) apiUrl += '&r=' + encodeURIComponent(reg);
-            const resp = await fetchWithProxy(apiUrl);
-            if (resp) {
-                const data = await resp.json();
-                if (data.status === 200 && data.data?.length && data.data[0].image) {
-                    return data.data[0].image;
-                }
-            }
-        } catch(e) {}
-        return null;
-    }
-
-    // Wikipedia thumbnail - tries multiple search terms from all aircraft data fields
-    async function fetchWikipediaPhoto(ac) {
-        const wikiNames = {'P8':'Boeing P-8 Poseidon','P8A':'Boeing P-8 Poseidon','H60':'Sikorsky UH-60 Black Hawk','S70':'Sikorsky UH-60 Black Hawk','C17':'Boeing C-17 Globemaster III','F16':'General Dynamics F-16 Fighting Falcon','F15':'McDonnell Douglas F-15 Eagle','F35':'Lockheed Martin F-35 Lightning II','F18':'Boeing F/A-18E/F Super Hornet','V22':'Bell Boeing V-22 Osprey','KC35':'Boeing KC-135 Stratotanker','K35R':'Boeing KC-135 Stratotanker','C130':'Lockheed C-130 Hercules','C30J':'Lockheed Martin C-130J Super Hercules','A10':'Fairchild Republic A-10 Thunderbolt II','B52':'Boeing B-52 Stratofortress','E6':'Boeing E-6 Mercury','E3':'Boeing E-3 Sentry','B1':'Rockwell B-1 Lancer','B2':'Northrop Grumman B-2 Spirit','F22':'Lockheed Martin F-22 Raptor','EA18':'Boeing EA-18G Growler','EP3':'Lockheed EP-3','RC35':'Boeing RC-135','A400':'Airbus A400M Atlas','EUFI':'Eurofighter Typhoon','RFAL':'Dassault Rafale','TORD':'Panavia Tornado','U2':'Lockheed U-2','KC10':'McDonnell Douglas KC-10 Extender','CH47':'Boeing CH-47 Chinook','AH64':'Boeing AH-64 Apache','C5':'Lockheed C-5 Galaxy','C5M':'Lockheed C-5M Super Galaxy','B1B':'Rockwell B-1 Lancer','F117':'Lockheed F-117 Nighthawk','E8':'Northrop Grumman E-8 Joint STARS','U28A':'Pilatus PC-12','C146':'Dornier 328','C37A':'Gulfstream V','C40A':'Boeing C-40 Clipper','T38':'Northrop T-38 Talon','T45':'Boeing T-45 Goshawk','RC135':'Boeing RC-135'};
-
-        const searchTerms = [];
-        if (ac.t) {
-            const typeUpper = ac.t.toUpperCase();
-            if (wikiNames[typeUpper]) searchTerms.push(wikiNames[typeUpper]);
-            const typeData = aircraftTypeDB.getByDesignator(ac.t);
-            if (typeData?.manufacturer && typeData?.model) searchTerms.push(typeData.manufacturer + ' ' + typeData.model);
+        } catch(e) {
+            console.warn('Planespotters API error:', e);
         }
-        if (ac.militaryInfo?.type) searchTerms.push(ac.militaryInfo.type);
-        if (ac.desc) searchTerms.push(ac.desc);
-        if (ac.interesting?.type && ac.interesting.type !== ac.desc) searchTerms.push(ac.interesting.type);
-        if (ac.ownOp && searchTerms.length === 0) searchTerms.push(ac.ownOp);
-
-        // Deduplicate search terms
-        const seen = new Set();
-        const unique = searchTerms.filter(t => { if (!t || t.length < 3 || seen.has(t)) return false; seen.add(t); return true; });
-
-        for (const searchName of unique) {
-            try {
-                const wikiResp = await fetchWithTimeout('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(searchName.replace(/\s+/g, '_')), {}, 5000);
-                if (wikiResp?.ok) {
-                    const wikiData = await wikiResp.json();
-                    if (wikiData.thumbnail?.source) return wikiData.thumbnail.source;
-                }
-            } catch(e) {}
-        }
-        return null;
+        
+        // All sources failed
+        photoFailCache[hex] = true;
+        showFallbackPhoto(type, div);
     }
-
-    // Silhouette fallback (absolute last resort)
-    function showFallbackPhoto(ac, div) {
-        const type = ac?.t || ac; // backwards compat if called with type string
-        if (type && typeof type === 'string') {
+    function showFallbackPhoto(type, div) { 
+        if (type) {
             const typeUpper = type.toUpperCase();
             const selfHostedUrl = CONFIG.silhouetteUrl + typeUpper + '.png';
             const externalUrl = 'https://globe.airplanes.live/aircraft_sil/' + typeUpper + '.png';
@@ -6357,40 +6604,26 @@ if ('serviceWorker' in navigator) {
             div.innerHTML = '<div class="no-photo"><svg width="48" height="48" viewBox="0 0 24 24" fill="#666"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div>';
         }
     }
-    function displayPhoto(photo) {
-        const div = document.getElementById('aircraftPhoto');
-        if (!div || !photo || !photo.url) return;
-        div.textContent = '';
-        const img = document.createElement('img');
-        img.alt = '';
-        img.style.cssText = photo.isSilhouette ? 'object-fit:contain;background:#1a1a2e;padding:20px;' : 'object-fit:cover;';
-        img.onerror = () => { div.textContent = ''; const fb = document.createElement('div'); fb.className = 'no-photo'; fb.textContent = 'No photo'; div.appendChild(fb); };
-        img.src = photo.url;
-        div.appendChild(img);
-    }
-    function loadAirlineBanner(cs) {
-        const div = document.getElementById('airlineBanner'), code = getAirlineCode(cs);
-        if (!div) return;
-        if (!code) { div.style.display = 'none'; return; }
+    function displayPhoto(photo) { const div = document.getElementById('aircraftPhoto'); div.innerHTML = '<img src="' + photo.url + '" alt="" style="' + (photo.isSilhouette ? 'object-fit:contain;background:#1a1a2e;padding:20px;' : 'object-fit:cover;') + '" onerror="this.parentElement.innerHTML=\'<div class=no-photo>No photo</div>\'">'; }
+    function loadAirlineBanner(cs) { 
+        const div = document.getElementById('airlineBanner'), code = getAirlineCode(cs); 
+        if (!code) { div.style.display = 'none'; return; } 
         const selfHostedUrl = CONFIG.airlineBannerUrl + code + '.png';
         const externalUrl = 'https://globe.airplanes.live/airline_banners/' + code + '.png';
-        const img = div.querySelector('img');
-        if (!img) return;
-        img.onload = () => div.style.display = 'flex';
+        const img = div.querySelector('img'); 
+        img.onload = () => div.style.display = 'flex'; 
         img.onerror = function() {
             if (this.src !== externalUrl) {
                 this.src = externalUrl;
             } else {
                 div.style.display = 'none';
             }
-        };
-        img.src = selfHostedUrl;
+        }; 
+        img.src = selfHostedUrl; 
     }
 
     // ============ SELECTION ============
-    let _selectLock = 0;
     function selectAircraft(hex) {
-        _selectLock = Date.now();
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
         selectedHex = hex; const ac = aircraftCache[hex]; if (!ac) return;
         document.getElementById('infoCallsign').textContent = ac.flight || 'N/A'; document.getElementById('infoHex').textContent = ac.hex; document.getElementById('infoReg').textContent = ac.r || 'N/A';
@@ -6630,6 +6863,9 @@ if ('serviceWorker' in navigator) {
             }
         }
         
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelector('.tab-btn[data-tab="overview"]').classList.add('active'); document.getElementById('tabOverview').classList.add('active');
+        _el('infoPanel').classList.add('show'); _el('settingsPanel').classList.remove('show'); _el('airportPanel').classList.remove('show');
+        
         // Update watch button state
         const watchBtn = document.getElementById('watchBtn');
         if (watchBtn) {
@@ -6639,7 +6875,7 @@ if ('serviceWorker' in navigator) {
             watchBtn.querySelector('.watch-text').textContent = isWatched ? 'Watching' : 'Watch';
         }
         
-        loadAircraftPhoto(hex, ac); loadAirlineBanner(ac.flight); loadTrail(hex); if (ac.history?.length > 1) setTimeout(() => renderAltitudeChart(ac.history), 100);
+        loadAircraftPhoto(hex, ac.r, ac.t); loadAirlineBanner(ac.flight); loadTrail(hex); if (ac.history?.length > 1) setTimeout(() => renderAltitudeChart(ac.history), 100);
         
         // Phase 10: Update ETA display and enhanced altitude chart
         routePredictor.updateETADisplay(ac);
@@ -6648,49 +6884,59 @@ if ('serviceWorker' in navigator) {
         // Phase 11: Update external tracking links
         updateExternalLinks(ac);
         
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelector('.tab-btn[data-tab="overview"]').classList.add('active'); document.getElementById('tabOverview').classList.add('active');
-        _el('settingsPanel').classList.remove('show');
-        // Move panel into sidebar wrapper and show
-        const _sbw = _el('sidebarWrapper');
-        const _pnl = _el('infoPanel');
-        _pnl.classList.add('show');
-        if (_pnl.parentElement !== _sbw) _sbw.appendChild(_pnl);
-        _sbw.style.display = 'block';
         updateMarkers();
         shareManager.updateUrl();
     }
-    function deselectAircraft() {
-        if (Date.now() - _selectLock < 300) return;
-        if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
-        selectedHex = null;
-        const _pnl = _el('infoPanel');
-        _pnl.classList.remove('show');
-        _el('sidebarWrapper').style.display = 'none';
-        // Move panel back to body so DOM queries still work
-        if (_pnl.parentElement !== document.body) document.body.appendChild(_pnl);
-        document.getElementById('map').style.left = '0';
-        routePredictor.clearAll(); updateMarkers(); shareManager.updateUrl();
-    }
+    function deselectAircraft() { if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; } selectedHex = null; _el('infoPanel').classList.remove('show'); routePredictor.clearAll(); updateMarkers(); shareManager.updateUrl(); }
 
     // ============ UI HANDLERS ============
     function initUI() {
         document.getElementById('infoClose').addEventListener('click', deselectAircraft);
+        document.getElementById('airportClose').addEventListener('click', () => _el('airportPanel').classList.remove('show'));
         document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); btn.classList.add('active'); document.getElementById('tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active'); }));
         document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                settings.filter = btn.dataset.filter;
-                updateMarkers();
+            btn.addEventListener('click', () => { 
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); 
+                btn.classList.add('active'); 
+                settings.filter = btn.dataset.filter; 
+                updateMarkers(); 
                 shareManager.updateUrl();
+                const shareBtn = document.getElementById('filterShareBtn');
+                if (shareBtn) shareBtn.style.display = btn.dataset.filter === 'all' ? 'none' : 'flex';
             });
+            // Long-press to copy shareable filter link
+            let pressTimer;
+            btn.addEventListener('pointerdown', () => {
+                pressTimer = setTimeout(() => {
+                    if (btn.dataset.filter !== 'all') {
+                        shareManager.shareFilter(btn.dataset.filter);
+                    }
+                }, 600);
+            });
+            btn.addEventListener('pointerup', () => clearTimeout(pressTimer));
+            btn.addEventListener('pointerleave', () => clearTimeout(pressTimer));
+        });
+        document.getElementById('filterShareBtn')?.addEventListener('click', () => {
+            if (settings.filter && settings.filter !== 'all') shareManager.shareFilter(settings.filter);
         });
         document.getElementById('labelBtn').addEventListener('click', function() { settings.showLabels = !settings.showLabels; this.classList.toggle('active', settings.showLabels); document.getElementById('toggleLabels').classList.toggle('on', settings.showLabels); saveSettings(); updateMarkers(); });
+        document.getElementById('airportsBtn').addEventListener('click', function() { settings.showAirports = !settings.showAirports; this.classList.toggle('active', settings.showAirports); document.getElementById('toggleAirports').classList.toggle('on', settings.showAirports); saveSettings(); updateAirportMarkers(); });
+        document.getElementById('radarBtn').addEventListener('click', toggleRadar);
         document.getElementById('locateBtn').addEventListener('click', geolocate);
         document.getElementById('followBtn')?.addEventListener('click', function() {
             settings.followMode = !settings.followMode;
             this.classList.toggle('active', settings.followMode);
             saveSettings();
+            
+            // Disable multi-select if it's enabled - they are mutually exclusive
+            if (settings.followMode && typeof multiSelect !== 'undefined' && multiSelect.enabled) {
+                multiSelect.enabled = false;
+                document.getElementById('multiSelectBtn')?.classList.remove('active');
+                document.body.classList.remove('multi-select-mode');
+                multiSelect.hideToolbar();
+                multiSelect.clearAll();
+                toast('Multi-select disabled');
+            }
             
             toast(settings.followMode ? 'Follow mode ON' : 'Follow mode OFF');
             if (settings.followMode && selectedHex) {
@@ -6698,16 +6944,23 @@ if ('serviceWorker' in navigator) {
                 if (ac?.lat !== undefined) map.panTo([ac.lat, ac.lon]);
             }
         });
-        document.getElementById('settingsBtn').addEventListener('click', () => { _el('settingsPanel').classList.toggle('show'); deselectAircraft(); });
+        document.getElementById('settingsBtn').addEventListener('click', () => { _el('settingsPanel').classList.toggle('show'); _el('infoPanel').classList.remove('show'); _el('airportPanel').classList.remove('show'); });
         document.getElementById('toggleLabels').classList.toggle('on', settings.showLabels); document.getElementById('toggleLabels').addEventListener('click', function() { settings.showLabels = !settings.showLabels; this.classList.toggle('on', settings.showLabels); document.getElementById('labelBtn').classList.toggle('active', settings.showLabels); saveSettings(); updateMarkers(); });
+        document.getElementById('toggleAirports').classList.toggle('on', settings.showAirports); document.getElementById('toggleAirports').addEventListener('click', function() { settings.showAirports = !settings.showAirports; this.classList.toggle('on', settings.showAirports); document.getElementById('airportsBtn').classList.toggle('active', settings.showAirports); saveSettings(); updateAirportMarkers(); });
+        document.getElementById('toggleRadar').addEventListener('click', toggleRadar);
         document.getElementById('toggleAltColors').classList.toggle('on', settings.altitudeColors); document.getElementById('toggleAltColors').addEventListener('click', function() { settings.altitudeColors = !settings.altitudeColors; this.classList.toggle('on', settings.altitudeColors); saveSettings(); if (selectedHex) loadTrail(selectedHex); });
         document.getElementById('toggleWiki').classList.toggle('on', settings.showWiki); document.getElementById('toggleWiki').addEventListener('click', function() { settings.showWiki = !settings.showWiki; this.classList.toggle('on', settings.showWiki); saveSettings(); });
+        document.getElementById('toggleInterestingBadges').classList.toggle('on', settings.showInterestingBadges); document.getElementById('toggleInterestingBadges').addEventListener('click', function() { settings.showInterestingBadges = !settings.showInterestingBadges; this.classList.toggle('on', settings.showInterestingBadges); saveSettings(); updateMarkers(); });
+        document.getElementById('saveApiBtn').addEventListener('click', saveApiCredentials); document.getElementById('clearApiBtn').addEventListener('click', clearApiCredentials);
         document.getElementById('addBookmarkBtn').addEventListener('click', () => { document.getElementById('bookmarkModal').classList.add('show'); document.getElementById('bookmarkNameInput').value = ''; document.getElementById('bookmarkNameInput').focus(); });
         document.getElementById('bookmarkCancelBtn').addEventListener('click', () => document.getElementById('bookmarkModal').classList.remove('show'));
         document.getElementById('bookmarkSaveBtn').addEventListener('click', () => { const name = document.getElementById('bookmarkNameInput').value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } else toast('Enter name'); });
         document.getElementById('bookmarkNameInput').addEventListener('keypress', e => { if (e.key === 'Enter') { const name = e.target.value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } } });
         document.getElementById('bookmarkModal').addEventListener('click', e => { if (e.target.id === 'bookmarkModal') document.getElementById('bookmarkModal').classList.remove('show'); });
         document.getElementById('panelsBtn')?.addEventListener('click', () => { const bp = document.querySelector('.bottom-panels'); bp.classList.toggle('visible'); const btn = document.getElementById('panelsBtn'); if (bp.classList.contains('visible')) { btn.classList.add('active'); } else { btn.classList.remove('active'); } });
+        document.getElementById('btnZoomAirport').addEventListener('click', () => { const p = _el('airportPanel'); if (p._airport) map.setView([p._airport.lat, p._airport.lon], 14); });
+        document.getElementById('btnShowDepartures').addEventListener('click', () => { const p = _el('airportPanel'); if (p._airport) { const deps = Object.values(aircraftCache).filter(ac => ac.from === p._airport.icao || ac.from === p._airport.iata); if (deps.length) { toast('Found ' + deps.length + ' departures'); selectAircraft(deps[0].hex); } else toast('No departures found'); } });
+        document.getElementById('btnShowArrivals').addEventListener('click', () => { const p = _el('airportPanel'); if (p._airport) { const arrs = Object.values(aircraftCache).filter(ac => ac.to === p._airport.icao || ac.to === p._airport.iata); if (arrs.length) { toast('Found ' + arrs.length + ' arrivals'); selectAircraft(arrs[0].hex); } else toast('No arrivals found'); } });
         
         // Initialize enhanced search system
         searchSystem.init();
@@ -6825,7 +7078,9 @@ if ('serviceWorker' in navigator) {
         });
         
         // Phase 6: Visual feature handlers
+        document.getElementById('airspaceBtn')?.addEventListener('click', () => airspaceLayer.toggle());
     }
+    async function toggleRadar() { settings.showRadar = !settings.showRadar; document.getElementById('radarBtn').classList.toggle('active', settings.showRadar); document.getElementById('toggleRadar').classList.toggle('on', settings.showRadar); saveSettings(); if (settings.showRadar) { try { const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json'); const data = await resp.json(); const frame = data.radar?.past?.slice(-1)[0]; if (!frame) return; if (radarLayer) map.removeLayer(radarLayer); radarLayer = L.tileLayer(data.host + frame.path + '/256/{z}/{x}/{y}/4/1_1.png', { opacity: 0.4, maxNativeZoom: 12 }).addTo(map); radarLayer.setZIndex(50); toast('Radar loaded'); } catch(e) { toast('Radar unavailable'); } } else if (radarLayer) { map.removeLayer(radarLayer); radarLayer = null; } }
     function geolocate() { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], CONFIG.localZoom); toast('Location updated'); }, () => toast('Location denied')); } }
     function toast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
 
@@ -7433,6 +7688,16 @@ if ('serviceWorker' in navigator) {
             return window.location.origin + window.location.pathname + '?' + params.toString();
         },
         
+        // Generate a shareable link for a filter category
+        generateFilterLink(filter) {
+            const params = new URLSearchParams();
+            params.set('filter', filter);
+            const c = map.getCenter();
+            params.set('lat', c.lat.toFixed(4));
+            params.set('lon', c.lng.toFixed(4));
+            params.set('zoom', map.getZoom());
+            return window.location.origin + window.location.pathname + '?' + params.toString();
+        },
         
         async share(hex) {
             const link = this.generateLink(hex);
@@ -7446,6 +7711,16 @@ if ('serviceWorker' in navigator) {
             await this.copyToClipboard(link);
         },
         
+        async shareFilter(filter) {
+            const link = this.generateFilterLink(filter);
+            const labels = { military: 'Military', vip: 'VIP', government: 'Government', police: 'Police', interesting: 'Flagged', pia: 'PIA', helicopter: 'Helicopter', cargo: 'Cargo', commercial: 'Commercial', private: 'Private' };
+            const title = (labels[filter] || filter) + ' Aircraft on VIPTrack';
+            if (navigator.share) {
+                try { await navigator.share({ title, text: 'View ' + (labels[filter] || filter) + ' aircraft live', url: link }); return; }
+                catch (e) { if (e.name !== 'AbortError') console.warn('Share failed:', e); }
+            }
+            await this.copyToClipboard(link);
+        },
         
         async copyToClipboard(text) {
             try {
@@ -7480,6 +7755,8 @@ if ('serviceWorker' in navigator) {
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
                 });
+                const shareBtn = document.getElementById('filterShareBtn');
+                if (shareBtn) shareBtn.style.display = 'flex';
                 updateMarkers();
             }
             
@@ -7527,18 +7804,260 @@ if ('serviceWorker' in navigator) {
         }
     };
 
+    // ============ THEME MANAGER ============
+    const themeManager = {
+        defaults: { accent: '#ffd700', trail: '#00ffff', selection: '#00ffff' },
+        currentTheme: null,
+        
+        init() {
+            this.load();
+            this.setupListeners();
+        },
+        
+        load() {
+            const saved = JSON.parse(localStorage.getItem('viptrack_theme') || '{}');
+            const theme = { ...this.defaults, ...saved };
+            this.apply(theme);
+            const accentPicker = document.getElementById('accentColorPicker');
+            const selectionPicker = document.getElementById('selectionColorPicker');
+            if (accentPicker) accentPicker.value = theme.accent;
+            if (selectionPicker) selectionPicker.value = theme.selection;
+        },
+        
+        save(theme) {
+            localStorage.setItem('viptrack_theme', JSON.stringify(theme));
+        },
+        
+        apply(theme) {
+            document.documentElement.style.setProperty('--accent', theme.accent);
+            document.documentElement.style.setProperty('--selected', theme.selection);
+            this.currentTheme = theme;
+        },
+        
+        setupListeners() {
+            document.getElementById('accentColorPicker')?.addEventListener('input', (e) => {
+                const theme = this.getTheme();
+                theme.accent = e.target.value;
+                this.apply(theme);
+                this.save(theme);
+            });
+            document.getElementById('trailColorPicker')?.addEventListener('input', (e) => {
+                const theme = this.getTheme();
+                theme.trail = e.target.value;
+                this.apply(theme);
+                this.save(theme);
+                if (selectedHex) loadTrail(selectedHex);
+            });
+            document.getElementById('selectionColorPicker')?.addEventListener('input', (e) => {
+                const theme = this.getTheme();
+                theme.selection = e.target.value;
+                this.apply(theme);
+                this.save(theme);
+                updateMarkers();
+            });
+            document.getElementById('resetThemeBtn')?.addEventListener('click', () => {
+                this.apply(this.defaults);
+                this.save(this.defaults);
+                const accentPicker = document.getElementById('accentColorPicker');
+                const selectionPicker = document.getElementById('selectionColorPicker');
+                if (accentPicker) accentPicker.value = this.defaults.accent;
+                if (selectionPicker) selectionPicker.value = this.defaults.selection;
+                toast('Theme reset to default');
+            });
+        },
+        
+        getTheme() {
+            return {
+                accent: document.getElementById('accentColorPicker')?.value || this.defaults.accent,
+                selection: document.getElementById('selectionColorPicker')?.value || this.defaults.selection
+            };
+        }
+    };
 
-    // ============ MIDNIGHT THEME (hardcoded) ============
-    function applyMidnightTheme() {
-        const root = document.documentElement;
-        root.style.setProperty('--bg', '#0a0a14');
-        root.style.setProperty('--bg-panel', 'rgba(10, 10, 20, 0.95)');
-        root.style.setProperty('--text', '#e0e0e0');
-        root.style.setProperty('--text-dim', '#888');
-        root.style.setProperty('--accent', '#00d4ff');
-        root.style.setProperty('--selected', '#ff00ff');
-    }
-    applyMidnightTheme();
+    // ============ PHASE 12: ENHANCED THEME SYSTEM ============
+    const themeSystem = {
+        themes: {
+            dark: {
+                name: 'Dark',
+                bg: '#1a1a2e',
+                bgPanel: 'rgba(26, 26, 46, 0.95)',
+                text: '#eee',
+                textDim: '#aaa',
+                accent: '#ffd700',
+                selected: '#00ffff'
+            },
+            midnight: {
+                name: 'Midnight',
+                bg: '#0a0a14',
+                bgPanel: 'rgba(10, 10, 20, 0.95)',
+                text: '#e0e0e0',
+                textDim: '#888',
+                accent: '#00d4ff',
+                selected: '#ff00ff'
+            },
+            light: {
+                name: 'Light',
+                bg: '#f5f5f5',
+                bgPanel: 'rgba(255, 255, 255, 0.95)',
+                text: '#222',
+                textDim: '#555',
+                accent: '#0066cc',
+                selected: '#ff6600'
+            },
+            highContrast: {
+                name: 'High Contrast',
+                bg: '#000000',
+                bgPanel: 'rgba(0, 0, 0, 0.95)',
+                text: '#ffffff',
+                textDim: '#cccccc',
+                accent: '#ffff00',
+                selected: '#00ff00'
+            },
+            colorBlind: {
+                name: 'Color Blind',
+                bg: '#1a1a2e',
+                bgPanel: 'rgba(26, 26, 46, 0.95)',
+                text: '#eee',
+                textDim: '#aaa',
+                accent: '#f0e442',
+                selected: '#56b4e9'
+            }
+        },
+        
+        currentTheme: 'midnight',
+        customColors: {},
+        autoMode: false,
+        
+        init() {
+            const saved = localStorage.getItem('viptrack_theme_v2');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    this.currentTheme = data.theme || 'midnight';
+                    this.customColors = data.custom || {};
+                    this.autoMode = data.autoMode || false;
+                } catch(e) {}
+            }
+            
+            if (this.autoMode) {
+                this.checkAutoTheme();
+                setInterval(() => this.checkAutoTheme(), 60000);
+            } else {
+                this.apply(this.currentTheme);
+            }
+            
+            this.setupEventListeners();
+        },
+        
+        setupEventListeners() {
+            // Theme option clicks
+            document.querySelectorAll('.theme-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    this.apply(opt.dataset.theme);
+                });
+            });
+            
+            // Auto theme toggle
+            document.getElementById('toggleAutoTheme')?.addEventListener('click', function() {
+                this.classList.toggle('on');
+                themeSystem.toggleAutoMode();
+            });
+            
+            // Custom color pickers
+            document.getElementById('accentColorPicker')?.addEventListener('input', (e) => {
+                this.setCustomColor('accent', e.target.value);
+            });
+            document.getElementById('selectionColorPicker')?.addEventListener('input', (e) => {
+                this.setCustomColor('selected', e.target.value);
+            });
+        },
+        
+        apply(themeName) {
+            const theme = this.themes[themeName];
+            if (!theme) return;
+            
+            this.currentTheme = themeName;
+            
+            const root = document.documentElement;
+            root.style.setProperty('--bg', this.customColors.bg || theme.bg);
+            root.style.setProperty('--bg-panel', this.customColors.bgPanel || theme.bgPanel);
+            root.style.setProperty('--text', this.customColors.text || theme.text);
+            root.style.setProperty('--text-dim', this.customColors.textDim || theme.textDim);
+            root.style.setProperty('--accent', this.customColors.accent || theme.accent);
+            root.style.setProperty('--selected', this.customColors.selected || theme.selected);
+            
+            document.body.classList.toggle('day-mode', themeName === 'light');
+            
+            // Update theme option UI
+            document.querySelectorAll('.theme-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.theme === themeName);
+            });
+            
+            // Update color pickers
+            const accentPicker = document.getElementById('accentColorPicker');
+            const selectionPicker = document.getElementById('selectionColorPicker');
+            if (accentPicker) accentPicker.value = this.customColors.accent || theme.accent;
+            if (selectionPicker) selectionPicker.value = this.customColors.selected || theme.selected;
+            
+            this.save();
+        },
+        
+        setCustomColor(property, value) {
+            this.customColors[property] = value;
+            document.documentElement.style.setProperty('--' + property, value);
+            this.save();
+        },
+        
+        resetCustomColors() {
+            this.customColors = {};
+            this.apply(this.currentTheme);
+            toast('Theme colors reset');
+        },
+        
+        checkAutoTheme() {
+            const hour = new Date().getHours();
+            const isDaytime = hour >= 6 && hour < 20;
+            this.apply(isDaytime ? 'light' : 'dark');
+        },
+        
+        toggleAutoMode() {
+            this.autoMode = !this.autoMode;
+            if (this.autoMode) {
+                this.checkAutoTheme();
+                toast('Auto day/night enabled');
+            } else {
+                toast('Auto day/night disabled');
+            }
+            this.save();
+        },
+        
+        save() {
+            localStorage.setItem('viptrack_theme_v2', JSON.stringify({
+                theme: this.currentTheme,
+                custom: this.customColors,
+                autoMode: this.autoMode
+            }));
+        },
+        
+        exportTheme() {
+            return JSON.stringify({
+                base: this.currentTheme,
+                custom: this.customColors
+            });
+        },
+        
+        importTheme(jsonStr) {
+            try {
+                const data = JSON.parse(jsonStr);
+                if (data.base) this.currentTheme = data.base;
+                if (data.custom) this.customColors = data.custom;
+                this.apply(this.currentTheme);
+                toast('Theme imported');
+            } catch (e) {
+                toast('Invalid theme data');
+            }
+        }
+    };
 
     // ============ PHASE 12: ENHANCED TRAIL VISUALIZATION ============
     const trailRenderer = {
@@ -8011,9 +8530,6 @@ if ('serviceWorker' in navigator) {
             document.querySelectorAll('.bottom-sheet').forEach(sheet => {
                 sheet.classList.remove('bottom-sheet', 'collapsed', 'half', 'expanded', 'peek');
             });
-            // Remove sidebar drag handle added for mobile
-            const sbwHandle = _el('sidebarWrapper')?.querySelector('.sheet-handle');
-            if (sbwHandle) sbwHandle.remove();
         },
         
         initTouchHandlers() {
@@ -8029,124 +8545,38 @@ if ('serviceWorker' in navigator) {
         handleTouchStart(e) {
             this.touchStartY = e.touches[0].clientY;
             this.touchStartX = e.touches[0].clientX;
-            this._sidebarDrag = false;
-            this._sidebarPending = false;
-            this._sidebarOffset = 0;
-            this._sidebarBaseHeight = 0;
-
-            // Check if touching inside sidebarWrapper (pull-to-dismiss candidate)
-            const sbw = e.target.closest('#sidebarWrapper');
-            if (sbw && sbw.style.display !== 'none') {
-                // Handle bar always starts drag immediately
-                if (e.target.closest('.sheet-handle')) {
-                    this._sidebarDrag = true;
-                    this._sidebarOffset = 0;
-                    this._sidebarBaseHeight = sbw.offsetHeight;
-                } else {
-                    // Content area: mark pending, will activate when scrolled to top + swiping down
-                    this._sidebarPending = true;
-                    this._sidebarScrollEl = sbw.querySelector('#infoPanel') || sbw;
-                }
-                return;
-            }
-
+            
             // Check if touching a bottom sheet handle
             const sheet = e.target.closest('.bottom-sheet');
             if (sheet && e.target.closest('.sheet-handle')) {
                 this.activeSheet = sheet;
             }
         },
-
+        
         handleTouchMove(e) {
-            const currentY = e.touches[0].clientY;
-            const deltaFromStart = currentY - this.touchStartY;
-
-            // Sidebar pending: activate drag when content is scrolled to top and swiping down
-            if (this._sidebarPending && !this._sidebarDrag) {
-                const scrollEl = this._sidebarScrollEl;
-                const atTop = !scrollEl || scrollEl.scrollTop <= 0;
-                if (atTop && deltaFromStart > 5) {
-                    this._sidebarDrag = true;
-                    this._sidebarPending = false;
-                    this._sidebarOffset = 0;
-                    const sbw = _el('sidebarWrapper');
-                    this._sidebarBaseHeight = sbw ? sbw.offsetHeight : window.innerHeight * 0.55;
-                    // Reset start so the drag begins from this point
-                    this.touchStartY = currentY;
-                } else if (deltaFromStart < -5) {
-                    // Scrolling up inside content, not a dismiss gesture
-                    this._sidebarPending = false;
-                }
-            }
-
-            // Active sidebar drag: follow finger
-            if (this._sidebarDrag) {
-                e.preventDefault();
-                this._sidebarOffset = currentY - this.touchStartY;
-                // Clamp: allow pulling down freely, pulling up limited to base height
-                const offset = Math.max(-20, this._sidebarOffset);
-                const sbw = _el('sidebarWrapper');
-                if (sbw) {
-                    const newHeight = Math.max(0, this._sidebarBaseHeight - offset);
-                    sbw.style.height = newHeight + 'px';
-                    sbw.style.transition = 'none';
-                    // Fade out as it shrinks
-                    const ratio = newHeight / this._sidebarBaseHeight;
-                    sbw.style.opacity = Math.max(0.3, ratio);
-                }
-                return;
-            }
-
             if (!this.activeSheet) return;
-
-            const deltaY = currentY - this.touchStartY;
+            
+            const deltaY = e.touches[0].clientY - this.touchStartY;
             const sheet = this.activeSheet;
-
+            
             // Prevent default to stop page scroll
             e.preventDefault();
-
+            
             // Move sheet with finger
             const currentHeight = sheet.offsetHeight;
             const newHeight = Math.max(60, Math.min(window.innerHeight * 0.9, currentHeight - deltaY));
             sheet.style.height = newHeight + 'px';
-
-            this.touchStartY = currentY;
+            
+            this.touchStartY = e.touches[0].clientY;
         },
-
+        
         handleTouchEnd(e) {
-            // Sidebar drag end
-            if (this._sidebarDrag) {
-                this._sidebarDrag = false;
-                this._sidebarPending = false;
-                const sbw = _el('sidebarWrapper');
-                const dismissed = this._sidebarOffset > 80;
-                if (sbw) {
-                    sbw.style.transition = '';
-                    sbw.style.opacity = '';
-                    if (dismissed) {
-                        // Animate out then deselect
-                        sbw.style.height = '0px';
-                        sbw.style.opacity = '0';
-                        setTimeout(() => {
-                            sbw.style.height = '';
-                            sbw.style.opacity = '';
-                            deselectAircraft();
-                        }, 200);
-                    } else {
-                        // Snap back to original height
-                        sbw.style.height = '';
-                    }
-                }
-                return;
-            }
-            this._sidebarPending = false;
-
             if (!this.activeSheet) return;
-
+            
             const sheet = this.activeSheet;
             const height = sheet.offsetHeight;
             const maxHeight = window.innerHeight * 0.9;
-
+            
             // Snap to positions
             if (height < 100) {
                 this.collapseSheet(sheet);
@@ -8155,7 +8585,7 @@ if ('serviceWorker' in navigator) {
             } else {
                 this.halfExpandSheet(sheet);
             }
-
+            
             this.activeSheet = null;
         },
         
@@ -8236,6 +8666,14 @@ if ('serviceWorker' in navigator) {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
                     My Location
                 </button>
+                <button class="quick-action-item" data-action="screenshot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    Screenshot
+                </button>
+                <button class="quick-action-item" data-action="geofence">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+                    Draw Zone
+                </button>
                 <button class="quick-action-item" data-action="search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     Search
@@ -8279,6 +8717,18 @@ if ('serviceWorker' in navigator) {
                         );
                     }
                     break;
+                case 'screenshot':
+                    if (typeof captureSystem !== 'undefined' && captureSystem.takeScreenshot) {
+                        captureSystem.takeScreenshot();
+                    } else {
+                        toast('Screenshot not available');
+                    }
+                    break;
+                case 'geofence':
+                    if (typeof geofencing !== 'undefined' && geofencing.startDrawing) {
+                        geofencing.startDrawing();
+                    }
+                    break;
                 case 'search':
                     const searchBox = document.querySelector('.search-box');
                     if (searchBox) {
@@ -8290,16 +8740,16 @@ if ('serviceWorker' in navigator) {
         },
         
         convertPanelsToSheets() {
-            // Info panel lives inside #sidebarWrapper which is styled as bottom sheet via CSS
-            // Only add drag handle to sidebarWrapper if needed
-            const sbw = _el('sidebarWrapper');
-            if (sbw && !sbw.querySelector('.sheet-handle')) {
+            // Convert info panel to bottom sheet
+            const infoPanel = _el('infoPanel');
+            if (infoPanel && !infoPanel.classList.contains('bottom-sheet')) {
+                infoPanel.classList.add('bottom-sheet', 'collapsed');
                 const handle = document.createElement('div');
                 handle.className = 'sheet-handle';
                 handle.innerHTML = '<div class="handle-bar"></div>';
-                sbw.insertBefore(handle, sbw.firstChild);
+                infoPanel.insertBefore(handle, infoPanel.firstChild);
             }
-
+            
             // Convert settings panel to bottom sheet
             const settingsPanel = _el('settingsPanel');
             if (settingsPanel && !settingsPanel.classList.contains('bottom-sheet')) {
@@ -8448,11 +8898,11 @@ if ('serviceWorker' in navigator) {
         
         showInfoPanel() {
             this.hideAllPanels();
-            // Sidebar wrapper is styled as bottom sheet on mobile via CSS
-            const sbw = _el('sidebarWrapper');
-            if (sbw) sbw.style.display = 'block';
             const infoPanel = _el('infoPanel');
-            if (infoPanel) infoPanel.classList.add('show');
+            if (infoPanel) {
+                infoPanel.classList.add('bottom-sheet');
+                this.halfExpandSheet(infoPanel);
+            }
             // Update nav state
             const nav = document.querySelector('.mobile-bottom-nav');
             if (nav) {
@@ -8560,6 +9010,75 @@ if ('serviceWorker' in navigator) {
                 this.lastTap = now;
             });
             
+            // Long press for context menu
+            mapEl.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.leaflet-control') || e.target.closest('.aircraft-marker')) return;
+                
+                this.longPressTimer = setTimeout(() => {
+                    const touch = e.touches[0];
+                    this.showContextMenu(touch.clientX, touch.clientY);
+                }, 600);
+            }, { passive: true });
+            
+            mapEl.addEventListener('touchend', () => {
+                clearTimeout(this.longPressTimer);
+            });
+            
+            mapEl.addEventListener('touchmove', () => {
+                clearTimeout(this.longPressTimer);
+            });
+        },
+        
+        showContextMenu(x, y) {
+            haptics.medium();
+            
+            const containerPoint = L.point(x, y - 50);
+            const latlng = map.containerPointToLatLng(containerPoint);
+            
+            // Remove existing menu
+            document.querySelector('.mobile-context-menu')?.remove();
+            
+            const menu = document.createElement('div');
+            menu.className = 'mobile-context-menu';
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.innerHTML = `
+                <button data-action="center">Center here</button>
+                <button data-action="measure">Measure from here</button>
+                <button data-action="geofence">Create zone here</button>
+            `;
+            
+            document.body.appendChild(menu);
+            
+            menu.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                switch (action) {
+                    case 'center':
+                        map.panTo(latlng);
+                        break;
+                    case 'measure':
+                        toast('Measure tool removed');
+                        break;
+                    case 'geofence':
+                        if (typeof geofencing !== 'undefined' && geofencing.startDrawing) {
+                            geofencing.startDrawing();
+                        }
+                        break;
+                }
+                menu.remove();
+                haptics.light();
+            });
+            
+            // Remove on tap elsewhere
+            setTimeout(() => {
+                const removeHandler = (e) => {
+                    if (!e.target.closest('.mobile-context-menu')) {
+                        menu.remove();
+                        document.removeEventListener('touchstart', removeHandler);
+                    }
+                };
+                document.addEventListener('touchstart', removeHandler);
+            }, 100);
         }
     };
     
@@ -8610,23 +9129,9 @@ if ('serviceWorker' in navigator) {
             wrappedSelectAircraft(hex);
             haptics.medium();
             
-            // Show info panel on mobile and center aircraft above panel
+            // Show info panel on mobile
             if (mobileSupport.isMobile) {
                 mobileSupport.showInfoPanel();
-                // Pan map so aircraft is visible above the 55vh info panel
-                const ac = aircraftCache[hex];
-                if (ac?.lat !== undefined) {
-                    const panelHeight = window.innerHeight * 0.55;
-                    const visibleTop = window.innerHeight - panelHeight;
-                    // Place aircraft at ~40% of the visible map area from top
-                    const targetY = visibleTop * 0.4;
-                    const centerY = window.innerHeight / 2;
-                    const offsetY = centerY - targetY;
-                    const point = map.latLngToContainerPoint([ac.lat, ac.lon]);
-                    const newPoint = L.point(point.x, point.y + offsetY);
-                    const newLatLng = map.containerPointToLatLng(newPoint);
-                    map.panTo(newLatLng, { animate: true, duration: 0.3 });
-                }
             }
         };
     }
@@ -8680,6 +9185,24 @@ if ('serviceWorker' in navigator) {
         }
     });
     
+    // Phase 12: Reset theme button handler
+    document.getElementById('resetThemeBtn')?.addEventListener('click', () => themeSystem.resetCustomColors());
+    
+    // Phase 12: Integrate notifications with alert system
+    const originalShowAlert = typeof alertSystem !== 'undefined' ? alertSystem.show : null;
+    if (typeof alertSystem !== 'undefined' && alertSystem.show) {
+        const originalShow = alertSystem.show.bind(alertSystem);
+        alertSystem.show = function(options) {
+            originalShow(options);
+            // Also add to notification center for persistence
+            notificationCenter.add({
+                type: options.type || 'system',
+                title: options.title,
+                message: options.message,
+                hex: options.hex
+            });
+        };
+    }
 
     window.addEventListener('beforeunload', () => { saveAircraftCache(); saveMapPosition(); });
 
@@ -8725,6 +9248,32 @@ if ('serviceWorker' in navigator) {
 
     // ============ UI OVERHAUL: INITIALIZATION ============
     (function initUIOverhaul() {
+        // --- Status Dock Updates ---
+        function updateStatusDock() {
+            const count = Object.keys(aircraftCache).filter(h => aircraftCache[h].lat !== undefined && Date.now() - aircraftCache[h].lastSeen < 120000).length;
+            const el = document.getElementById('dockCount');
+            if (el) el.textContent = count.toLocaleString();
+            
+            const srcEl = document.getElementById('dockSource');
+            const dotEl = document.getElementById('dockDot');
+            if (srcEl) {
+                const ds = _el('dataSource');
+                const txt = ds ? ds.textContent : '';
+                const srcName = txt.split(' - ')[0] || 'Connecting';
+                srcEl.textContent = srcName;
+            }
+            if (dotEl) {
+                const healthy = dataSourceManager.sources.filter(s => s.status === 'healthy').length;
+                dotEl.className = 'status-dock-dot ' + (healthy >= 2 ? 'green' : healthy >= 1 ? 'yellow' : count > 0 ? 'yellow' : 'red');
+            }
+            
+            const timeEl = document.getElementById('dockTime');
+            if (timeEl && lastFetchTime) {
+                const ago = Math.round((Date.now() - lastFetchTime) / 1000);
+                timeEl.textContent = ago < 5 ? 'just now' : ago + 's ago';
+            }
+        }
+        _setPausableInterval(updateStatusDock, 1500, "statusDock");
         
         // --- Dropdown Menus ---
         document.querySelectorAll('.hv2-dropdown-trigger').forEach(trigger => {
@@ -8777,6 +9326,16 @@ if ('serviceWorker' in navigator) {
         setTimeout(syncDropdownStates, 500);
         
         // --- Filter Chips ---
+        const chipsBar = document.getElementById('filterChipsBar');
+        const chipsToggle = document.getElementById('filterChipsToggle');
+        let chipsVisible = false;
+        if (chipsToggle) {
+            chipsToggle.addEventListener('click', () => {
+                chipsVisible = !chipsVisible;
+                chipsBar.classList.toggle('show', chipsVisible);
+                chipsToggle.classList.toggle('active', chipsVisible);
+            });
+        }
         document.querySelectorAll('.filter-chip-btn').forEach(chip => {
             chip.addEventListener('click', () => {
                 chip.classList.toggle('active');
@@ -8857,7 +9416,15 @@ if ('serviceWorker' in navigator) {
         // Also update periodically for selected aircraft
         _setPausableInterval(() => { if (selectedHex) updateQuickGlance(selectedHex); }, 2000, 'quickGlance');
         
-        // Sidebar handled directly in selectAircraft/deselectAircraft via #sidebarWrapper
+        // --- Wide Screen Sidebar Pin ---
+        if (window.innerWidth >= 1400) {
+            const observer = new MutationObserver(() => {
+                const panel = _el('infoPanel');
+                document.body.classList.toggle('panel-pinned', panel && panel.classList.contains('show'));
+            });
+            const panel = _el('infoPanel');
+            if (panel) observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+        }
     })();
 
     </script>

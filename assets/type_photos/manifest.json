@@ -1,0 +1,770 @@
+{
+  "C17": {
+    "name": "BOEING C-17 Globemaster 3",
+    "source": "planespotters-hex",
+    "file": "C17.jpg",
+    "ts": 1773140871
+  },
+  "C30J": {
+    "name": "LOCKHEED MARTIN C-130J Super Hercules",
+    "source": "planespotters-hex",
+    "file": "C30J.jpg",
+    "ts": 1773140886
+  },
+  "A400": {
+    "name": "AIRBUS A-400M",
+    "source": "planespotters-hex",
+    "file": "A400.jpg",
+    "ts": 1773140888
+  },
+  "PC21": {
+    "name": "PILATUS PC-21",
+    "source": "planespotters-reg",
+    "file": "PC21.jpg",
+    "ts": 1773140891
+  },
+  "C130": {
+    "name": "LOCKHEED C-130 Hercules",
+    "source": "planespotters-hex",
+    "file": "C130.jpg",
+    "ts": 1773140896
+  },
+  "G12T": {
+    "name": "GROB G-120TP",
+    "source": "planespotters-hex",
+    "file": "G12T.jpg",
+    "ts": 1773140904
+  },
+  "A332": {
+    "name": "AIRBUS A-330-200",
+    "source": "planespotters-hex",
+    "file": "A332.jpg",
+    "ts": 1773140921
+  },
+  "B350": {
+    "name": "BEECHCRAFT Super King Air 350",
+    "source": "planespotters-hex",
+    "file": "B350.jpg",
+    "ts": 1773140923
+  },
+  "EUFI": {
+    "name": "EUROFIGHTER 2000",
+    "source": "planespotters-hex",
+    "file": "EUFI.jpg",
+    "ts": 1773140924
+  },
+  "TEX2": {
+    "name": "BEECHCRAFT T-6 Texan 2",
+    "source": "planespotters-reg",
+    "file": "TEX2.jpg",
+    "ts": 1773140927
+  },
+  "H60": {
+    "name": "SIKORSKY UH-60 Black Hawk",
+    "source": "planespotters-reg",
+    "file": "H60.jpg",
+    "ts": 1773140934
+  },
+  "A139": {
+    "name": "AGUSTA AW-139",
+    "source": "planespotters-hex",
+    "file": "A139.jpg",
+    "ts": 1773140935
+  },
+  "K35R": {
+    "name": "BOEING KC-135R/T Stratotanker",
+    "source": "planespotters-hex",
+    "file": "K35R.jpg",
+    "ts": 1773140937
+  },
+  "EH10": {
+    "name": "AGUSTA WESTLAND EH-101 Merlin",
+    "source": "planespotters-hex",
+    "file": "EH10.jpg",
+    "ts": 1773140938
+  },
+  "H64": {
+    "name": "MCDONNELL DOUGLAS AH-64 Apache",
+    "source": "planespotters-reg",
+    "file": "H64.jpg",
+    "ts": 1773140942
+  },
+  "PC7": {
+    "name": "PILATUS PC-7 Astra",
+    "source": "planespotters-hex",
+    "file": "PC7.jpg",
+    "ts": 1773140947
+  },
+  "E50P": {
+    "name": "EMBRAER EMB-500 Phenom 100",
+    "source": "planespotters-hex",
+    "file": "E50P.jpg",
+    "ts": 1773140948
+  },
+  "SW4": {
+    "name": "SWEARINGEN Metro",
+    "source": "planespotters-hex",
+    "file": "SW4.jpg",
+    "ts": 1773140950
+  },
+  "C560": {
+    "name": "CESSNA 560 Citation Ultra",
+    "source": "airport-data",
+    "file": "C560.jpg",
+    "ts": 1773140953
+  },
+  "AT76": {
+    "name": "ATR-72-600",
+    "source": "planespotters-hex",
+    "file": "AT76.jpg",
+    "ts": 1773140954
+  },
+  "B737": {
+    "name": "BOEING 737-700",
+    "source": "planespotters-hex",
+    "file": "B737.jpg",
+    "ts": 1773140956
+  },
+  "BE20": {
+    "name": "BEECH 200 Super King Air",
+    "source": "planespotters-hex",
+    "file": "BE20.jpg",
+    "ts": 1773140957
+  },
+  "C295": {
+    "name": "CASA C-295 Persuader",
+    "source": "planespotters-hex",
+    "file": "C295.jpg",
+    "ts": 1773140959
+  },
+  "E35L": {
+    "name": "EMBRAER EMB-135 Legacy",
+    "source": "planespotters-hex",
+    "file": "E35L.jpg",
+    "ts": 1773140960
+  },
+  "FA7X": {
+    "name": "DASSAULT Falcon 7X",
+    "source": "planespotters-hex",
+    "file": "FA7X.jpg",
+    "ts": 1773140962
+  },
+  "GLF4": {
+    "name": "GULFSTREAM 4",
+    "source": "planespotters-hex",
+    "file": "GLF4.jpg",
+    "ts": 1773140963
+  },
+  "GLF6": {
+    "name": "GULFSTREAM G650",
+    "source": "planespotters-hex",
+    "file": "GLF6.jpg",
+    "ts": 1773140965
+  },
+  "HAWK": {
+    "name": "BRITISH AEROSPACE T-45 Goshawk",
+    "source": "planespotters-hex",
+    "file": "HAWK.jpg",
+    "ts": 1773140967
+  },
+  "LYNX": {
+    "name": "AGUSTAWESTLAND AW-159 Super Lynx",
+    "source": "planespotters-reg",
+    "file": "LYNX.jpg",
+    "ts": 1773140969
+  },
+  "P180": {
+    "name": "PIAGGIO P-180 Avanti",
+    "source": "planespotters-hex",
+    "file": "P180.jpg",
+    "ts": 1773140971
+  },
+  "PC9": {
+    "name": "PILATUS PC-9 Hudournik",
+    "source": "planespotters-hex",
+    "file": "PC9.jpg",
+    "ts": 1773140972
+  },
+  "SF34": {
+    "name": "SAAB 340",
+    "source": "planespotters-reg",
+    "file": "SF34.jpg",
+    "ts": 1773140975
+  },
+  "CN35": {
+    "name": "CASA CN-235 Persuader",
+    "source": "planespotters-hex",
+    "file": "CN35.jpg",
+    "ts": 1773140977
+  },
+  "D228": {
+    "name": "DORNIER 228",
+    "source": "planespotters-hex",
+    "file": "D228.jpg",
+    "ts": 1773140979
+  },
+  "DA40": {
+    "name": "DIAMOND DA-40 Club Star",
+    "source": "planespotters-hex",
+    "file": "DA40.jpg",
+    "ts": 1773140980
+  },
+  "H47": {
+    "name": "BOEING-VERTOL CH-47 Chinook",
+    "source": "planespotters-reg",
+    "file": "H47.jpg",
+    "ts": 1773140983
+  },
+  "A321": {
+    "name": "AIRBUS A-321",
+    "source": "planespotters-hex",
+    "file": "A321.jpg",
+    "ts": 1773140984
+  },
+  "C27J": {
+    "name": "ALENIA C-27J Spartan",
+    "source": "planespotters-hex",
+    "file": "C27J.jpg",
+    "ts": 1773140986
+  },
+  "E121": {
+    "name": "EMBRAER EMB-121 Xingu",
+    "source": "planespotters-hex",
+    "file": "E121.jpg",
+    "ts": 1773140988
+  },
+  "LJ35": {
+    "name": "LEARJET 35",
+    "source": "planespotters-hex",
+    "file": "LJ35.jpg",
+    "ts": 1773140989
+  },
+  "M339": {
+    "name": "AERMACCHI MB-339",
+    "source": "planespotters-hex",
+    "file": "M339.jpg",
+    "ts": 1773140990
+  },
+  "A169": {
+    "name": "AGUSTA AW-169",
+    "source": "planespotters-reg",
+    "file": "A169.jpg",
+    "ts": 1773140993
+  },
+  "AT45": {
+    "name": "ATR-42-500",
+    "source": "planespotters-hex",
+    "file": "AT45.jpg",
+    "ts": 1773140995
+  },
+  "B738": {
+    "name": "BOEING 737-800",
+    "source": "planespotters-hex",
+    "file": "B738.jpg",
+    "ts": 1773141008
+  },
+  "C182": {
+    "name": "CESSNA 182 Skylane",
+    "source": "planespotters-hex",
+    "file": "C182.jpg",
+    "ts": 1773141009
+  },
+  "E390": {
+    "name": "EMBRAER EMB-390",
+    "source": "planespotters-hex",
+    "file": "E390.jpg",
+    "ts": 1773141041
+  },
+  "E3CF": {
+    "name": "BOEING E-3 Sentry (CFM56)",
+    "source": "planespotters-hex",
+    "file": "E3CF.jpg",
+    "ts": 1773141043
+  },
+  "F900": {
+    "name": "DASSAULT Falcon 900",
+    "source": "planespotters-hex",
+    "file": "F900.jpg",
+    "ts": 1773141105
+  },
+  "GLF5": {
+    "name": "GULFSTREAM 5",
+    "source": "planespotters-hex",
+    "file": "GLF5.jpg",
+    "ts": 1773141107
+  },
+  "M28": {
+    "name": "PZL-MIELEC M-28 Skytruck",
+    "source": "planespotters-reg",
+    "file": "M28.jpg",
+    "ts": 1773141110
+  },
+  "M345": {
+    "name": "AERMACCHI M-345",
+    "source": "planespotters-hex",
+    "file": "M345.jpg",
+    "ts": 1773141111
+  },
+  "MI8": {
+    "name": "MIL Mi-8/9/17/19/171/172",
+    "source": "planespotters-hex",
+    "file": "MI8.jpg",
+    "ts": 1773141113
+  },
+  "P68": {
+    "name": "PARTENAVIA P-68 Observer",
+    "source": "planespotters-hex",
+    "file": "P68.jpg",
+    "ts": 1773141162
+  },
+  "PA18": {
+    "name": "PIPER PA-18 Super Cub",
+    "source": "planespotters-hex",
+    "file": "PA18.jpg",
+    "ts": 1773141164
+  },
+  "PC12": {
+    "name": "PILATUS PC-12",
+    "source": "planespotters-hex",
+    "file": "PC12.jpg",
+    "ts": 1773141165
+  },
+  "TBM7": {
+    "name": "SOCATA TBM-700A/B/C",
+    "source": "planespotters-reg",
+    "file": "TBM7.jpg",
+    "ts": 1773141168
+  },
+  "TBM9": {
+    "name": "SOCATA TBM-900/910/930/940",
+    "source": "planespotters-hex",
+    "file": "TBM9.jpg",
+    "ts": 1773141170
+  },
+  "V22": {
+    "name": "BELL-BOEING V-22 Osprey",
+    "source": "planespotters-reg",
+    "file": "V22.jpg",
+    "ts": 1773141173
+  },
+  "W3": {
+    "name": "PZL-SWIDNIK W-3",
+    "source": "planespotters-reg",
+    "file": "W3.jpg",
+    "ts": 1773141176
+  },
+  "A310": {
+    "name": "AIRBUS A-310",
+    "source": "planespotters-hex",
+    "file": "A310.jpg",
+    "ts": 1773141178
+  },
+  "AN28": {
+    "name": "ANTONOV An-28",
+    "source": "planespotters-hex",
+    "file": "AN28.jpg",
+    "ts": 1773141179
+  },
+  "B736": {
+    "name": "BOEING 737-600",
+    "source": "planespotters-hex",
+    "file": "B736.jpg",
+    "ts": 1773141181
+  },
+  "A319": {
+    "name": "AIRBUS A-319",
+    "source": "planespotters-hex",
+    "file": "A319.jpg",
+    "ts": 1773141247
+  },
+  "B762": {
+    "name": "BOEING 767-200",
+    "source": "planespotters-hex",
+    "file": "B762.jpg",
+    "ts": 1773141256
+  },
+  "CL60": {
+    "name": "BOMBARDIER CL-600 Challenger",
+    "source": "planespotters-hex",
+    "file": "CL60.jpg",
+    "ts": 1773141257
+  },
+  "DHC6": {
+    "name": "DE HAVILLAND DHC-6 Twin Otter",
+    "source": "planespotters-hex",
+    "file": "DHC6.jpg",
+    "ts": 1773141259
+  },
+  "F100": {
+    "name": "FOKKER 100",
+    "source": "planespotters-hex",
+    "file": "F100.jpg",
+    "ts": 1773141260
+  },
+  "PC6T": {
+    "name": "PILATUS PC-6 Turbo-Porter",
+    "source": "planespotters-reg",
+    "file": "PC6T.jpg",
+    "ts": 1773141270
+  },
+  "T154": {
+    "name": "TUPOLEV Tu-154",
+    "source": "planespotters-hex",
+    "file": "T154.jpg",
+    "ts": 1773141277
+  },
+  "A223": {
+    "name": "OSKBES-MAI 223 Kityonok",
+    "source": "wikipedia-raw",
+    "file": "A223.jpg",
+    "ts": 1773141703
+  },
+  "AKNC": {
+    "name": "BAYKAR Akinci",
+    "source": "wikipedia-raw",
+    "file": "AKNC.jpg",
+    "ts": 1773142810
+  },
+  "ATLA": {
+    "name": "BREGUET Atlantic",
+    "source": "wikipedia-short",
+    "file": "ATLA.jpg",
+    "ts": 1773143763
+  },
+  "BCS1": {
+    "name": "AIRBUS A220-100",
+    "source": "wikipedia-short",
+    "file": "BCS1.jpg",
+    "ts": 1773145909
+  },
+  "BCS3": {
+    "name": "AIRBUS A220-300",
+    "source": "wikipedia-short",
+    "file": "BCS3.jpg",
+    "ts": 1773145911
+  },
+  "BOLT": {
+    "name": "STEEN Skybolt",
+    "source": "wikipedia-raw",
+    "file": "BOLT.jpg",
+    "ts": 1773146532
+  },
+  "C500": {
+    "name": "CESSNA 500 Citation 1",
+    "source": "wikipedia-raw",
+    "file": "C500.jpg",
+    "ts": 1773147510
+  },
+  "CAPL": {
+    "name": "FLIGHTWORKS Capella",
+    "source": "wikipedia-raw",
+    "file": "CAPL.jpg",
+    "ts": 1773147888
+  },
+  "CDC6": {
+    "name": "CESSNA DC-6",
+    "source": "wikipedia-short",
+    "file": "CDC6.jpg",
+    "ts": 1773147995
+  },
+  "CHAN": {
+    "name": "CADCOR Chanute",
+    "source": "wikipedia-raw",
+    "file": "CHAN.jpg",
+    "ts": 1773148251
+  },
+  "COBR": {
+    "name": "DEBORDE-ROLLAND Cobra",
+    "source": "wikipedia-raw",
+    "file": "COBR.jpg",
+    "ts": 1773148631
+  },
+  "CYGT": {
+    "name": "HAWKER Cygnet Replica",
+    "source": "wikipedia-raw",
+    "file": "CYGT.jpg",
+    "ts": 1773149313
+  },
+  "DC6": {
+    "name": "DOUGLAS DC-6 Liftmaster",
+    "source": "wikipedia-raw",
+    "file": "DC6.jpg",
+    "ts": 1773149607
+  },
+  "DELF": {
+    "name": "LYAVIN Delfin",
+    "source": "wikipedia-raw",
+    "file": "DELF.jpg",
+    "ts": 1773149707
+  },
+  "DF2": {
+    "name": "DELFIN 2",
+    "source": "wikipedia-raw",
+    "file": "DF2.jpg",
+    "ts": 1773149718
+  },
+  "DIMO": {
+    "name": "DIAMOND H-36 Dimona",
+    "source": "wikipedia-raw",
+    "file": "DIMO.jpg",
+    "ts": 1773150046
+  },
+  "F35": {
+    "name": "LOCKHEED MARTIN F-35 Lightning 2",
+    "source": "wikipedia-raw",
+    "file": "F35.jpg",
+    "ts": 1773152018
+  },
+  "FALC": {
+    "name": "AMERICAN AIRCRAFT Falcon XP",
+    "source": "wikipedia-raw",
+    "file": "FALC.jpg",
+    "ts": 1773152300
+  },
+  "FDMC": {
+    "name": "FLIGHT DESIGN MC",
+    "source": "wikipedia-raw",
+    "file": "FDMC.jpg",
+    "ts": 1773152346
+  },
+  "FIBO": {
+    "name": "STARFIRE Firebolt Convertible",
+    "source": "wikipedia-raw",
+    "file": "FIBO.jpg",
+    "ts": 1773152442
+  },
+  "FLSS": {
+    "name": "FLYER NG/SS",
+    "source": "wikipedia-raw",
+    "file": "FLSS.jpg",
+    "ts": 1773152576
+  },
+  "GAVI": {
+    "name": "AERO MERCANTIL Gavilan 358",
+    "source": "wikipedia-raw",
+    "file": "GAVI.jpg",
+    "ts": 1773153314
+  },
+  "GLEX": {
+    "name": "BOMBARDIER BD-700 Global 6000/6500",
+    "source": "wikipedia",
+    "file": "GLEX.jpg",
+    "ts": 1773153526
+  },
+  "GOBU": {
+    "name": "BUTTERFLY Golden Butterfly",
+    "source": "wikipedia-short",
+    "file": "GOBU.jpg",
+    "ts": 1773153597
+  },
+  "GSPN": {
+    "name": "GROB G-180 SPn Utility Jet",
+    "source": "wikipedia-raw",
+    "file": "GSPN.jpg",
+    "ts": 1773153715
+  },
+  "HL2": {
+    "name": "LAMBACH HL-2 Replica",
+    "source": "wikipedia-raw",
+    "file": "HL2.jpg",
+    "ts": 1773154305
+  },
+  "HUNT": {
+    "name": "HAWKER Hunter",
+    "source": "wikipedia-raw",
+    "file": "HUNT.jpg",
+    "ts": 1773154716
+  },
+  "ION": {
+    "name": "Ion",
+    "source": "wikipedia",
+    "file": "ION.jpg",
+    "ts": 1773155369
+  },
+  "KATB": {
+    "name": "KARI Twinbee",
+    "source": "wikipedia-short",
+    "file": "KATB.jpg",
+    "ts": 1773156739
+  },
+  "KC2": {
+    "name": "KAWASAKI C-2",
+    "source": "wikipedia-raw",
+    "file": "KC2.jpg",
+    "ts": 1773156765
+  },
+  "KIWI": {
+    "name": "TWI Kiwi",
+    "source": "wikipedia-raw",
+    "file": "KIWI.jpg",
+    "ts": 1773157098
+  },
+  "KP5": {
+    "name": "JIHLAVAN KP-5 Skyleader",
+    "source": "wikipedia-raw",
+    "file": "KP5.jpg",
+    "ts": 1773157250
+  },
+  "KRAH": {
+    "name": "ROCK Kraehe",
+    "source": "wikipedia-short",
+    "file": "KRAH.jpg",
+    "ts": 1773157342
+  },
+  "KZLA": {
+    "name": "BAYKAR Kizilelma",
+    "source": "wikipedia-raw",
+    "file": "KZLA.jpg",
+    "ts": 1773157444
+  },
+  "LNC4": {
+    "name": "LANCAIR 4",
+    "source": "wikipedia-short",
+    "file": "LNC4.jpg",
+    "ts": 1773158539
+  },
+  "MC10": {
+    "name": "COLOMBAN Cricri",
+    "source": "wikipedia-short",
+    "file": "MC10.jpg",
+    "ts": 1773159362
+  },
+  "MEAD": {
+    "name": "MEAD Adventure",
+    "source": "wikipedia-raw",
+    "file": "MEAD.jpg",
+    "ts": 1773159777
+  },
+  "MRAM": {
+    "name": "HARMON Mister America",
+    "source": "wikipedia-short",
+    "file": "MRAM.jpg",
+    "ts": 1773160799
+  },
+  "NG4": {
+    "name": "BRM AERO NG-4",
+    "source": "wikipedia-raw",
+    "file": "NG4.jpg",
+    "ts": 1773161158
+  },
+  "NM5": {
+    "name": "NAL NM-5",
+    "source": "wikipedia",
+    "file": "NM5.jpg",
+    "ts": 1773161200
+  },
+  "OR10": {
+    "name": "ORION 10",
+    "source": "wikipedia-raw",
+    "file": "OR10.jpg",
+    "ts": 1773161367
+  },
+  "PL9": {
+    "name": "PAZMANY PL-9 Stork",
+    "source": "wikipedia-raw",
+    "file": "PL9.jpg",
+    "ts": 1773162530
+  },
+  "PP3": {
+    "name": "PILATUS P-3",
+    "source": "wikipedia-raw",
+    "file": "PP3.jpg",
+    "ts": 1773162656
+  },
+  "PRTS": {
+    "name": "SCALED Proteus",
+    "source": "wikipedia-short",
+    "file": "PRTS.jpg",
+    "ts": 1773162807
+  },
+  "Q28": {
+    "name": "BOEING AUSTRALIA MQ-28 Ghost Bat",
+    "source": "wikipedia-raw",
+    "file": "Q28.jpg",
+    "ts": 1773163168
+  },
+  "RAF2": {
+    "name": "ROTARY AIR FORCE RAF-2000",
+    "source": "wikipedia-raw",
+    "file": "RAF2.jpg",
+    "ts": 1773163432
+  },
+  "RARO": {
+    "name": "NEW CENTURY Radial Rocket",
+    "source": "wikipedia-raw",
+    "file": "RARO.jpg",
+    "ts": 1773163482
+  },
+  "SAPH": {
+    "name": "PIEL Saphir",
+    "source": "wikipedia-raw",
+    "file": "SAPH.jpg",
+    "ts": 1773164800
+  },
+  "SD4": {
+    "name": "TOMARK Viper",
+    "source": "wikipedia-raw",
+    "file": "SD4.jpg",
+    "ts": 1773165332
+  },
+  "SJET": {
+    "name": "EXCEL-JET Sport-Jet 2",
+    "source": "wikipedia-raw",
+    "file": "SJET.jpg",
+    "ts": 1773165699
+  },
+  "SMAX": {
+    "name": "AIRMAX M-22 SeaMax",
+    "source": "wikipedia-raw",
+    "file": "SMAX.jpg",
+    "ts": 1773165925
+  },
+  "SWOR": {
+    "name": "FAIREY Swordfish",
+    "source": "wikipedia-raw",
+    "file": "SWOR.jpg",
+    "ts": 1773167122
+  },
+  "T206": {
+    "name": "CESSNA T206 Turbo Stationair",
+    "source": "wikipedia-raw",
+    "file": "T206.jpg",
+    "ts": 1773167261
+  },
+  "T250": {
+    "name": "BELLANCA T-250 Aries",
+    "source": "wikipedia-raw",
+    "file": "T250.jpg",
+    "ts": 1773167312
+  },
+  "TOOT": {
+    "name": "MEYER Little Toot",
+    "source": "wikipedia-short",
+    "file": "TOOT.jpg",
+    "ts": 1773168021
+  },
+  "TWST": {
+    "name": "SILENCE Twister",
+    "source": "wikipedia-raw",
+    "file": "TWST.jpg",
+    "ts": 1773168488
+  },
+  "WDEX": {
+    "name": "WINDEXAIR Windex",
+    "source": "wikipedia-short",
+    "file": "WDEX.jpg",
+    "ts": 1773169823
+  },
+  "WUSH": {
+    "name": "WUEST Seahawk/seagle/Shark",
+    "source": "wikipedia-raw",
+    "file": "WUSH.jpg",
+    "ts": 1773170186
+  },
+  "YARR": {
+    "name": "ARROW Yarrow Arrow",
+    "source": "wikipedia-raw",
+    "file": "YARR.jpg",
+    "ts": 1773170596
+  }
+}
