@@ -3,6 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- N3: Content Security Policy via meta tag (GitHub Pages cannot set headers).
+         Allows only the feeds, CDN, and reference domains the app actually uses. -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        img-src 'self' data: blob: https: ;
+        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com;
+        worker-src 'self' blob:;
+        manifest-src 'self' blob:;
+        frame-ancestors 'self';
+        base-uri 'self';
+    ">
     <title>VIPTrack v0.0.1 - Military & VIP Flight Tracker</title>
     <script>if(location.protocol!=='file:')document.write('<link rel="manifest" href="manifest.json">');</script>
     <meta name="theme-color" content="#1a1a2e">
@@ -43,7 +56,7 @@
             --border: rgba(255, 255, 255, 0.1);
             --text: #eee;
             --text-dim: #aaa;
-            --text-muted: #666;
+            --text-muted: #8a8a9c;  /* X32: bumped from #666 for WCAG AA on #1a1a2e (~4.6:1) */
             --accent: #ffd700;
             --accent-orange: #ff9500;
             --selected: #00ffff;
@@ -83,6 +96,22 @@
         .aircraft-marker.vip { z-index: 6000 !important; }
         .aircraft-marker.vip .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(35deg) brightness(1.2) drop-shadow(0 0 3px #ffd700) !important; }
         .aircraft-marker.dimmed .sprite-icon { opacity: 0.4; }
+        /* Emergency squawk pulse */
+        .aircraft-marker.emergency { z-index: 11000 !important; }
+        .aircraft-marker.emergency .sprite-icon { animation: emergencyPulse 0.9s ease-in-out infinite; }
+        .aircraft-marker.emergency-7500 .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.3) drop-shadow(0 0 6px #ef4444) !important; }
+        .aircraft-marker.emergency-7600 .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(6) hue-rotate(15deg) brightness(1.2) drop-shadow(0 0 6px #f59e0b) !important; }
+        .aircraft-marker.emergency-7700 .sprite-icon { filter: brightness(0) invert(1) sepia(1) saturate(8) hue-rotate(-15deg) brightness(1.3) drop-shadow(0 0 6px #ef4444) !important; }
+        @keyframes emergencyPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+        /* X32: prefers-reduced-motion + visible focus rings */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+            .aircraft-marker.emergency .sprite-icon { animation: none !important; }
+        }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+        /* X26: embed mode hides chrome */
+        body.embed .filter-bar, body.embed .legend, body.embed .bottom-panels, body.embed .data-source-indicator, body.embed .paused-pill, body.embed .install-prompt { display: none !important; }
+        body.embed .info-panel { box-shadow: none; }
         /* Phase 13: Multi-Select Mode */
         .toolbar-count { font-size: 13px; font-weight: 600; color: var(--text); min-width: 80px; }
         .toolbar-count span { color: var(--accent); }
@@ -132,6 +161,33 @@
         .source-status.unhealthy { background: rgba(239,68,68,0.2); color: var(--danger); }
         .source-latency { color: var(--text-muted); }
         .circuit-breaker-warning { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(239,68,68,0.95); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 3000; display: none; animation: pulse 2s infinite; }
+        /* X31: tab paused pill */
+        .paused-pill { display: none; position: fixed; top: 60px; right: 12px; align-items: center; gap: 8px; background: rgba(26,26,46,0.92); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 600; z-index: 2500; backdrop-filter: blur(10px); }
+        .paused-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange); box-shadow: 0 0 6px var(--accent-orange); }
+        /* N6: ethical-use disclaimer */
+        .ethics-disclaimer { display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: 560px; width: calc(100% - 24px); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; z-index: 5000; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(16px); }
+        .ethics-disclaimer.show { display: flex; gap: 12px; align-items: flex-start; }
+        .ethics-body { font-size: 12px; line-height: 1.55; color: var(--text-dim); flex: 1; }
+        .ethics-body strong { display: block; color: var(--text); margin-bottom: 4px; }
+        .ethics-body a { color: var(--accent); text-decoration: none; }
+        .ethics-body a:hover { text-decoration: underline; }
+        .ethics-dismiss { background: var(--accent); color: #000; border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; align-self: center; }
+        .ethics-dismiss:hover { background: #ffea4a; }
+        /* X8: direction-of-flight projection line */
+        .heading-projection { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 4 4; opacity: 0.45; fill: none; pointer-events: none; }
+        .heading-projection.selected { stroke: var(--selected); opacity: 0.9; stroke-width: 1.8; }
+        /* X9: ruler tool */
+        .ruler-line { stroke: var(--accent-orange); stroke-width: 2; stroke-dasharray: 6 4; fill: none; }
+        .ruler-label { background: rgba(26,26,46,0.92); color: var(--accent-orange); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); }
+        /* Help overlay (?) */
+        .help-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 6000; align-items: center; justify-content: center; }
+        .help-overlay.show { display: flex; }
+        .help-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; max-width: 480px; width: calc(100% - 24px); color: var(--text); }
+        .help-card h3 { font-size: 14px; margin-bottom: 12px; color: var(--accent); }
+        .help-card table { width: 100%; font-size: 12px; }
+        .help-card td { padding: 4px 8px; }
+        .help-card td:first-child { font-family: monospace; color: var(--accent); width: 80px; }
+        .help-card .help-close { display: block; margin: 14px 0 0 auto; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
         .circuit-breaker-warning.show { display: block; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .sync-indicator { position: fixed; top: 60px; right: 15px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 11px; z-index: 2000; display: none; align-items: center; gap: 8px; }
@@ -1294,7 +1350,7 @@ if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.14';
+                const CACHE_NAME = 'viptrack-v4.15';
                 const STATIC_ASSETS = [
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
@@ -1460,8 +1516,20 @@ if ('serviceWorker' in navigator) {
     <!-- Phase 16: Reliability Indicators -->
     <div class="data-source-indicator" id="dataSourceIndicator">
         <span class="source-name">Connecting...</span>
-        <span class="source-status unknown">0/3</span>
+        <span class="source-status unknown">0/4</span>
         <span class="source-latency">--</span>
+    </div>
+    <!-- X31: tab paused pill -->
+    <div id="pausedPill" class="paused-pill" role="status" aria-live="polite">
+        <span class="paused-dot"></span><span>Paused — return to tab to resume</span>
+    </div>
+    <!-- N6: first-load ethical-use disclaimer -->
+    <div id="ethicsDisclaimer" class="ethics-disclaimer" role="dialog" aria-modal="false" aria-label="VIPTrack ethical-use notice">
+        <div class="ethics-body">
+            <strong>VIPTrack uses public ADS-B data only.</strong>
+            <span>Many aircraft use the FAA <a href="https://nbaa.org/aircraft-operations/security/privacy/privacy-icao-address-pia/" target="_blank" rel="noopener">Privacy ICAO Address (PIA)</a> or LADD opt-out. VIPTrack honours those programs and is not for operational or harassment use.</span>
+        </div>
+        <button id="ethicsDismiss" class="ethics-dismiss" aria-label="Dismiss notice">Got it</button>
     </div>
     <div class="circuit-breaker-warning" id="circuitBreakerWarning"></div>
     <div class="sync-indicator" id="syncIndicator">
@@ -1810,6 +1878,11 @@ if ('serviceWorker' in navigator) {
             <button class="action-btn prediction" id="showPredictionBtn" title="Show 30-min Flight Prediction (P)"><span>P</span> Predict</button>
             <button class="action-btn route" id="showRouteBtn" title="Show Route to Destination (R)"><span>R</span> Route</button>
             <button class="action-btn" id="shareFlightBtn" title="Share Flight Link"><span>Share</span></button>
+            <!-- X24: Track export -->
+            <button class="action-btn" id="exportKmlBtn" title="Export track as KML (Google Earth)">KML</button>
+            <button class="action-btn" id="exportGpxBtn" title="Export track as GPX">GPX</button>
+            <button class="action-btn" id="exportGeoJsonBtn" title="Export track as GeoJSON">JSON</button>
+            <button class="action-btn" id="exportCsvBtn" title="Export track as CSV">CSV</button>
         </div>
         <div class="info-section external-links-section">
             <div class="info-section-title">Track Elsewhere</div>
@@ -1875,6 +1948,65 @@ if ('serviceWorker' in navigator) {
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
             <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;">Check All Sources</button>
             <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;">Clear Offline Cache</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Map &amp; Tools</div>
+            <div class="setting-row"><span class="setting-label">Direction-of-flight line (X8)</span><div class="toggle" id="toggleHeadingProj"></div></div>
+            <div class="setting-row"><span class="setting-label">NEXRAD radar (US)</span><div class="toggle" id="toggleNexrad"></div></div>
+            <div class="setting-row"><span class="setting-label">FAA TFR polygons</span><div class="toggle" id="toggleTFR"></div></div>
+            <div class="setting-row"><span class="setting-label">Heatmap (from trail history)</span><div class="toggle" id="toggleHeatmap"></div></div>
+            <div class="setting-row"><span class="setting-label">Heading lookahead</span>
+                <select id="headingLookahead" class="setting-select">
+                    <option value="60">1 min</option>
+                    <option value="180">3 min</option>
+                    <option value="300" selected>5 min</option>
+                    <option value="600">10 min</option>
+                </select>
+            </div>
+            <button class="btn-secondary" id="rulerBtn" style="width: 100%; margin-top: 8px;">Ruler / distance tool (R)</button>
+            <button class="btn-secondary" id="helpBtn" style="width: 100%; margin-top: 6px;">Keyboard shortcuts (?)</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Overlays (X10)</div>
+            <input type="file" id="overlayFileInput" accept=".geojson,.json" style="display:none;">
+            <button class="btn-secondary" id="overlayLoadFileBtn" style="width: 100%; margin-bottom: 6px;">Load GeoJSON file…</button>
+            <div style="display:flex;gap:4px;margin-bottom:6px;">
+                <input type="text" id="overlayUrlInput" placeholder="https://… (raw .geojson URL)" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
+                <button class="btn-secondary" id="overlayLoadUrlBtn" style="padding:6px 10px;">Load</button>
+            </div>
+            <button class="btn-secondary" id="overlayClearBtn" style="width: 100%;">Clear all overlays</button>
+            <div id="overlaysList" style="margin-top:8px;"></div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Alert Webhook (X4)</div>
+            <div style="display:flex;gap:4px;margin-bottom:6px;">
+                <select id="webhookKind" class="setting-select" style="width:90px;">
+                    <option value="generic">Generic JSON</option>
+                    <option value="discord">Discord</option>
+                    <option value="ntfy">ntfy.sh</option>
+                </select>
+                <input type="text" id="webhookUrl" placeholder="https://…" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
+            </div>
+            <button class="btn-secondary" id="webhookSaveBtn" style="width:100%;margin-bottom:6px;">Save webhook</button>
+            <button class="btn-secondary" id="webhookTestBtn" style="width:100%;">Send test alert</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Analyst (X6 / OSINT)</div>
+            <div class="setting-row"><span class="setting-label">Coincidence detector</span><div class="toggle" id="toggleCoincidence"></div></div>
+            <button class="btn-secondary" id="osintReportBtn" style="width: 100%; margin-top: 6px;">Copy OSINT report (selected)</button>
+            <button class="btn-secondary" id="viewportCsvBtn" style="width: 100%; margin-top: 6px;">Export viewport as CSV</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Storage</div>
+            <div class="setting-row"><span class="setting-label">Trail history retention</span>
+                <select id="trailRetention" class="setting-select">
+                    <option value="1">24 hours</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30">30 days</option>
+                </select>
+            </div>
+            <button class="btn-secondary" id="trailRetentionApply" style="width: 100%; margin-top: 8px;">Apply &amp; clean now</button>
         </div>
     </div>
     <div class="bottom-panels">
@@ -2209,13 +2341,59 @@ if ('serviceWorker' in navigator) {
                 _startFetchInterval();
                 if (Date.now() - lastFetchTime > CONFIG.refreshInterval * 1.5) loadAircraft();
             }
+            const p = document.getElementById('pausedPill'); if (p) p.style.display = 'none';
         } else {
             _dbg('Tab hidden - pausing all intervals');
             _tabPaused = true;
             _stopFetchInterval();
             _pauseAllIntervals();
+            // X31: surface the pause state visibly so users know why nothing is updating
+            const p = document.getElementById('pausedPill'); if (p) p.style.display = 'flex';
         }
     });
+
+    // ============ X28: POLITE RATE LIMITER (token bucket per host) ============
+    // Honors ADS-B One's 1 req/sec and ADSB.lol's dynamic limits. Defaults are conservative.
+    const rateLimiter = {
+        buckets: new Map(),  // host -> { tokens, capacity, refillPerSec, lastRefill, queue }
+        defaultConfig: { capacity: 1, refillPerSec: 1 },
+        configure(host, capacity, refillPerSec) {
+            this.buckets.set(host, { tokens: capacity, capacity, refillPerSec, lastRefill: Date.now(), queue: [] });
+        },
+        _bucket(host) {
+            if (!this.buckets.has(host)) this.configure(host, this.defaultConfig.capacity, this.defaultConfig.refillPerSec);
+            return this.buckets.get(host);
+        },
+        _refill(b) {
+            const now = Date.now();
+            const elapsed = (now - b.lastRefill) / 1000;
+            if (elapsed > 0) { b.tokens = Math.min(b.capacity, b.tokens + elapsed * b.refillPerSec); b.lastRefill = now; }
+        },
+        async take(host) {
+            const b = this._bucket(host);
+            this._refill(b);
+            if (b.tokens >= 1) { b.tokens -= 1; return; }
+            const waitMs = Math.ceil((1 - b.tokens) / b.refillPerSec * 1000);
+            await new Promise(r => setTimeout(r, waitMs));
+            this._refill(b);
+            b.tokens = Math.max(0, b.tokens - 1);
+        },
+        async acquireFor(url) {
+            try {
+                const host = new URL(url, location.href).host;
+                await this.take(host);
+            } catch(e) {}
+        }
+    };
+    // Per-source budgets (conservative; documented limits)
+    rateLimiter.configure('api.adsb.one', 1, 1);
+    rateLimiter.configure('api.adsb.lol', 1, 1);
+    rateLimiter.configure('api.airplanes.live', 1, 1);
+    rateLimiter.configure('opendata.adsb.fi', 1, 1);
+    rateLimiter.configure('api.adsbdb.com', 2, 2);
+    rateLimiter.configure('hexdb.io', 2, 2);
+    rateLimiter.configure('aviationweather.gov', 2, 2);
+    rateLimiter.configure('api.planespotters.net', 2, 2);
 
     // ============ CONNECTION MONITORING ============
     const connectionMonitor = {
@@ -2470,7 +2648,8 @@ if ('serviceWorker' in navigator) {
         sources: [
             { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: true },
             { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false },
-            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false }
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false },
+            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: 'https://opendata.adsb.fi/api/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 4, cors: true }
         ],
         
         currentSource: null,
@@ -3323,7 +3502,43 @@ if ('serviceWorker' in navigator) {
     // ============ WEATHER SYSTEM ============
     const weatherSystem = {
         cache: new Map(),
+        tafCache: new Map(),
+        pirepCache: new Map(),
         cacheExpiry: 600000, // 10 minutes
+
+        // X21: TAF (terminal aerodrome forecast) — same host, free, no key
+        async getTAF(icao) {
+            if (!icao || icao.length !== 4) return null;
+            const cached = this.tafCache.get(icao);
+            if (cached && Date.now() - cached.timestamp < this.cacheExpiry) return cached.data;
+            try {
+                await rateLimiter.acquireFor('https://aviationweather.gov/');
+                const resp = await errorHandler.fetchWithTimeout(`https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`, {}, 8000);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                const taf = (Array.isArray(data) && data.length) ? { raw: data[0].rawTAF || data[0].raw || '', station: icao, time: data[0].issueTime || '' } : null;
+                this.tafCache.set(icao, { data: taf, timestamp: Date.now() });
+                return taf;
+            } catch (e) { return cached?.data || null; }
+        },
+        // X21: nearby PIREPs (pilot reports) — given lat/lon + radius nm
+        async getPIREPsNearby(lat, lon, radiusNm) {
+            const key = lat.toFixed(2) + ',' + lon.toFixed(2) + '/' + radiusNm;
+            const cached = this.pirepCache.get(key);
+            if (cached && Date.now() - cached.timestamp < this.cacheExpiry) return cached.data;
+            try {
+                await rateLimiter.acquireFor('https://aviationweather.gov/');
+                // AWC PIREPs are returned for a bounding box; convert nm → deg crudely
+                const dLat = radiusNm / 60;
+                const dLon = radiusNm / (60 * Math.max(0.1, Math.cos(lat * Math.PI / 180)));
+                const bbox = `${(lon - dLon).toFixed(2)},${(lat - dLat).toFixed(2)},${(lon + dLon).toFixed(2)},${(lat + dLat).toFixed(2)}`;
+                const resp = await errorHandler.fetchWithTimeout(`https://aviationweather.gov/api/data/pirep?format=json&bbox=${bbox}`, {}, 8000);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                this.pirepCache.set(key, { data, timestamp: Date.now() });
+                return data;
+            } catch (e) { return cached?.data || []; }
+        },
         
         async getMETAR(icao) {
             if (!icao || icao.length !== 4) return null;
@@ -4667,6 +4882,66 @@ if ('serviceWorker' in navigator) {
         }
     };
 
+    // ============ ADSBDB ROUTE LOOKUP (X17) ============
+    // Free, no-auth, CORS-open route resolver. Caches in memory with TTL.
+    const adsbdbAPI = {
+        cache: new Map(),
+        negativeCache: new Map(),
+        TTL_MS: 6 * 60 * 60 * 1000,   // 6h for hits
+        NEG_TTL_MS: 30 * 60 * 1000,   // 30m for misses (PIA / private callsigns flip often)
+        inflight: new Map(),
+        async lookupCallsign(callsign) {
+            if (!callsign) return null;
+            const key = String(callsign).trim().toUpperCase();
+            if (!key || key.length < 3) return null;
+            const now = Date.now();
+            const hit = this.cache.get(key);
+            if (hit && (now - hit.t < this.TTL_MS)) return hit.data;
+            const miss = this.negativeCache.get(key);
+            if (miss && (now - miss < this.NEG_TTL_MS)) return null;
+            if (this.inflight.has(key)) return this.inflight.get(key);
+            const promise = (async () => {
+                try {
+                    const resp = await fetchWithTimeout('https://api.adsbdb.com/v0/callsign/' + encodeURIComponent(key), {}, 5000);
+                    if (!resp?.ok) { this.negativeCache.set(key, now); return null; }
+                    const data = await resp.json();
+                    const route = data?.response?.flightroute;
+                    if (!route) { this.negativeCache.set(key, now); return null; }
+                    const result = {
+                        callsign: route.callsign || key,
+                        origin: route.origin?.icao_code || route.origin?.iata_code || null,
+                        originName: route.origin?.name || null,
+                        midpoints: (route.midpoint || []).map(m => m.icao_code || m.iata_code).filter(Boolean),
+                        destination: route.destination?.icao_code || route.destination?.iata_code || null,
+                        destinationName: route.destination?.name || null,
+                        airlineName: route.airline?.name || null,
+                        airlineIATA: route.airline?.iata || null
+                    };
+                    this.cache.set(key, { t: now, data: result });
+                    return result;
+                } catch (e) {
+                    this.negativeCache.set(key, now);
+                    return null;
+                } finally {
+                    this.inflight.delete(key);
+                }
+            })();
+            this.inflight.set(key, promise);
+            return promise;
+        },
+        // Enrich an aircraft object with route data if it's missing from the feed
+        async enrich(ac) {
+            if (!ac || !ac.flight) return ac;
+            if (ac.from && ac.to) return ac;          // feed already gave us a route
+            const route = await this.lookupCallsign(ac.flight);
+            if (!route) return ac;
+            if (!ac.from && route.origin) { ac.from = route.origin; ac._routeSrc = 'adsbdb'; }
+            if (!ac.to && route.destination) { ac.to = route.destination; ac._routeSrc = 'adsbdb'; }
+            if (!ac.airlineName && route.airlineName) ac.airlineName = route.airlineName;
+            return ac;
+        }
+    };
+
     // ============ FLIGHT ORIGIN DETECTION ============
     const flightTracker = {
         // Detect origin airport from trail data
@@ -5382,17 +5657,22 @@ if ('serviceWorker' in navigator) {
 
     // ============ INITIALIZATION ============
     document.addEventListener('DOMContentLoaded', async () => {
+        // X26: embed mode (?embed=1) strips chrome
+        const urlParams = new URLSearchParams(location.search);
+        if (urlParams.get('embed') === '1') document.body.classList.add('embed');
+
         // Initialize IndexedDB first
         try {
             await skytrackDB.init();
             _dbg('IndexedDB initialized');
-            
-            // Clean up old trail history data
-            await skytrackDB.clearOldData(7);
+
+            // L19: trail retention honors user setting (default 7d)
+            const retention = parseInt(localStorage.getItem('viptrack_trail_retention_days') || '7', 10);
+            await skytrackDB.clearOldData(retention);
         } catch (e) {
             console.warn('IndexedDB not available, using localStorage fallback');
         }
-        
+
         loadSettings(); loadBookmarks();
         const hadCache = loadAircraftCache();
         await getInitialLocation();
@@ -5436,8 +5716,23 @@ if ('serviceWorker' in navigator) {
         
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
-        
-        
+
+        // X25: extended URL filter API — supports ?center=lat,lng&zoom=n&focus=HEX&type=B52
+        try {
+            const params = new URLSearchParams(location.search);
+            const center = params.get('center');
+            if (center) {
+                const [lat, lng] = center.split(',').map(Number);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) map.setView([lat, lng], parseInt(params.get('zoom') || map.getZoom(), 10));
+            } else if (params.get('zoom')) {
+                map.setZoom(parseInt(params.get('zoom'), 10));
+            }
+            const focus = params.get('focus');
+            if (focus) setTimeout(() => { try { selectAircraft(focus.toUpperCase()); } catch(e){} }, 2500);
+            const overlayUrl = params.get('overlay');
+            if (overlayUrl) setTimeout(() => geojsonLoader.addFromUrl(overlayUrl), 1500);
+        } catch(e) {}
+
         // Check URL params for shared flight links
         shareManager.checkUrlParams();
         shareManager.initPopstate();
@@ -5795,7 +6090,9 @@ if ('serviceWorker' in navigator) {
 
     function createMarker(ac) { const marker = L.marker([ac.lat, ac.lon], { icon: createIcon(ac), zIndexOffset: getZIndex(ac) }); marker.on('click', e => { L.DomEvent.stopPropagation(e); selectAircraft(ac.hex); }); marker.addTo(map); markers[ac.hex] = marker; }
     function updateMarker(ac) { const marker = markers[ac.hex]; if (!marker) return; const hash = _iconHash(ac); const cached = _iconCache[ac.hex]; const iconChanged = !cached || cached.hash !== hash; const pos = marker.getLatLng(); if (Math.abs(pos.lat - ac.lat) + Math.abs(pos.lng - ac.lon) < 0.00001) { if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } return; } aircraftAnimation[ac.hex] = { startLat: pos.lat, startLon: pos.lng, targetLat: ac.lat, targetLon: ac.lon, startTime: performance.now(), duration: CONFIG.refreshInterval * 0.95 }; if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } if (!animationRunning) { animationRunning = true; requestAnimationFrame(animateAircraft); } }
-    function animateAircraft(ts) { let active = false; Object.entries(aircraftAnimation).forEach(([hex, a]) => { const m = markers[hex]; if (!m) { delete aircraftAnimation[hex]; return; } const p = Math.min((ts - a.startTime) / a.duration, 1); if (p < 1) { active = true; const lat = a.startLat + (a.targetLat - a.startLat) * p, lon = a.startLon + (a.targetLon - a.startLon) * p; m.setLatLng([lat, lon]); if (hex === selectedHex && trailLine?._lastSegment) { const ll = trailLine._lastSegment.getLatLngs(); if (ll.length) { ll[ll.length - 1] = L.latLng(lat, lon); trailLine._lastSegment.setLatLngs(ll); } } } else { m.setLatLng([a.targetLat, a.targetLon]); delete aircraftAnimation[hex]; } }); if (active) requestAnimationFrame(animateAircraft); else animationRunning = false; }
+    // X15: ease-out interpolation (quadratic) feels smoother than linear, matching FR24/tar1090 perception
+    function _easeOut(p) { return 1 - (1 - p) * (1 - p); }
+    function animateAircraft(ts) { let active = false; Object.entries(aircraftAnimation).forEach(([hex, a]) => { const m = markers[hex]; if (!m) { delete aircraftAnimation[hex]; return; } const raw = Math.min((ts - a.startTime) / a.duration, 1); const p = _easeOut(raw); if (raw < 1) { active = true; const lat = a.startLat + (a.targetLat - a.startLat) * p, lon = a.startLon + (a.targetLon - a.startLon) * p; m.setLatLng([lat, lon]); if (hex === selectedHex && trailLine?._lastSegment) { const ll = trailLine._lastSegment.getLatLngs(); if (ll.length) { ll[ll.length - 1] = L.latLng(lat, lon); trailLine._lastSegment.setLatLngs(ll); } } } else { m.setLatLng([a.targetLat, a.targetLon]); delete aircraftAnimation[hex]; } }); if (active) requestAnimationFrame(animateAircraft); else animationRunning = false; }
     // ============ TAR1090 SPRITE ICON SYSTEM ============
     const SPRITE_URL = 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/silhouettes/aircraft.png';
     
@@ -5982,10 +6279,12 @@ if ('serviceWorker' in navigator) {
             (spriteInfo.noRotate ? '' : 'transform:rotate(' + rot + 'deg);') +
             '"></div>';
         
-        const className = 'aircraft-marker' + 
-            (sel ? ' selected' : '') + 
-            (isInteresting ? ' interesting' : '') + 
-            (isVIP ? ' vip' : '') + 
+        const isEmergency = ['7500', '7600', '7700'].includes(ac.squawk);
+        const className = 'aircraft-marker' +
+            (sel ? ' selected' : '') +
+            (isInteresting ? ' interesting' : '') +
+            (isVIP ? ' vip' : '') +
+            (isEmergency ? ' emergency emergency-' + ac.squawk : '') +
             (isDimmed ? ' dimmed' : '');
         
         const icon = L.divIcon({
@@ -6147,6 +6446,13 @@ if ('serviceWorker' in navigator) {
     function updateRouteDisplay(ac) {
         if (!ac) return;
         const routeSection = document.getElementById('routeSection');
+        // If feed has no route data but we have a callsign, ask adsbdb in the background
+        if (ac.flight && !ac.from && !ac.to && !ac._adsbdbAttempted) {
+            ac._adsbdbAttempted = true;
+            adsbdbAPI.enrich(ac).then(updated => {
+                if (updated?.from || updated?.to) updateRouteDisplay(updated);
+            }).catch(()=>{});
+        }
         const hasRoute = ac.from || ac.to;
         if (hasRoute) {
             document.getElementById('routeFrom').textContent = ac.from || '???';
@@ -6809,6 +7115,120 @@ if ('serviceWorker' in navigator) {
         
         // Phase 5: New button handlers
         document.getElementById('shareFlightBtn')?.addEventListener('click', () => { if (selectedHex) shareManager.share(selectedHex); });
+
+        // X24: Track export button handlers
+        const _exportSel = () => (selectedHex && aircraftCache[selectedHex]) ? aircraftCache[selectedHex] : null;
+        document.getElementById('exportKmlBtn')?.addEventListener('click', () => { const ac = _exportSel(); if (ac) trackExport.kml(ac); else toast('Select an aircraft first'); });
+        document.getElementById('exportGpxBtn')?.addEventListener('click', () => { const ac = _exportSel(); if (ac) trackExport.gpx(ac); else toast('Select an aircraft first'); });
+        document.getElementById('exportGeoJsonBtn')?.addEventListener('click', () => { const ac = _exportSel(); if (ac) trackExport.geojson(ac); else toast('Select an aircraft first'); });
+        document.getElementById('exportCsvBtn')?.addEventListener('click', () => { const ac = _exportSel(); if (ac) trackExport.csv(ac); else toast('Select an aircraft first'); });
+
+        // X8: Heading projection toggle (toggle uses .on class same as other toggles)
+        const _headingToggle = document.getElementById('toggleHeadingProj');
+        if (_headingToggle) {
+            if (headingProjection.enabled) _headingToggle.classList.add('on');
+            _headingToggle.addEventListener('click', () => {
+                _headingToggle.classList.toggle('on');
+                headingProjection.toggle();
+            });
+        }
+        const _hl = document.getElementById('headingLookahead');
+        const _hlSaved = localStorage.getItem('viptrack_heading_lookahead');
+        if (_hl && _hlSaved) _hl.value = _hlSaved;
+        if (_hl) _hl.addEventListener('change', () => {
+            const v = parseInt(_hl.value, 10);
+            if (v > 0) { headingProjection.lookaheadSec = v; localStorage.setItem('viptrack_heading_lookahead', String(v)); headingProjection.refresh(); }
+        });
+        if (_hlSaved) headingProjection.lookaheadSec = parseInt(_hlSaved, 10) || headingProjection.lookaheadSec;
+
+        // X22: NEXRAD toggle
+        const _nexradToggle = document.getElementById('toggleNexrad');
+        if (_nexradToggle) {
+            _nexradToggle.addEventListener('click', () => {
+                _nexradToggle.classList.toggle('on');
+                toggleNexrad();
+            });
+        }
+
+        // X9: Ruler button
+        document.getElementById('rulerBtn')?.addEventListener('click', () => rulerTool.toggle());
+
+        // Help overlay open
+        document.getElementById('helpBtn')?.addEventListener('click', () => document.getElementById('helpOverlay')?.classList.add('show'));
+
+        // L19: Trail retention
+        const _trSel = document.getElementById('trailRetention');
+        const _trSaved = localStorage.getItem('viptrack_trail_retention_days');
+        if (_trSel && _trSaved) _trSel.value = _trSaved;
+        document.getElementById('trailRetentionApply')?.addEventListener('click', async () => {
+            const days = parseInt(_trSel?.value || '7', 10);
+            localStorage.setItem('viptrack_trail_retention_days', String(days));
+            try {
+                if (typeof skytrackDB !== 'undefined' && skytrackDB.clearOldData) {
+                    await skytrackDB.clearOldData(days);
+                    toast('Trails older than ' + days + 'd cleaned');
+                }
+            } catch(e) { toast('Cleanup failed'); }
+        });
+
+        // X11: TFR toggle
+        const _tfrToggle = document.getElementById('toggleTFR');
+        _tfrToggle?.addEventListener('click', () => {
+            _tfrToggle.classList.toggle('on');
+            tfrOverlay.toggle();
+        });
+
+        // X14: Heatmap toggle
+        const _heatToggle = document.getElementById('toggleHeatmap');
+        _heatToggle?.addEventListener('click', () => {
+            _heatToggle.classList.toggle('on');
+            heatmapLayer.toggle();
+        });
+
+        // X10: GeoJSON overlay loader
+        const _fileInput = document.getElementById('overlayFileInput');
+        document.getElementById('overlayLoadFileBtn')?.addEventListener('click', () => _fileInput?.click());
+        _fileInput?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => geojsonLoader.addFromText(ev.target.result, file.name);
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+        document.getElementById('overlayLoadUrlBtn')?.addEventListener('click', () => {
+            const url = document.getElementById('overlayUrlInput')?.value?.trim();
+            if (url) geojsonLoader.addFromUrl(url);
+            else toast('Enter a URL');
+        });
+        document.getElementById('overlayClearBtn')?.addEventListener('click', () => geojsonLoader.clear());
+
+        // X4: Webhook
+        const _wkUrl = document.getElementById('webhookUrl');
+        const _wkKind = document.getElementById('webhookKind');
+        if (_wkUrl) _wkUrl.value = alertWebhook.url;
+        if (_wkKind) _wkKind.value = alertWebhook.kind;
+        document.getElementById('webhookSaveBtn')?.addEventListener('click', () => {
+            alertWebhook.setUrl(_wkUrl?.value?.trim() || '', _wkKind?.value || 'generic');
+            toast(alertWebhook.url ? 'Webhook saved' : 'Webhook cleared');
+        });
+        document.getElementById('webhookTestBtn')?.addEventListener('click', () => alertWebhook.test());
+
+        // X6: Coincidence detector toggle
+        const _coincToggle = document.getElementById('toggleCoincidence');
+        if (_coincToggle) {
+            if (coincidenceDetector.enabled) _coincToggle.classList.add('on');
+            _coincToggle.addEventListener('click', () => {
+                _coincToggle.classList.toggle('on');
+                coincidenceDetector.enabled = !coincidenceDetector.enabled;
+                localStorage.setItem('viptrack_coincidence', coincidenceDetector.enabled ? '1' : '0');
+                toast('Coincidence detector ' + (coincidenceDetector.enabled ? 'on' : 'off'));
+            });
+        }
+
+        // NEW: OSINT report + viewport CSV
+        document.getElementById('osintReportBtn')?.addEventListener('click', copyOsintReport);
+        document.getElementById('viewportCsvBtn')?.addEventListener('click', exportViewportCsv);
         
         // Phase 10: Prediction and Route button handlers
         document.getElementById('showPredictionBtn')?.addEventListener('click', () => {
@@ -8679,6 +9099,719 @@ if ('serviceWorker' in navigator) {
             toast('Data source stats logged to console');
         }
     });
+
+    // ============ X30: KEYBOARD SHORTCUTS ============
+    // F = follow / Esc = deselect / M = mil-only / V = vip-only / A = all mil+vip
+    // S = focus search / ? = help / B = open bookmarks / R = ruler / N = NEXRAD toggle
+    document.addEventListener('keydown', (e) => {
+        // Skip when typing in an input/textarea/contenteditable
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        switch (e.key) {
+            case 'Escape':
+                document.getElementById('infoClose')?.click();
+                document.getElementById('helpOverlay')?.classList.remove('show');
+                document.getElementById('ethicsDisclaimer')?.classList.remove('show');
+                break;
+            case 'f': case 'F':
+                document.getElementById('followBtn')?.click();
+                toast('Follow toggled'); e.preventDefault(); break;
+            case 'm': case 'M':
+                document.querySelector('[data-filter="military"]')?.click();
+                toast('Military only'); e.preventDefault(); break;
+            case 'v': case 'V':
+                document.querySelector('[data-filter="vip"]')?.click();
+                toast('VIP only'); e.preventDefault(); break;
+            case 'a': case 'A':
+                document.querySelector('[data-filter="mil-vip"]')?.click();
+                toast('All mil + VIP'); e.preventDefault(); break;
+            case 's': case 'S':
+                document.getElementById('searchInput')?.focus(); e.preventDefault(); break;
+            case 'n': case 'N':
+                if (typeof toggleNexrad === 'function') toggleNexrad(); e.preventDefault(); break;
+            case 'r': case 'R':
+                if (typeof rulerTool !== 'undefined') rulerTool.toggle(); e.preventDefault(); break;
+            case 'b': case 'B':
+                document.getElementById('addBookmarkBtn')?.click(); e.preventDefault(); break;
+            case '?':
+                document.getElementById('helpOverlay')?.classList.add('show'); e.preventDefault(); break;
+        }
+    });
+
+    // ============ N6: ETHICAL-USE DISCLAIMER ============
+    (function ethicsInit(){
+        if (localStorage.getItem('viptrack_ethics_ack') === '1') return;
+        const el = document.getElementById('ethicsDisclaimer');
+        if (!el) return;
+        setTimeout(() => el.classList.add('show'), 1500);
+        document.getElementById('ethicsDismiss')?.addEventListener('click', () => {
+            el.classList.remove('show');
+            localStorage.setItem('viptrack_ethics_ack', '1');
+        });
+    })();
+
+    // ============ X22: NEXRAD WMS OVERLAY ============
+    let _nexradLayer = null;
+    function toggleNexrad() {
+        if (!map) return;
+        if (_nexradLayer) {
+            map.removeLayer(_nexradLayer); _nexradLayer = null;
+            toast('NEXRAD off'); return;
+        }
+        try {
+            _nexradLayer = L.tileLayer.wms('https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer', {
+                layers: '1',
+                format: 'image/png',
+                transparent: true,
+                opacity: 0.6,
+                attribution: 'NOAA nowcoast'
+            }).addTo(map);
+            toast('NEXRAD radar on (US)');
+        } catch(e) { toast('NEXRAD failed to load'); }
+    }
+
+    // ============ X24: TRACK EXPORT (KML / GPX / GeoJSON / CSV) ============
+    const trackExport = {
+        _filename(ac, ext) {
+            const tag = (ac.flight?.trim() || ac.r || ac.hex || 'aircraft').replace(/[^\w-]/g, '_');
+            return 'viptrack_' + tag + '_' + new Date().toISOString().slice(0, 10) + '.' + ext;
+        },
+        _points(ac) {
+            // Each history entry: [lat, lon, alt, ts?]
+            return (ac.history || []).filter(p => p && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        },
+        _download(filename, body, mime) {
+            const blob = new Blob([body], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        },
+        kml(ac) {
+            const pts = this._points(ac);
+            if (!pts.length) return toast('No trail data to export');
+            const name = ac.flight?.trim() || ac.r || ac.hex;
+            const coords = pts.map(p => p[1] + ',' + p[0] + ',' + (p[2] || 0)).join(' ');
+            const body = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${name}</name>
+<Placemark><name>${name} trail</name>
+<LineString><altitudeMode>absolute</altitudeMode><coordinates>${coords}</coordinates></LineString>
+</Placemark></Document></kml>`;
+            this._download(this._filename(ac, 'kml'), body, 'application/vnd.google-earth.kml+xml');
+            toast('Exported KML');
+        },
+        gpx(ac) {
+            const pts = this._points(ac);
+            if (!pts.length) return toast('No trail data to export');
+            const name = ac.flight?.trim() || ac.r || ac.hex;
+            const segs = pts.map(p => {
+                const t = p[3] ? new Date(p[3]).toISOString() : new Date().toISOString();
+                const ele = (p[2] || 0) * 0.3048; // ft → m
+                return `    <trkpt lat="${p[0]}" lon="${p[1]}"><ele>${ele.toFixed(1)}</ele><time>${t}</time></trkpt>`;
+            }).join('\n');
+            const body = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="VIPTrack" xmlns="http://www.topografix.com/GPX/1/1">
+<trk><name>${name}</name><trkseg>
+${segs}
+</trkseg></trk>
+</gpx>`;
+            this._download(this._filename(ac, 'gpx'), body, 'application/gpx+xml');
+            toast('Exported GPX');
+        },
+        geojson(ac) {
+            const pts = this._points(ac);
+            if (!pts.length) return toast('No trail data to export');
+            const fc = {
+                type: 'FeatureCollection',
+                features: [{
+                    type: 'Feature',
+                    properties: {
+                        hex: ac.hex, callsign: ac.flight?.trim() || null, registration: ac.r || null,
+                        type: ac.t || null, operator: ac.ownOp || null
+                    },
+                    geometry: { type: 'LineString', coordinates: pts.map(p => [p[1], p[0], p[2] || 0]) }
+                }]
+            };
+            this._download(this._filename(ac, 'geojson'), JSON.stringify(fc, null, 2), 'application/geo+json');
+            toast('Exported GeoJSON');
+        },
+        csv(ac) {
+            const pts = this._points(ac);
+            if (!pts.length) return toast('No trail data to export');
+            const header = 'timestamp_iso,lat,lon,alt_ft\n';
+            const rows = pts.map(p => {
+                const t = p[3] ? new Date(p[3]).toISOString() : '';
+                return `${t},${p[0]},${p[1]},${p[2] || ''}`;
+            }).join('\n');
+            this._download(this._filename(ac, 'csv'), header + rows + '\n', 'text/csv');
+            toast('Exported CSV');
+        }
+    };
+
+    // ============ X8: DIRECTION-OF-FLIGHT PROJECTION LINE ============
+    // Projects each tracked aircraft N seconds ahead using current track + ground speed.
+    let _headingLines = {};
+    const headingProjection = {
+        enabled: false,
+        lookaheadSec: 5 * 60, // 5 min default
+        layer: null,
+        toggle() {
+            this.enabled = !this.enabled;
+            if (!this.enabled) { this.clear(); toast('Heading projection off'); }
+            else { this.refresh(); toast('Heading projection on'); }
+            localStorage.setItem('viptrack_heading_proj', this.enabled ? '1' : '0');
+        },
+        clear() {
+            Object.values(_headingLines).forEach(l => { try { map.removeLayer(l); } catch(e){} });
+            _headingLines = {};
+        },
+        // ECEF-free quick approximation: ~111 km/deg lat, 111*cos(lat) km/deg lon.
+        _project(lat, lon, trackDeg, distanceKm) {
+            const rad = (trackDeg || 0) * Math.PI / 180;
+            const dN = distanceKm * Math.cos(rad);
+            const dE = distanceKm * Math.sin(rad);
+            const lat2 = lat + (dN / 111);
+            const lon2 = lon + (dE / (111 * Math.cos(lat * Math.PI / 180) || 1));
+            return [lat2, lon2];
+        },
+        refresh() {
+            if (!this.enabled || !map) return;
+            const want = new Set();
+            const list = Object.values(aircraftCache || {});
+            for (const ac of list) {
+                if (!ac.lat || !ac.lon || !ac.gs || ac.gs < 30) continue;
+                if (typeof ac.track !== 'number') continue;
+                want.add(ac.hex);
+                const kmh = ac.gs * 1.852;
+                const dist = (kmh / 3600) * this.lookaheadSec;
+                const [lat2, lon2] = this._project(ac.lat, ac.lon, ac.track, dist);
+                const isSel = (typeof selectedHex !== 'undefined' && selectedHex === ac.hex);
+                if (_headingLines[ac.hex]) {
+                    _headingLines[ac.hex].setLatLngs([[ac.lat, ac.lon], [lat2, lon2]]);
+                    _headingLines[ac.hex].setStyle({ color: isSel ? '#00ffff' : '#ffd700', opacity: isSel ? 0.9 : 0.4, weight: isSel ? 1.8 : 1.2 });
+                } else {
+                    _headingLines[ac.hex] = L.polyline([[ac.lat, ac.lon], [lat2, lon2]], {
+                        color: isSel ? '#00ffff' : '#ffd700',
+                        weight: isSel ? 1.8 : 1.2,
+                        opacity: isSel ? 0.9 : 0.4,
+                        dashArray: '4,4',
+                        interactive: false
+                    }).addTo(map);
+                }
+            }
+            // remove stale
+            for (const hex of Object.keys(_headingLines)) {
+                if (!want.has(hex)) { map.removeLayer(_headingLines[hex]); delete _headingLines[hex]; }
+            }
+        }
+    };
+    if (localStorage.getItem('viptrack_heading_proj') === '1') headingProjection.enabled = true;
+    // Refresh projections on every aircraft update tick (cheap; uses cache)
+    _setPausableInterval(() => { if (headingProjection.enabled) headingProjection.refresh(); }, 4000, 'headingProjection');
+
+    // ============ X9: RULER / DISTANCE-BEARING TOOL ============
+    const rulerTool = {
+        active: false,
+        points: [],
+        layer: null,
+        toggle() {
+            if (this.active) this.deactivate(); else this.activate();
+        },
+        activate() {
+            if (!map) return;
+            this.active = true;
+            this.points = [];
+            if (this.layer) { map.removeLayer(this.layer); this.layer = null; }
+            map.getContainer().style.cursor = 'crosshair';
+            map.on('click', this._onMapClick, this);
+            toast('Ruler: click two points (Esc to cancel)');
+        },
+        deactivate() {
+            this.active = false;
+            if (map) {
+                map.off('click', this._onMapClick, this);
+                map.getContainer().style.cursor = '';
+            }
+            if (this.layer) { try { map.removeLayer(this.layer); } catch(e){} this.layer = null; }
+            this.points = [];
+        },
+        _onMapClick(e) {
+            this.points.push(e.latlng);
+            if (this.points.length === 2) {
+                const [a, b] = this.points;
+                const distKm = haversineDistance(a.lat, a.lng, b.lat, b.lng);
+                const distNm = distKm * 0.539957;
+                const bearing = this._bearing(a, b);
+                const line = L.polyline(this.points, { color: '#ff9500', weight: 2, dashArray: '6 4' });
+                const mid = L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2);
+                const label = L.marker(mid, { icon: L.divIcon({
+                    className: 'ruler-label-icon',
+                    html: '<div class="ruler-label">' + distKm.toFixed(1) + ' km / ' + distNm.toFixed(1) + ' nm — ' + bearing.toFixed(0) + '°</div>',
+                    iconSize: [180, 22], iconAnchor: [90, 11]
+                })});
+                this.layer = L.layerGroup([line, label]).addTo(map);
+                this.active = false;
+                map.off('click', this._onMapClick, this);
+                map.getContainer().style.cursor = '';
+                toast(distKm.toFixed(1) + ' km — click ruler again to clear');
+            }
+        },
+        _bearing(a, b) {
+            const φ1 = a.lat * Math.PI/180, φ2 = b.lat * Math.PI/180;
+            const Δλ = (b.lng - a.lng) * Math.PI/180;
+            const y = Math.sin(Δλ) * Math.cos(φ2);
+            const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+            return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+        }
+    };
+
+    // ============ X4: WEBHOOK / TELEGRAM / DISCORD / NTFY ALERT SINK ============
+    // Outgoing-only. User pastes a webhook URL into settings; alertSystem.showAlert posts JSON.
+    const alertWebhook = {
+        url: localStorage.getItem('viptrack_webhook_url') || '',
+        kind: localStorage.getItem('viptrack_webhook_kind') || 'generic', // generic / discord / ntfy
+        setUrl(u, kind) {
+            this.url = u || '';
+            this.kind = kind || 'generic';
+            localStorage.setItem('viptrack_webhook_url', this.url);
+            localStorage.setItem('viptrack_webhook_kind', this.kind);
+        },
+        async send(alert) {
+            if (!this.url) return;
+            try {
+                const ac = alert.aircraft || {};
+                const cs = (ac.flight || '').trim() || ac.r || ac.hex || 'unknown';
+                const title = '[VIPTrack] ' + alert.type + ' — ' + cs;
+                const body = alert.message + (ac.lat ? '  @ ' + ac.lat.toFixed(3) + ',' + ac.lon.toFixed(3) : '');
+                let payload, headers = { 'Content-Type': 'application/json' };
+                if (this.kind === 'discord') {
+                    payload = JSON.stringify({ username: 'VIPTrack', content: '**' + title + '**\n' + body });
+                } else if (this.kind === 'ntfy') {
+                    // ntfy.sh accepts plain text + headers
+                    headers = { 'Title': title, 'Tags': alert.type.toLowerCase(), 'Priority': alert.type === 'EMERGENCY' ? '5' : '3' };
+                    payload = body;
+                } else {
+                    // generic JSON envelope (Bluesky bridge, custom server, IFTTT)
+                    payload = JSON.stringify({
+                        source: 'viptrack', type: alert.type, message: alert.message,
+                        callsign: cs, hex: ac.hex, lat: ac.lat, lon: ac.lon, alt: ac.alt_baro,
+                        squawk: ac.squawk, time: new Date(alert.timestamp).toISOString()
+                    });
+                }
+                await fetch(this.url, { method: 'POST', headers, body: payload, mode: 'no-cors' });
+            } catch (e) { _dbg('webhook send failed', e); }
+        },
+        async test() {
+            if (!this.url) { toast('Set webhook URL first'); return; }
+            await this.send({
+                type: 'TEST', message: 'VIPTrack webhook test message', timestamp: Date.now(),
+                aircraft: { hex: 'TEST00', flight: 'TEST123' }
+            });
+            toast('Test sent to ' + this.kind + ' webhook');
+        }
+    };
+    // Hook into existing alertSystem: monkey-patch showAlert to also fire webhook
+    if (typeof alertSystem !== 'undefined' && alertSystem.showAlert && !alertSystem._webhookPatched) {
+        const _origShow = alertSystem.showAlert.bind(alertSystem);
+        alertSystem.showAlert = function(alert) {
+            _origShow(alert);
+            alertWebhook.send(alert);
+        };
+        alertSystem._webhookPatched = true;
+    }
+
+    // ============ X10: CUSTOM GEOJSON OVERLAY LOADER ============
+    const geojsonLoader = {
+        layers: [],
+        addFromText(text, name) {
+            try {
+                const data = JSON.parse(text);
+                const layer = L.geoJSON(data, {
+                    style: { color: '#ff9500', weight: 2, opacity: 0.85, fillOpacity: 0.15, fillColor: '#ff9500' },
+                    pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, color: '#ff9500', fillOpacity: 0.6 }),
+                    onEachFeature: (feature, layer) => {
+                        if (feature.properties?.name) layer.bindTooltip(String(feature.properties.name), { permanent: false, direction: 'top' });
+                    }
+                }).addTo(map);
+                this.layers.push({ name: name || ('Overlay #' + (this.layers.length + 1)), layer });
+                toast('Loaded overlay: ' + (name || 'unnamed'));
+                this.renderList();
+            } catch (e) { toast('Invalid GeoJSON'); }
+        },
+        async addFromUrl(url) {
+            try {
+                const resp = await fetchWithTimeout(url, {}, 8000);
+                if (!resp?.ok) return toast('Could not fetch overlay');
+                const text = await resp.text();
+                this.addFromText(text, (url.split('/').pop() || 'remote'));
+            } catch (e) { toast('Could not fetch overlay'); }
+        },
+        clear() {
+            this.layers.forEach(l => { try { map.removeLayer(l.layer); } catch(e){} });
+            this.layers = [];
+            this.renderList();
+            toast('Overlays cleared');
+        },
+        renderList() {
+            const el = document.getElementById('overlaysList');
+            if (!el) return;
+            if (!this.layers.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;">No overlays loaded</div>'; return; }
+            el.innerHTML = this.layers.map((l, i) =>
+                '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;">' +
+                '<span>' + l.name + '</span>' +
+                '<button data-idx="' + i + '" class="overlay-remove" style="background:none;border:none;color:var(--danger);cursor:pointer;">×</button></div>'
+            ).join('');
+            el.querySelectorAll('.overlay-remove').forEach(btn => btn.addEventListener('click', e => {
+                const idx = parseInt(e.target.dataset.idx, 10);
+                const item = this.layers[idx];
+                if (item) { try { map.removeLayer(item.layer); } catch(_){} this.layers.splice(idx, 1); this.renderList(); }
+            }));
+        }
+    };
+
+    // ============ X6: COINCIDENCE DETECTOR ============
+    // Flag when two aircraft are colocated (refuelling / fighter escort / formation flight).
+    const coincidenceDetector = {
+        enabled: localStorage.getItem('viptrack_coincidence') === '1',
+        thresholdNm: 5,
+        thresholdFt: 2000,
+        lastReported: new Map(),
+        cooldownMs: 5 * 60 * 1000,
+        scan() {
+            if (!this.enabled || typeof aircraftCache === 'undefined') return;
+            const list = Object.values(aircraftCache).filter(a => a && Number.isFinite(a.lat) && Number.isFinite(a.lon));
+            for (let i = 0; i < list.length; i++) {
+                for (let j = i + 1; j < list.length; j++) {
+                    const a = list[i], b = list[j];
+                    // both should be tracked classes — mil/vip/interesting (skip pure commercial)
+                    if (!a.militaryInfo && !a.isVIP && !a.interesting && !a.militaryRangeInfo) continue;
+                    if (!b.militaryInfo && !b.isVIP && !b.interesting && !b.militaryRangeInfo) continue;
+                    const dKm = haversineDistance(a.lat, a.lon, b.lat, b.lon);
+                    const dNm = dKm * 0.539957;
+                    if (dNm > this.thresholdNm) continue;
+                    const altA = Number(a.alt_baro) || 0, altB = Number(b.alt_baro) || 0;
+                    if (Math.abs(altA - altB) > this.thresholdFt) continue;
+                    const key = [a.hex, b.hex].sort().join(':');
+                    if ((Date.now() - (this.lastReported.get(key) || 0)) < this.cooldownMs) continue;
+                    this.lastReported.set(key, Date.now());
+                    const msg = (a.flight?.trim() || a.hex) + ' ↔ ' + (b.flight?.trim() || b.hex) +
+                                '  ' + dNm.toFixed(1) + 'nm  Δ' + Math.abs(altA - altB) + 'ft';
+                    if (typeof alertSystem !== 'undefined') {
+                        alertSystem.triggerAlert(a, 'INTERESTING', 'Coincidence: ' + msg);
+                    } else {
+                        toast('Coincidence: ' + msg);
+                    }
+                }
+            }
+        }
+    };
+    _setPausableInterval(() => coincidenceDetector.scan(), 20000, 'coincidence');
+
+    // ============ X11: FAA TFR OVERLAY (XML feed) ============
+    // The TFR XML is messy; we keep this best-effort with a graceful skip.
+    const tfrOverlay = {
+        layer: null,
+        loading: false,
+        async toggle() {
+            if (this.layer) { map.removeLayer(this.layer); this.layer = null; toast('TFRs off'); return; }
+            if (this.loading) return;
+            this.loading = true;
+            toast('Loading TFRs…');
+            try {
+                // Use a public mirror that's already a JSON conversion when available,
+                // otherwise fall back to the FAA's XML (which requires DOMParser).
+                let polys = await this._fetchFromMirror();
+                if (!polys?.length) polys = await this._fetchFromFAA();
+                if (!polys?.length) { toast('No active TFRs / blocked by CORS'); this.loading = false; return; }
+                this.layer = L.layerGroup(polys.map(p => L.polygon(p.coords, {
+                    color: '#ef4444', weight: 2, fillOpacity: 0.18, fillColor: '#ef4444'
+                }).bindPopup('<b>TFR</b><br>' + (p.label || 'Active TFR')))).addTo(map);
+                toast(polys.length + ' TFR(s) shown');
+            } catch (e) { toast('TFR load failed'); }
+            this.loading = false;
+        },
+        async _fetchFromMirror() {
+            try {
+                // tfr2go publishes a JSON mirror; community-run, best-effort
+                const resp = await fetchWithTimeout('https://tfr2go.com/api/tfrs', {}, 8000);
+                if (!resp?.ok) return null;
+                const data = await resp.json();
+                if (!Array.isArray(data)) return null;
+                return data.filter(t => t.coordinates).map(t => ({
+                    label: (t.notamId || '') + ' ' + (t.description || ''),
+                    coords: t.coordinates.map(c => [c.lat, c.lon])
+                }));
+            } catch (e) { return null; }
+        },
+        async _fetchFromFAA() {
+            try {
+                const resp = await fetchWithProxy('https://tfr.faa.gov/tfr3/export/xml');
+                if (!resp?.ok) return null;
+                const xml = new DOMParser().parseFromString(await resp.text(), 'text/xml');
+                const out = [];
+                xml.querySelectorAll('TFR').forEach(t => {
+                    const lats = []; const lons = [];
+                    t.querySelectorAll('point').forEach(p => {
+                        const lat = parseFloat(p.querySelector('lat')?.textContent || '');
+                        const lon = parseFloat(p.querySelector('lon')?.textContent || '');
+                        if (Number.isFinite(lat) && Number.isFinite(lon)) { lats.push(lat); lons.push(lon); }
+                    });
+                    if (lats.length >= 3) {
+                        out.push({
+                            label: t.querySelector('description')?.textContent || 'TFR',
+                            coords: lats.map((l, i) => [l, lons[i]])
+                        });
+                    }
+                });
+                return out;
+            } catch (e) { return null; }
+        }
+    };
+
+    // ============ X14: HEATMAP / DENSITY LAYER (uses existing trailHistory) ============
+    // Lightweight canvas heatmap built without an external plugin.
+    const heatmapLayer = {
+        layer: null,
+        canvas: null,
+        async toggle() {
+            if (this.layer) { map.removeLayer(this.layer); this.layer = null; toast('Heatmap off'); return; }
+            toast('Building heatmap…');
+            const points = await this._collectPoints();
+            if (!points.length) { toast('No trail history yet'); return; }
+            this.layer = this._buildOverlay(points);
+            this.layer.addTo(map);
+            toast(points.length + ' points rendered');
+        },
+        async _collectPoints() {
+            // Pull from in-memory aircraft.history first; supplement from IDB if available
+            const out = [];
+            for (const ac of Object.values(aircraftCache || {})) {
+                if (Array.isArray(ac.history)) {
+                    for (const p of ac.history) {
+                        if (Number.isFinite(p[0]) && Number.isFinite(p[1])) out.push([p[0], p[1]]);
+                    }
+                }
+            }
+            return out;
+        },
+        _buildOverlay(points) {
+            const self = this;
+            const Heat = L.Layer.extend({
+                onAdd(map) {
+                    self.canvas = L.DomUtil.create('canvas', 'leaflet-zoom-animated');
+                    self.canvas.style.position = 'absolute';
+                    self.canvas.style.pointerEvents = 'none';
+                    map.getPanes().overlayPane.appendChild(self.canvas);
+                    map.on('moveend zoomend resize', this._draw, this);
+                    this._draw();
+                },
+                onRemove(map) {
+                    map.off('moveend zoomend resize', this._draw, this);
+                    if (self.canvas?.parentNode) self.canvas.parentNode.removeChild(self.canvas);
+                    self.canvas = null;
+                },
+                _draw() {
+                    if (!self.canvas) return;
+                    const size = map.getSize();
+                    const topLeft = map.containerPointToLayerPoint([0, 0]);
+                    L.DomUtil.setPosition(self.canvas, topLeft);
+                    self.canvas.width = size.x; self.canvas.height = size.y;
+                    const ctx = self.canvas.getContext('2d');
+                    ctx.clearRect(0, 0, size.x, size.y);
+                    ctx.globalAlpha = 0.45;
+                    for (const [lat, lon] of points) {
+                        const pt = map.latLngToContainerPoint([lat, lon]);
+                        if (pt.x < -10 || pt.x > size.x + 10 || pt.y < -10 || pt.y > size.y + 10) continue;
+                        const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, 14);
+                        grad.addColorStop(0, 'rgba(255, 215, 0, 0.85)');
+                        grad.addColorStop(0.6, 'rgba(255, 149, 0, 0.4)');
+                        grad.addColorStop(1, 'rgba(74, 144, 217, 0)');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(pt.x - 14, pt.y - 14, 28, 28);
+                    }
+                }
+            });
+            return new Heat();
+        }
+    };
+
+    // ============ X3: PLANE-ALERT-DB DAILY SYNC ============
+    // The repo vendors plane-alert-db copies. This keeps them fresh (≥24h cadence).
+    const planeAlertSync = {
+        ENABLED: true,
+        files: [
+            { key: 'plane-alert-mil', url: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-mil.csv' },
+            { key: 'plane-alert-gov', url: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-gov.csv' },
+            { key: 'plane-alert-pol', url: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pol.csv' },
+            { key: 'plane-alert-pia', url: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pia.csv' },
+            { key: 'plane-alert-civ', url: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-civ.csv' },
+            { key: 'plane-alert-categories', url: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-categories.csv' }
+        ],
+        async run(force) {
+            if (!this.ENABLED) return;
+            const last = parseInt(localStorage.getItem('viptrack_pa_sync_ts') || '0', 10);
+            if (!force && (Date.now() - last) < 24 * 3600 * 1000) return;
+            let ok = 0;
+            for (const f of this.files) {
+                try {
+                    await rateLimiter.acquireFor(f.url);
+                    const resp = await fetchWithTimeout(f.url, { cache: 'no-cache' }, 12000);
+                    if (resp?.ok) {
+                        const text = await resp.text();
+                        try { if (typeof skytrackDB !== 'undefined' && skytrackDB.saveDatabase) await skytrackDB.saveDatabase('pa_' + f.key, text); } catch(e){}
+                        ok++;
+                    }
+                } catch (e) {}
+            }
+            localStorage.setItem('viptrack_pa_sync_ts', String(Date.now()));
+            if (ok) _dbg('plane-alert-db synced', ok + '/' + this.files.length);
+        }
+    };
+    setTimeout(() => planeAlertSync.run(false), 15000);
+    setInterval(() => planeAlertSync.run(false), 6 * 3600 * 1000);
+
+    // ============ NEW: MGRS / Maidenhead coord helpers (OSINT) ============
+    const coords = {
+        // Maidenhead (ham radio grid) — useful for OSINT correlation with photos/notes.
+        toMaidenhead(lat, lon) {
+            lat += 90; lon += 180;
+            const A = 'A'.charCodeAt(0);
+            const fieldLon = String.fromCharCode(A + Math.floor(lon / 20));
+            const fieldLat = String.fromCharCode(A + Math.floor(lat / 10));
+            const sqLon = Math.floor((lon % 20) / 2);
+            const sqLat = Math.floor(lat % 10);
+            const subLon = String.fromCharCode(A + Math.floor((((lon % 20) / 2) - sqLon) * 24));
+            const subLat = String.fromCharCode(A + Math.floor(((lat % 10) - sqLat) * 24));
+            return fieldLon + fieldLat + sqLon + sqLat + subLon.toLowerCase() + subLat.toLowerCase();
+        },
+        // DMS string (no MGRS — full MGRS is ~150 LOC and not worth it without proj4)
+        toDMS(lat, lon) {
+            const f = (v, hemiPos, hemiNeg) => {
+                const sign = v >= 0 ? hemiPos : hemiNeg;
+                const a = Math.abs(v);
+                const d = Math.floor(a);
+                const mFloat = (a - d) * 60;
+                const m = Math.floor(mFloat);
+                const s = ((mFloat - m) * 60).toFixed(1);
+                return d + '°' + m + "'" + s + '"' + sign;
+            };
+            return f(lat, 'N', 'S') + ' ' + f(lon, 'E', 'W');
+        }
+    };
+
+    // ============ NEW: SUN POSITION (for OSINT shadow correlation) ============
+    // Returns sun altitude (°) and azimuth (° from North) at lat/lon/timestamp.
+    // Used for "is this aircraft casting a shadow we could correlate with?" workflows.
+    const sunPosition = {
+        compute(lat, lon, when) {
+            when = when || new Date();
+            const rad = Math.PI / 180;
+            const dayMs = 1000 * 60 * 60 * 24;
+            const J1970 = 2440588, J2000 = 2451545;
+            const toDays = d => d.valueOf() / dayMs - 0.5 + J1970 - J2000;
+            const e = rad * 23.4397;
+            const d = toDays(when);
+            const M = rad * (357.5291 + 0.98560028 * d);
+            const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2*M) + 0.0003 * Math.sin(3*M));
+            const P = rad * 102.9372;
+            const L = M + C + P + Math.PI;
+            const dec = Math.asin(Math.sin(0) * Math.cos(e) + Math.cos(0) * Math.sin(e) * Math.sin(L));
+            const ra = Math.atan2(Math.sin(L) * Math.cos(e) - Math.tan(0) * Math.sin(e), Math.cos(L));
+            const lw = rad * -lon;
+            const phi = rad * lat;
+            const H = (rad * (280.16 + 360.9856235 * d) - lw) - ra;
+            const alt = Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+            const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi));
+            return { altDeg: alt / rad, azDeg: ((az / rad) + 180 + 360) % 360 };
+        }
+    };
+
+    // ============ NEW: OSINT REPORT COPY ============
+    // One-button "copy this aircraft as a tweet-able OSINT note"
+    function copyOsintReport() {
+        if (typeof selectedHex === 'undefined' || !selectedHex) { toast('Select an aircraft first'); return; }
+        const ac = aircraftCache[selectedHex];
+        if (!ac) return;
+        const lines = [];
+        lines.push('Aircraft: ' + (ac.flight?.trim() || ac.r || ac.hex));
+        if (ac.r) lines.push('Reg: ' + ac.r);
+        lines.push('Hex: ' + ac.hex);
+        if (ac.t) lines.push('Type: ' + ac.t + (ac.desc ? ' (' + ac.desc + ')' : ''));
+        if (ac.ownOp) lines.push('Operator: ' + ac.ownOp);
+        if (Number.isFinite(ac.lat)) {
+            lines.push('Position: ' + ac.lat.toFixed(4) + ', ' + ac.lon.toFixed(4));
+            lines.push('  DMS: ' + coords.toDMS(ac.lat, ac.lon));
+            lines.push('  Grid: ' + coords.toMaidenhead(ac.lat, ac.lon));
+            const sun = sunPosition.compute(ac.lat, ac.lon, new Date());
+            lines.push('  Sun: alt ' + sun.altDeg.toFixed(1) + '°, az ' + sun.azDeg.toFixed(1) + '° (' + (sun.altDeg > 0 ? 'above horizon' : 'below horizon') + ')');
+        }
+        if (ac.alt_baro != null) lines.push('Altitude: ' + ac.alt_baro + ' ft');
+        if (ac.gs != null) lines.push('Ground speed: ' + ac.gs + ' kt');
+        if (ac.track != null) lines.push('Track: ' + ac.track + '°');
+        if (ac.squawk) lines.push('Squawk: ' + ac.squawk);
+        if (ac.from || ac.to) lines.push('Route: ' + (ac.from || '???') + ' → ' + (ac.to || '???'));
+        lines.push('Observed: ' + new Date().toISOString());
+        lines.push('Source: VIPTrack (public ADS-B)');
+        const text = lines.join('\n');
+        navigator.clipboard?.writeText(text).then(() => toast('OSINT report copied')).catch(() => toast('Copy failed'));
+    }
+
+    // ============ NEW: VIEWPORT CSV DUMP ============
+    // Snapshot every aircraft in the current viewport to a CSV — useful for OSINT field notes.
+    function exportViewportCsv() {
+        if (!map) return;
+        const bounds = map.getBounds();
+        const rows = [];
+        rows.push('hex,callsign,reg,type,operator,lat,lon,alt_ft,gs_kt,track,squawk,class,from,to,timestamp_iso');
+        const now = new Date().toISOString();
+        for (const ac of Object.values(aircraftCache || {})) {
+            if (!Number.isFinite(ac.lat) || !Number.isFinite(ac.lon)) continue;
+            if (!bounds.contains([ac.lat, ac.lon])) continue;
+            const cls = (typeof classifyAircraft === 'function') ? classifyAircraft(ac) : '';
+            rows.push([
+                ac.hex || '', '"' + (ac.flight?.trim() || '') + '"', ac.r || '',
+                ac.t || '', '"' + (ac.ownOp || '').replace(/"/g,'""') + '"',
+                ac.lat, ac.lon, ac.alt_baro ?? '', ac.gs ?? '', ac.track ?? '',
+                ac.squawk || '', cls, ac.from || '', ac.to || '', now
+            ].join(','));
+        }
+        if (rows.length === 1) { toast('No aircraft in viewport'); return; }
+        const blob = new Blob([rows.join('\n') + '\n'], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'viptrack_viewport_' + new Date().toISOString().slice(0, 16).replace(':', '') + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast((rows.length - 1) + ' aircraft → CSV');
+    }
+
+    // ============ HELP OVERLAY (?) ============
+    (function helpOverlayInit(){
+        if (document.getElementById('helpOverlay')) return;
+        const html = `
+        <div class="help-overlay" id="helpOverlay" role="dialog" aria-label="Keyboard shortcuts">
+          <div class="help-card">
+            <h3>Keyboard Shortcuts</h3>
+            <table>
+              <tr><td>F</td><td>Toggle follow</td></tr>
+              <tr><td>Esc</td><td>Close panel / cancel</td></tr>
+              <tr><td>M</td><td>Military only</td></tr>
+              <tr><td>V</td><td>VIP only</td></tr>
+              <tr><td>A</td><td>All mil + VIP</td></tr>
+              <tr><td>S</td><td>Focus search</td></tr>
+              <tr><td>N</td><td>Toggle NEXRAD radar (US)</td></tr>
+              <tr><td>R</td><td>Ruler / distance tool</td></tr>
+              <tr><td>B</td><td>Save bookmark</td></tr>
+              <tr><td>?</td><td>This help</td></tr>
+              <tr><td>Ctrl+Shift+D</td><td>Data-source stats to console</td></tr>
+            </table>
+            <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('show')">Close</button>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    })();
     
 
     window.addEventListener('beforeunload', () => { saveAircraftCache(); saveMapPosition(); });
