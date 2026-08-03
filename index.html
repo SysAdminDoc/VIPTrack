@@ -1925,7 +1925,7 @@ if ('serviceWorker' in navigator) {
         <div class="info-actions">
             <button class="action-btn prediction" id="showPredictionBtn" title="Show 30-min Flight Prediction (P)"><span>P</span> Predict</button>
             <button class="action-btn route" id="showRouteBtn" title="Show Route to Destination (R)"><span>R</span> Route</button>
-            <button class="action-btn" id="shareFlightBtn" title="Share Flight Link"><span>Share</span></button>
+            <button class="action-btn" id="shareFlightBtn" title="Share aircraft trail PNG (copy link if unsupported)"><span>Share trail</span></button>
             <!-- X24: Track export -->
             <button class="action-btn" id="exportKmlBtn" title="Export track as KML (Google Earth)">KML</button>
             <button class="action-btn" id="exportGpxBtn" title="Export track as GPX">GPX</button>
@@ -8382,17 +8382,111 @@ if ('serviceWorker' in navigator) {
             if (settings.filter !== 'all') params.set('filter', settings.filter);
             return window.location.origin + window.location.pathname + '?' + params.toString();
         },
-        
-        
+
+        _collectTrailPoints(hex) {
+            const points = [];
+            const add = value => {
+                const lat = Number(Array.isArray(value) ? value[0] : value?.lat);
+                const lon = Number(Array.isArray(value) ? value[1] : (value?.lng ?? value?.lon));
+                if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) return;
+                const previous = points[points.length - 1];
+                if (!previous || previous.lat !== lat || previous.lon !== lon) points.push({ lat, lon });
+            };
+            const walk = value => {
+                if (Array.isArray(value)) {
+                    if (value.length >= 2 && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) add(value);
+                    else value.forEach(walk);
+                }
+                else add(value);
+            };
+            if (hex === selectedHex && trailLine) {
+                const layers = trailLine._group?.getLayers?.() || (trailLine.getLatLngs ? [trailLine] : []);
+                layers.forEach(layer => { if (layer?.getLatLngs) walk(layer.getLatLngs()); });
+            }
+            const ac = aircraftCache[hex];
+            if (points.length < 2 && Array.isArray(ac?.history)) ac.history.forEach(walk);
+            if (ac?.lat !== undefined && ac?.lon !== undefined) add({ lat: ac.lat, lon: ac.lon });
+            return points.slice(-600);
+        },
+
+        async createTrailPng(hex) {
+            if (typeof OffscreenCanvas === 'undefined') return null;
+            const points = this._collectTrailPoints(hex);
+            if (points.length < 2) return null;
+            const canvas = new OffscreenCanvas(1200, 675);
+            const ctx = canvas.getContext('2d');
+            if (!ctx || typeof canvas.convertToBlob !== 'function') return null;
+            const ac = aircraftCache[hex] || {};
+            const title = String(ac.flight?.trim() || ac.r || hex).slice(0, 64);
+            const wrapped = points.map(point => {
+                let lon = point.lon;
+                const base = points[0].lon;
+                while (lon - base > 180) lon -= 360;
+                while (lon - base < -180) lon += 360;
+                return { ...point, plotLon: lon };
+            });
+            let minLat = Math.min(...wrapped.map(point => point.lat));
+            let maxLat = Math.max(...wrapped.map(point => point.lat));
+            let minLon = Math.min(...wrapped.map(point => point.plotLon));
+            let maxLon = Math.max(...wrapped.map(point => point.plotLon));
+            if (maxLat - minLat < 0.1) { minLat -= 0.05; maxLat += 0.05; }
+            if (maxLon - minLon < 0.1) { minLon -= 0.05; maxLon += 0.05; }
+            const pad = { left: 72, top: 78, right: 36, bottom: 58 };
+            const plotWidth = canvas.width - pad.left - pad.right;
+            const plotHeight = canvas.height - pad.top - pad.bottom;
+            const x = lon => pad.left + ((lon - minLon) / (maxLon - minLon)) * plotWidth;
+            const y = lat => pad.top + ((maxLat - lat) / (maxLat - minLat)) * plotHeight;
+
+            ctx.fillStyle = '#08111f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#111d2d';
+            ctx.fillRect(pad.left, pad.top, plotWidth, plotHeight);
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const gx = pad.left + plotWidth * i / 4;
+                const gy = pad.top + plotHeight * i / 4;
+                ctx.beginPath(); ctx.moveTo(gx, pad.top); ctx.lineTo(gx, pad.top + plotHeight); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + plotWidth, gy); ctx.stroke();
+            }
+            ctx.strokeStyle = '#22d3ee';
+            ctx.shadowColor = 'rgba(34, 211, 238, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            wrapped.forEach((point, index) => { if (index === 0) ctx.moveTo(x(point.plotLon), y(point.lat)); else ctx.lineTo(x(point.plotLon), y(point.lat)); });
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            const start = wrapped[0], end = wrapped[wrapped.length - 1];
+            ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.arc(x(start.plotLon), y(start.lat), 7, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(x(end.plotLon), y(end.lat), 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '600 26px sans-serif'; ctx.fillText(title, pad.left, 38);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px sans-serif'; ctx.fillText('VIPTrack trail · ' + hex.toUpperCase() + ' · ' + points.length + ' points', pad.left, 61);
+            ctx.font = '12px sans-serif'; ctx.fillText('Start', x(start.plotLon) + 10, y(start.lat) + 4); ctx.fillText('Current', x(end.plotLon) + 10, y(end.lat) + 4);
+            ctx.fillText('Informational trail image · not for navigation', pad.left, canvas.height - 22);
+            return canvas.convertToBlob({ type: 'image/png' });
+        },
+
         async share(hex) {
             const link = this.generateLink(hex);
             if (!link) { toast('No aircraft selected'); return; }
             const ac = aircraftCache[hex];
             const title = 'Track ' + (ac.flight?.trim() || ac.r || hex) + ' on VIPTrack';
-            if (navigator.share) {
-                try { await navigator.share({ title, text: 'Follow this flight: ' + (ac.flight?.trim() || hex), url: link }); return; }
-                catch (e) { if (e.name !== 'AbortError') console.warn('Share failed:', e); }
+            let blob = null;
+            try { blob = await this.createTrailPng(hex); } catch (e) { blob = null; }
+            if (blob && navigator.share && typeof File !== 'undefined') {
+                try {
+                    const file = new File([blob], 'viptrack-' + hex.toLowerCase() + '-trail.png', { type: 'image/png' });
+                    if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+                        await navigator.share({ title, text: 'VIPTrack trail for ' + (ac.flight?.trim() || hex), files: [file] });
+                        return;
+                    }
+                } catch (e) { if (e.name !== 'AbortError') console.warn('Trail share failed:', e); }
             }
+            if (!blob) toast('Trail image unavailable; sharing link instead');
             await this.copyToClipboard(link);
         },
         

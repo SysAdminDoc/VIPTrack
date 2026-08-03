@@ -192,6 +192,24 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("fetchWithProxy", section)
         self.assertNotIn("setInterval", section)
 
+    def test_share_exports_current_trail_png_with_link_fallback(self) -> None:
+        for marker in (
+            "title=\"Share aircraft trail PNG (copy link if unsupported)\"",
+            "_collectTrailPoints(hex)",
+            "new OffscreenCanvas(1200, 675)",
+            "convertToBlob({ type: 'image/png' })",
+            "navigator.canShare({ files: [file] })",
+            "files: [file]",
+            "sharing link instead",
+            "await this.copyToClipboard(link)",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const shareManager =")
+        end = self.source.index("// ============ MIDNIGHT THEME", start)
+        section = self.source[start:end]
+        self.assertIn("trailLine._group?.getLayers?.()", section)
+        self.assertNotIn("navigator.share({ title, text: 'Follow this flight:'", section)
+
 
 if __name__ == "__main__":
     unittest.main()
