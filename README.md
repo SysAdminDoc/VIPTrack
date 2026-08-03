@@ -91,7 +91,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | Aircraft Labels | Optional callsign labels on map markers |
 | Sprite Icons | Type-accurate aircraft silhouettes from a sprite sheet (90+ types) |
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
-| 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the 2D data feed |
+| 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the live feed and selected historical traces get a Cesium clock scrubber |
 | WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers and `TripsLayer` history trails while Leaflet remains the default |
 | Share Flight | Generate shareable links for specific aircraft |
 | Follow Mode | Camera tracks the selected aircraft automatically |
@@ -144,6 +144,7 @@ Static app files (`index.html` + `cesium-frame.html`)
     |     |-- Grid decimation at low zoom for performance
     |     |-- Altitude-colored history trails
     |     |-- Optional Cesium 1.143 globe (`?3d=1`, lazy-loaded, no ion token)
+    |     |     |-- `globe.airplanes.live` trace samples become a Cesium clock + scrubber
     |     |-- Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 (`?renderer=webgl`)
     |
     |-- UI

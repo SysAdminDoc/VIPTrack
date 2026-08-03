@@ -621,6 +621,20 @@
         .playback-time { font-size: 12px; color: var(--text-dim); min-width: 40px; text-align: center; }
         #playbackSpeed { background: var(--bg-darker); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 11px; }
         .playback-marker .playback-aircraft { color: var(--accent); font-size: 24px; text-shadow: 0 0 5px rgba(0,0,0,0.5); transition: transform 0.1s; }
+        .cesium-playback-controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; align-items: center; gap: 8px; max-width: min(860px, calc(100vw - 32px)); padding: 10px 14px; background: rgba(13, 13, 26, 0.96); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.4); color: var(--text); }
+        .cesium-playback-controls[hidden] { display: none; }
+        .cesium-playback-btn { width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-darker); color: var(--text); cursor: pointer; font-size: 13px; }
+        .cesium-playback-btn:hover { background: var(--border); }
+        .cesium-playback-btn.play { width: 36px; background: var(--accent); color: #000; }
+        .cesium-playback-btn.clear { border: 0; background: transparent; color: var(--text-muted); font-size: 18px; }
+        .cesium-playback-slider { flex: 1 1 280px; min-width: 160px; accent-color: var(--accent); }
+        .cesium-playback-time { min-width: 178px; color: var(--text-dim); font: 11px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: center; }
+        .cesium-playback-speed { width: 58px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-darker); color: var(--text); font-size: 11px; }
+        @media (max-width: 768px) {
+            .cesium-playback-controls { bottom: 72px; gap: 5px; padding: 8px; }
+            .cesium-playback-time { min-width: 132px; font-size: 10px; }
+            .cesium-playback-slider { min-width: 90px; }
+        }
         
         /* Phase 10: ETA Section */
         .eta-section { background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 8px; margin: 8px 12px; }
@@ -1708,6 +1722,21 @@ if ('serviceWorker' in navigator) {
         <div class="hud-3d-row"><span class="hud-3d-key">Scroll</span> Zoom in/out</div>
         <div class="hud-3d-row"><span class="hud-3d-key">R-Drag</span> Tilt camera</div>
         <div class="hud-3d-row"><span class="hud-3d-key">Click</span> Select aircraft</div>
+    </div>
+    <div class="cesium-playback-controls" id="cesiumPlayback" hidden aria-label="Historical Cesium playback controls">
+        <button class="cesium-playback-btn" id="cesiumPlaybackStepBack" type="button" title="Step backward 30 seconds" aria-label="Step backward 30 seconds">◀</button>
+        <button class="cesium-playback-btn play" id="cesiumPlaybackPlay" type="button" title="Play historical trace" aria-label="Play historical trace">▶</button>
+        <button class="cesium-playback-btn" id="cesiumPlaybackStepForward" type="button" title="Step forward 30 seconds" aria-label="Step forward 30 seconds">▶</button>
+        <input class="cesium-playback-slider" id="cesiumPlaybackSlider" type="range" min="0" max="1" step="1" value="0" aria-label="Historical trace time">
+        <span class="cesium-playback-time" id="cesiumPlaybackTime" role="status" aria-live="polite">No historical trace loaded</span>
+        <select class="cesium-playback-speed" id="cesiumPlaybackSpeed" aria-label="Playback speed">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="4">4×</option>
+        </select>
+        <button class="cesium-playback-btn clear" id="cesiumPlaybackClear" type="button" title="Clear historical trace" aria-label="Clear historical trace">×</button>
     </div>
     
     <!-- Onboarding Overlay -->
@@ -6187,6 +6216,7 @@ if ('serviceWorker' in navigator) {
         Cesium: null,
         entityByHex: new Map(),
         libraryPromise: null,
+        playback: null,
 
         enable() {
             this.requested = true;
@@ -6196,6 +6226,7 @@ if ('serviceWorker' in navigator) {
 
         disable() {
             this.requested = false;
+            this.clearPlayback(false);
             if (this.viewer) {
                 try { this.viewer.destroy(); } catch (e) { _dbg('Cesium destroy failed:', e.message); }
                 this.viewer = null;
@@ -6215,6 +6246,200 @@ if ('serviceWorker' in navigator) {
         setStatus(text) {
             const status = _el('cesium3dStatus');
             if (status) status.textContent = text;
+        },
+
+        _formatDuration(seconds) {
+            const total = Math.max(0, Math.round(Number(seconds) || 0));
+            const hours = Math.floor(total / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+            const secs = total % 60;
+            return (hours ? String(hours).padStart(2, '0') + ':' : '') + String(minutes).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        },
+
+        _formatPlaybackTimestamp(seconds) {
+            const date = new Date(Number(seconds) * 1000);
+            if (Number.isNaN(date.getTime())) return 'Unknown time';
+            return date.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+        },
+
+        _updatePlaybackUI() {
+            const controls = _el('cesiumPlayback');
+            if (!controls) return;
+            const playback = this.playback;
+            controls.hidden = !this.requested || !playback;
+            const slider = _el('cesiumPlaybackSlider');
+            const time = _el('cesiumPlaybackTime');
+            const play = _el('cesiumPlaybackPlay');
+            if (!playback) {
+                if (slider) { slider.value = '0'; slider.max = '1'; slider.disabled = true; }
+                if (time) time.textContent = 'No historical trace loaded';
+                if (play) { play.textContent = '▶'; play.title = 'Play historical trace'; }
+                return;
+            }
+            if (slider) {
+                slider.disabled = false;
+                slider.max = String(Math.max(1, Math.ceil(playback.duration)));
+                slider.value = String(Math.round(playback.elapsed));
+            }
+            if (time) time.textContent = this._formatPlaybackTimestamp(playback.startSeconds + playback.elapsed) + ' · ' + this._formatDuration(playback.elapsed) + ' / ' + this._formatDuration(playback.duration);
+            if (play) {
+                play.textContent = playback.playing ? '❚❚' : '▶';
+                play.title = playback.playing ? 'Pause historical trace' : 'Play historical trace';
+            }
+        },
+
+        _normaliseTrace(data) {
+            let baseSeconds = Number(data?.timestamp);
+            if (!Number.isFinite(baseSeconds) && data?.timestamp) baseSeconds = Date.parse(data.timestamp) / 1000;
+            if (baseSeconds > 1e12) baseSeconds /= 1000;
+            if (!Number.isFinite(baseSeconds) || !Array.isArray(data?.trace)) return [];
+            const points = [];
+            let lastSeconds = -Infinity;
+            data.trace.forEach(point => {
+                const offset = Number(point?.[0]);
+                const lat = Number(point?.[1]);
+                const lon = Number(point?.[2]);
+                if (!Number.isFinite(offset) || !Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) return;
+                const timestamp = baseSeconds + offset;
+                if (!Number.isFinite(timestamp) || timestamp <= lastSeconds) return;
+                const rawAltitude = point?.[3];
+                const altitudeFeet = typeof rawAltitude === 'number' ? rawAltitude : Number(rawAltitude);
+                points.push({
+                    timestamp,
+                    lat,
+                    lon,
+                    altitudeFeet: Number.isFinite(altitudeFeet) && altitudeFeet > 0 ? altitudeFeet : 0,
+                    groundSpeed: Number(point?.[4]),
+                    track: Number(point?.[5])
+                });
+                lastSeconds = timestamp;
+            });
+            const maxPoints = 12000;
+            if (points.length <= maxPoints) return points;
+            const sampled = [];
+            for (let index = 0; index < maxPoints; index++) {
+                const point = points[Math.round(index * (points.length - 1) / (maxPoints - 1))];
+                if (point && sampled[sampled.length - 1] !== point) sampled.push(point);
+            }
+            return sampled;
+        },
+
+        clearPlayback(announce = true) {
+            const playback = this.playback;
+            if (playback?.tickHandler && this.viewer?.clock?.onTick) this.viewer.clock.onTick.removeEventListener(playback.tickHandler);
+            if (playback?.entity && this.viewer) this.viewer.entities.remove(playback.entity);
+            if (this.viewer?.clock) {
+                this.viewer.clock.shouldAnimate = false;
+                this.viewer.clock.multiplier = 1;
+            }
+            this.playback = null;
+            this._updatePlaybackUI();
+            if (announce && this.requested) toast('Historical Cesium playback cleared');
+        },
+
+        loadHistoricalTrace(hex, data) {
+            if (!this.requested || !this.viewer || !this.Cesium) return false;
+            const points = this._normaliseTrace(data);
+            if (points.length < 2) {
+                this.clearPlayback(false);
+                this.setStatus('No usable historical trace');
+                return false;
+            }
+            const Cesium = this.Cesium;
+            this.clearPlayback(false);
+            const startSeconds = points[0].timestamp;
+            const stopSeconds = points[points.length - 1].timestamp;
+            const start = Cesium.JulianDate.fromDate(new Date(startSeconds * 1000));
+            const stop = Cesium.JulianDate.fromDate(new Date(stopSeconds * 1000));
+            const position = new Cesium.SampledPositionProperty();
+            points.forEach(point => {
+                const time = Cesium.JulianDate.fromDate(new Date(point.timestamp * 1000));
+                position.addSample(time, Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.altitudeFeet * 0.3048));
+            });
+            position.setInterpolationOptions({ interpolationDegree: 1, interpolationAlgorithm: Cesium.LinearApproximation });
+            const color = this.colorFor(aircraftCache[hex] || {}, Cesium);
+            const entity = this.viewer.entities.add({
+                id: 'viptrack-playback-' + hex,
+                name: 'Historical trace ' + hex,
+                availability: new Cesium.TimeIntervalCollection([new Cesium.TimeInterval({ start, stop })]),
+                position,
+                orientation: new Cesium.VelocityOrientationProperty(position),
+                properties: { hex, playback: true },
+                point: { color, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, pixelSize: 14, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+                path: { show: true, leadTime: 0, trailTime: 3600, width: 4, material: color }
+            });
+            const playback = {
+                hex,
+                entity,
+                points,
+                start,
+                stop,
+                startSeconds,
+                duration: Math.max(0, stopSeconds - startSeconds),
+                elapsed: 0,
+                speed: 1,
+                playing: false,
+                tickHandler: null
+            };
+            playback.tickHandler = () => {
+                if (this.playback !== playback || !this.viewer) return;
+                const elapsed = Math.max(0, Math.min(playback.duration, Cesium.JulianDate.secondsDifference(this.viewer.clock.currentTime, playback.start)));
+                playback.elapsed = elapsed;
+                if (playback.playing && elapsed >= playback.duration - 0.05) {
+                    playback.playing = false;
+                    this.viewer.clock.shouldAnimate = false;
+                }
+                this._updatePlaybackUI();
+                this.viewer.scene.requestRender();
+            };
+            this.playback = playback;
+            this.viewer.clock.startTime = Cesium.JulianDate.clone(start);
+            this.viewer.clock.stopTime = Cesium.JulianDate.clone(stop);
+            this.viewer.clock.currentTime = Cesium.JulianDate.clone(start);
+            this.viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
+            this.viewer.clock.multiplier = 1;
+            this.viewer.clock.shouldAnimate = false;
+            this.viewer.clock.onTick.addEventListener(playback.tickHandler);
+            this._updatePlaybackUI();
+            this.setStatus(points.length.toLocaleString() + ' historical points · ' + this._formatDuration(playback.duration));
+            this.viewer.scene.requestRender();
+            return true;
+        },
+
+        setPlaybackTime(seconds) {
+            if (!this.playback || !this.viewer || !this.Cesium) return;
+            const playback = this.playback;
+            const elapsed = Math.max(0, Math.min(playback.duration, Number(seconds) || 0));
+            this.viewer.clock.currentTime = this.Cesium.JulianDate.addSeconds(playback.start, elapsed, new this.Cesium.JulianDate());
+            playback.elapsed = elapsed;
+            this._updatePlaybackUI();
+            this.viewer.scene.requestRender();
+        },
+
+        togglePlayback() {
+            if (!this.playback || !this.viewer) return;
+            const playback = this.playback;
+            if (!playback.playing && playback.elapsed >= playback.duration - 0.05) this.setPlaybackTime(0);
+            playback.playing = !playback.playing;
+            this.viewer.clock.multiplier = playback.speed;
+            this.viewer.clock.shouldAnimate = playback.playing;
+            this._updatePlaybackUI();
+            this.viewer.scene.requestRender();
+        },
+
+        stepPlayback(seconds) {
+            if (!this.playback || !this.viewer) return;
+            this.playback.playing = false;
+            this.viewer.clock.shouldAnimate = false;
+            this.setPlaybackTime(this.playback.elapsed + seconds);
+        },
+
+        setPlaybackSpeed(speed) {
+            if (!this.playback || !this.viewer) return;
+            const value = Number(speed);
+            if (!Number.isFinite(value) || value <= 0) return;
+            this.playback.speed = value;
+            this.viewer.clock.multiplier = value;
         },
 
         async loadLibrary() {
@@ -7387,6 +7612,7 @@ if ('serviceWorker' in navigator) {
     // ============ TRAILS ============
     async function loadTrail(hex) {
         const status = document.getElementById('trailStatus'); status.textContent = 'Loading trail...';
+        if (cesium3DManager.requested) cesium3DManager.clearPlayback(false);
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
         const ac = aircraftCache[hex]; if (!ac) return;
         const hexSuffix = hex.slice(-2).toLowerCase(), hexLower = hex.toLowerCase();
@@ -7397,6 +7623,7 @@ if ('serviceWorker' in navigator) {
                 const data = await resp.json(); 
                 if (data?.trace?.length > 1) { 
                     const filtered = filterToCurrentFlight(data.trace);
+                    if (cesium3DManager.requested) cesium3DManager.loadHistoricalTrace(hex, { ...data, trace: filtered });
                     // Detect origin airport from trace data
                     const originAirport = flightTracker.detectOriginFromTrace(filtered);
                     if (originAirport && !ac.detectedOrigin) {
@@ -7430,6 +7657,7 @@ if ('serviceWorker' in navigator) {
                 } 
             } catch(e) { continue; }
         }
+        if (cesium3DManager.requested) cesium3DManager.clearPlayback(false);
         if (ac.history?.length > 1) { 
             const trace = ac.history.map(p => [0, p[0], p[1], p[2] || 0, 0]); 
             // Try to detect origin from local history
@@ -7983,6 +8211,7 @@ if ('serviceWorker' in navigator) {
     function deselectAircraft() {
         if (Date.now() - _selectLock < 300) return;
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
+        if (cesium3DManager.requested) cesium3DManager.clearPlayback(false);
         selectedHex = null;
         const _pnl = _el('infoPanel');
         _pnl.classList.remove('show');
@@ -7996,6 +8225,12 @@ if ('serviceWorker' in navigator) {
     // ============ UI HANDLERS ============
     function initUI() {
         document.getElementById('infoClose').addEventListener('click', deselectAircraft);
+        document.getElementById('cesiumPlaybackPlay')?.addEventListener('click', () => cesium3DManager.togglePlayback());
+        document.getElementById('cesiumPlaybackStepBack')?.addEventListener('click', () => cesium3DManager.stepPlayback(-30));
+        document.getElementById('cesiumPlaybackStepForward')?.addEventListener('click', () => cesium3DManager.stepPlayback(30));
+        document.getElementById('cesiumPlaybackSlider')?.addEventListener('input', event => cesium3DManager.setPlaybackTime(event.target.value));
+        document.getElementById('cesiumPlaybackSpeed')?.addEventListener('change', event => cesium3DManager.setPlaybackSpeed(event.target.value));
+        document.getElementById('cesiumPlaybackClear')?.addEventListener('click', () => cesium3DManager.clearPlayback());
         document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); btn.classList.add('active'); document.getElementById('tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active'); }));
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {

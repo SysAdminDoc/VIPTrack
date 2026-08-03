@@ -307,6 +307,29 @@ class VipTrackContracts(unittest.TestCase):
             flags=re.IGNORECASE,
         ).group(1))
 
+    def test_cesium_playback_uses_trace_samples_and_scrubber(self) -> None:
+        for marker in (
+            "id=\"cesiumPlayback\"",
+            "id=\"cesiumPlaybackSlider\"",
+            "id=\"cesiumPlaybackPlay\"",
+            "loadHistoricalTrace(hex, { ...data, trace: filtered })",
+            "_normaliseTrace(data)",
+            "new Cesium.SampledPositionProperty()",
+            "new Cesium.VelocityOrientationProperty(position)",
+            "new Cesium.TimeIntervalCollection",
+            "this.viewer.clock.currentTime",
+            "Cesium.ClockRange.CLAMPED",
+            "setPlaybackTime(seconds)",
+            "togglePlayback()",
+            "stepPlayback(seconds)",
+            "cesiumPlaybackSlider')?.addEventListener('input'",
+            "if (cesium3DManager.requested) cesium3DManager.clearPlayback(false)",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertIn("traceUrl: 'https://globe.airplanes.live/data/traces/'", self.source)
+        self.assertIn("trace_full_' + hexLower + '.json", self.source)
+        self.assertIn("trace_recent_' + hexLower + '.json", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()
