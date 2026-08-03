@@ -10,7 +10,7 @@
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com;
+        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org;
         worker-src 'self' blob:;
         manifest-src 'self' blob:;
         frame-ancestors 'self';
@@ -2026,6 +2026,22 @@ if ('serviceWorker' in navigator) {
                 <button class="btn-secondary" id="receiverCoverageClearBtn" type="button">Clear</button>
             </div>
             <div class="receiver-coverage-status" id="receiverCoverageStatus" role="status" aria-live="polite">No receiver coverage loaded</div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">OpenSky Historical Replay (X20)</div>
+            <div class="receiver-coverage-help">Manual historical track lookup only; this never participates in the live refresh loop. Supply an OpenSky OAuth2 API client. Credentials stay in this tab and the secret is sent only to OpenSky’s token endpoint.</div>
+            <input type="text" id="openSkyClientId" class="settings-input" placeholder="OpenSky OAuth2 client ID" maxlength="180" autocomplete="off">
+            <input type="password" id="openSkyClientSecret" class="settings-input" placeholder="OpenSky OAuth2 client secret" maxlength="240" autocomplete="new-password">
+            <div class="receiver-coverage-grid">
+                <input type="text" id="openSkyHex" class="settings-input" placeholder="ICAO hex (or selected aircraft)" maxlength="6" autocomplete="off">
+                <input type="date" id="openSkyDate" class="settings-input">
+            </div>
+            <input type="time" id="openSkyTime" class="settings-input" value="12:00">
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="openSkyLoadBtn" type="button">Load historical track</button>
+                <button class="btn-secondary" id="openSkyClearBtn" type="button">Clear</button>
+            </div>
+            <div class="receiver-coverage-status" id="openSkyStatus" role="status" aria-live="polite">No historical track loaded</div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Map &amp; Tools</div>
@@ -6153,6 +6169,7 @@ if ('serviceWorker' in navigator) {
         initMap(); initUI();
         await curatedOverlayManager.init();
         receiverCoverageManager.init();
+        openSkyHistoricalManager.init();
         await geofenceManager.init();
         await piaRotationTimeline.init();
 
@@ -7682,6 +7699,8 @@ if ('serviceWorker' in navigator) {
         // X13: direct tar1090/readsb receiver coverage
         document.getElementById('receiverCoverageLoadBtn')?.addEventListener('click', () => receiverCoverageManager.load());
         document.getElementById('receiverCoverageClearBtn')?.addEventListener('click', () => receiverCoverageManager.clear());
+        document.getElementById('openSkyLoadBtn')?.addEventListener('click', () => openSkyHistoricalManager.load());
+        document.getElementById('openSkyClearBtn')?.addEventListener('click', () => openSkyHistoricalManager.clear());
 
         // X4: Webhook
         const _wkUrl = document.getElementById('webhookUrl');
@@ -10232,6 +10251,110 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             const rangeText = statsMaxKm > 0 ? ' · readsb max ' + statsMaxKm.toFixed(0) + ' km' : '';
             this._setStatus('Loaded ' + positions + ' fresh positions · ' + observedSectors + '/' + this.sectorCount + ' sectors · max ' + maxObservedKm.toFixed(0) + ' km' + rangeText);
             toast('Receiver coverage loaded');
+        }
+    };
+
+    // ============ X20: OPENSKY HISTORICAL TRACK REPLAY ============
+    // Manual, historical-only lookup. This manager is never called by the live loop.
+    const openSkyHistoricalManager = {
+        token: '',
+        tokenExpiresAt: 0,
+        layer: null,
+
+        init() {
+            const dateInput = document.getElementById('openSkyDate');
+            const timeInput = document.getElementById('openSkyTime');
+            if (dateInput && !dateInput.value) dateInput.value = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+            if (timeInput && !timeInput.value) timeInput.value = '12:00';
+        },
+
+        _setStatus(message) {
+            const status = document.getElementById('openSkyStatus');
+            if (status) status.textContent = message;
+        },
+
+        _clearLayer() {
+            if (this.layer) { try { map.removeLayer(this.layer); } catch (e) {} }
+            this.layer = null;
+        },
+
+        clear(announce = true) {
+            this._clearLayer();
+            this._setStatus('No historical track loaded');
+            if (announce) toast('OpenSky historical track cleared');
+        },
+
+        _timestamp(dateValue, timeValue) {
+            const date = String(dateValue || '').trim();
+            const time = String(timeValue || '12:00').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
+            const timestamp = Date.parse(date + 'T' + time + ':00Z');
+            if (!Number.isFinite(timestamp)) return null;
+            const iso = new Date(timestamp).toISOString();
+            if (iso.slice(0, 10) !== date || iso.slice(11, 16) !== time) return null;
+            const seconds = Math.floor(timestamp / 1000);
+            const age = Math.floor(Date.now() / 1000) - seconds;
+            return age >= 0 && age <= 30 * 86400 ? seconds : null;
+        },
+
+        async _getToken(clientId, clientSecret) {
+            if (this.token && Date.now() < this.tokenExpiresAt) return this.token;
+            const body = new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }).toString();
+            const response = await fetchWithTimeout('https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token', {
+                method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body
+            }, 10000);
+            if (!response?.ok) throw new Error('OpenSky authentication failed');
+            const data = await response.json();
+            if (!data?.access_token) throw new Error('OpenSky token missing');
+            this.token = String(data.access_token);
+            this.tokenExpiresAt = Date.now() + Math.max(60, Number(data.expires_in) - 60 || 1740) * 1000;
+            return this.token;
+        },
+
+        async load() {
+            const clientId = String(document.getElementById('openSkyClientId')?.value || '').trim();
+            const clientSecretInput = document.getElementById('openSkyClientSecret');
+            const clientSecret = String(clientSecretInput?.value || '').trim();
+            const enteredHex = String(document.getElementById('openSkyHex')?.value || '').trim().toLowerCase();
+            const hex = enteredHex || String(selectedHex || '').trim().toLowerCase();
+            const timestamp = this._timestamp(document.getElementById('openSkyDate')?.value, document.getElementById('openSkyTime')?.value);
+            if (!clientId || !clientSecret) { this._setStatus('Enter an OpenSky OAuth2 client ID and secret'); toast('OpenSky credentials required'); return; }
+            if (!/^[0-9a-f]{6}$/.test(hex)) { this._setStatus('Enter a six-character ICAO hex or select an aircraft first'); toast('ICAO hex required'); return; }
+            if (timestamp === null) { this._setStatus('Choose a valid UTC time within the last 30 days'); toast('Invalid historical time'); return; }
+            this._setStatus('Authenticating with OpenSky…');
+            try {
+                const token = await this._getToken(clientId, clientSecret);
+                const url = 'https://opensky-network.org/api/tracks/all?icao24=' + encodeURIComponent(hex) + '&time=' + timestamp;
+                const response = await fetchWithTimeout(url, { cache: 'no-cache', headers: { Authorization: 'Bearer ' + token } }, 10000);
+                if (response?.status === 404) {
+                    this._setStatus('OpenSky has no track for ' + hex + ' at that historical time');
+                    toast('No OpenSky track found');
+                    return;
+                }
+                if (!response?.ok) throw new Error('OpenSky track request failed');
+                const data = await response.json();
+                const points = (Array.isArray(data?.path) ? data.path : []).map(point => {
+                    const lat = Number(point?.[1]);
+                    const lon = Number(point?.[2]);
+                    return Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lon) && lon >= -180 && lon <= 180 ? [lat, lon] : null;
+                }).filter(Boolean);
+                if (points.length < 2) {
+                    this._setStatus('OpenSky returned no usable path for ' + hex);
+                    toast('OpenSky track has no usable path');
+                    return;
+                }
+                this._clearLayer();
+                this.layer = L.polyline(points, { color: '#c084fc', weight: 3, opacity: 0.9, dashArray: '7 4' }).addTo(map);
+                this.layer.bindTooltip(safeHTML('OpenSky historical track · ' + hex + ' · ' + points.length + ' points'), { sticky: true });
+                const bounds = this.layer.getBounds();
+                if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 9 });
+                this._setStatus('Loaded ' + points.length + ' historical points for ' + hex + ' · ' + new Date(timestamp * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC');
+                if (clientSecretInput) clientSecretInput.value = '';
+                toast('OpenSky historical track loaded');
+            } catch (e) {
+                this._setStatus('OpenSky request failed; check credentials, CORS, and historical availability');
+                toast('OpenSky historical lookup failed');
+            }
         }
     };
 

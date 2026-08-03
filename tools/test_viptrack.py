@@ -150,6 +150,26 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("Math.floor(bearing / (360 / this.sectorCount))", section)
         self.assertIn("L.polygon(points", section)
 
+    def test_opensky_replay_is_manual_oauth_historical_only(self) -> None:
+        for marker in (
+            "const openSkyHistoricalManager =",
+            "OpenSky Historical Replay (X20)",
+            "auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token",
+            "grant_type: 'client_credentials'",
+            "opensky-network.org/api/tracks/all",
+            "openSkyLoadBtn",
+            "No historical track loaded",
+            "this._timestamp",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const openSkyHistoricalManager =")
+        end = self.source.index("// ============ X5: LOCAL GEOFENCE EDITOR", start)
+        section = self.source[start:end]
+        self.assertNotIn("setInterval", section)
+        self.assertNotIn("fetchWithProxy", section)
+        self.assertIn("clientSecretInput.value = ''", section)
+        self.assertIn("age <= 30 * 86400", section)
+
 
 if __name__ == "__main__":
     unittest.main()
