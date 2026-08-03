@@ -10,7 +10,7 @@
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org;
+        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
         worker-src 'self' blob:;
         manifest-src 'self' blob:;
         frame-ancestors 'self';
@@ -2059,6 +2059,16 @@ if ('serviceWorker' in navigator) {
             </div>
             <button class="btn-secondary" id="rulerBtn" style="width: 100%; margin-top: 8px;">Ruler / distance tool (R)</button>
             <button class="btn-secondary" id="helpBtn" style="width: 100%; margin-top: 6px;">Keyboard shortcuts (?)</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">FAA Special-Use Airspace (X23)</div>
+            <div class="receiver-coverage-help">Manual, opt-in FAA NASR/ADDS polygons for restricted, prohibited, MOA, and warning areas. The source is refreshed on a 28-day cycle; expired cached data is never shown. Informational only — not for navigation or operational decisions.</div>
+            <div class="setting-row"><span class="setting-label">Show FAA SUA polygons</span><div class="toggle" id="toggleFAASUA"></div></div>
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="faaSuaRefreshBtn" type="button">Load / refresh</button>
+                <button class="btn-secondary" id="faaSuaClearBtn" type="button">Clear</button>
+            </div>
+            <div class="receiver-coverage-status" id="faaSuaStatus" role="status" aria-live="polite">FAA SUA off · manual 28-day refresh</div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Geofences (X5)</div>
@@ -6170,6 +6180,7 @@ if ('serviceWorker' in navigator) {
         await curatedOverlayManager.init();
         receiverCoverageManager.init();
         openSkyHistoricalManager.init();
+        faaSuaOverlay.init();
         await geofenceManager.init();
         await piaRotationTimeline.init();
 
@@ -7701,6 +7712,26 @@ if ('serviceWorker' in navigator) {
         document.getElementById('receiverCoverageClearBtn')?.addEventListener('click', () => receiverCoverageManager.clear());
         document.getElementById('openSkyLoadBtn')?.addEventListener('click', () => openSkyHistoricalManager.load());
         document.getElementById('openSkyClearBtn')?.addEventListener('click', () => openSkyHistoricalManager.clear());
+
+        // X23: manual FAA special-use airspace overlay
+        const _faaSuaToggle = document.getElementById('toggleFAASUA');
+        _faaSuaToggle?.addEventListener('click', async () => {
+            const enabled = _faaSuaToggle.classList.toggle('on');
+            if (enabled) {
+                const loaded = await faaSuaOverlay.load();
+                if (!loaded) _faaSuaToggle.classList.remove('on');
+            } else {
+                faaSuaOverlay.clear();
+            }
+        });
+        document.getElementById('faaSuaRefreshBtn')?.addEventListener('click', async () => {
+            const loaded = await faaSuaOverlay.load(true);
+            if (loaded) _faaSuaToggle?.classList.add('on');
+        });
+        document.getElementById('faaSuaClearBtn')?.addEventListener('click', () => {
+            faaSuaOverlay.clear();
+            _faaSuaToggle?.classList.remove('on');
+        });
 
         // X4: Webhook
         const _wkUrl = document.getElementById('webhookUrl');
@@ -10354,6 +10385,173 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             } catch (e) {
                 this._setStatus('OpenSky request failed; check credentials, CORS, and historical availability');
                 toast('OpenSky historical lookup failed');
+            }
+        }
+    };
+
+    // ============ X23: FAA SPECIAL-USE AIRSPACE OVERLAY ============
+    // FAA's public ArcGIS layer is queried for the four polygon classes useful
+    // to analysts. This is deliberately manual and never enters the live loop.
+    const faaSuaOverlay = {
+        cacheName: 'faa_sua_v1',
+        cacheMaxAge: 28 * 86400000,
+        sourceUrl: 'https://services6.arcgis.com/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Special_Use_Airspace/FeatureServer/0/query',
+        allowedTypes: new Set(['R', 'P', 'MOA', 'W']),
+        typeLabels: { R: 'Restricted', P: 'Prohibited', MOA: 'Military Operations Area', W: 'Warning' },
+        typeColors: { R: '#ef4444', P: '#c084fc', MOA: '#f59e0b', W: '#38bdf8' },
+        layer: null,
+        loading: false,
+        memoryCache: null,
+
+        init() {
+            this._setStatus('FAA SUA off · manual 28-day refresh');
+        },
+
+        _setStatus(message) {
+            const status = document.getElementById('faaSuaStatus');
+            if (status) status.textContent = message;
+        },
+
+        _buildUrl() {
+            const url = new URL(this.sourceUrl);
+            url.search = new URLSearchParams({
+                where: "TYPE_CODE IN ('R','P','MOA','W')",
+                outFields: 'NAME,TYPE_CODE,UPPER_DESC,UPPER_VAL,UPPER_UOM,LOWER_DESC,LOWER_VAL,LOWER_UOM,CITY,STATE,TIMESOFUSE,REMARKS',
+                returnGeometry: 'true',
+                outSR: '4326',
+                f: 'geojson'
+            }).toString();
+            return url.href;
+        },
+
+        _validPayload(payload) {
+            return Boolean(payload && Number.isFinite(Number(payload.fetchedAt)) && payload.geojson?.type === 'FeatureCollection' && Array.isArray(payload.geojson.features) && payload.geojson.features.length);
+        },
+
+        _isFresh(payload) {
+            return this._validPayload(payload) && Date.now() - Number(payload.fetchedAt) < this.cacheMaxAge;
+        },
+
+        async _readCache() {
+            if (this._isFresh(this.memoryCache)) return this.memoryCache;
+            try {
+                const saved = await skytrackDB.loadDatabase(this.cacheName);
+                if (this._isFresh(saved)) {
+                    this.memoryCache = saved;
+                    return saved;
+                }
+            } catch (e) {}
+            return null;
+        },
+
+        async _saveCache(payload) {
+            this.memoryCache = payload;
+            try { await skytrackDB.saveDatabase(this.cacheName, payload, this.cacheMaxAge); } catch (e) {}
+        },
+
+        _normalize(data) {
+            if (data?.type !== 'FeatureCollection' || !Array.isArray(data.features)) return null;
+            const features = data.features.filter(feature => {
+                const type = String(feature?.properties?.TYPE_CODE || '').toUpperCase();
+                return this.allowedTypes.has(type) && ['Polygon', 'MultiPolygon'].includes(feature?.geometry?.type);
+            }).map(feature => ({
+                type: 'Feature',
+                geometry: feature.geometry,
+                properties: feature.properties || {}
+            }));
+            return features.length ? { type: 'FeatureCollection', features } : null;
+        },
+
+        _text(value, fallback = '', limit = 100) {
+            const text = String(value ?? '').trim().replace(/\s+/g, ' ');
+            return (text || fallback).slice(0, limit);
+        },
+
+        _altitude(properties, prefix) {
+            const desc = this._text(properties?.[prefix + '_DESC']);
+            if (desc) return desc;
+            const value = this._text(properties?.[prefix + '_VAL']);
+            const unit = this._text(properties?.[prefix + '_UOM']);
+            return [value, unit].filter(Boolean).join(' ') || 'n/a';
+        },
+
+        _tooltip(feature) {
+            const properties = feature?.properties || {};
+            const type = String(properties.TYPE_CODE || '').toUpperCase();
+            const label = this.typeLabels[type] || 'Special-use airspace';
+            const name = this._text(properties.NAME, 'Unnamed area');
+            const location = [this._text(properties.CITY), this._text(properties.STATE)].filter(Boolean).join(', ');
+            const altitude = this._altitude(properties, 'LOWER') + ' – ' + this._altitude(properties, 'UPPER');
+            const schedule = this._text(properties.TIMESOFUSE);
+            return '<b>FAA ' + label + '</b><br>' + name + (location ? '<br>' + location : '') + '<br>Altitude: ' + altitude + (schedule ? '<br>' + schedule : '');
+        },
+
+        _summary(data, fetchedAt, prefix = 'Loaded') {
+            const counts = { R: 0, P: 0, MOA: 0, W: 0 };
+            data.features.forEach(feature => {
+                const type = String(feature?.properties?.TYPE_CODE || '').toUpperCase();
+                if (Object.prototype.hasOwnProperty.call(counts, type)) counts[type]++;
+            });
+            const date = new Date(fetchedAt).toISOString().slice(0, 10);
+            return prefix + ' ' + data.features.length + ' FAA SUA polygons · R ' + counts.R + ' · P ' + counts.P + ' · MOA ' + counts.MOA + ' · W ' + counts.W + ' · fetched ' + date;
+        },
+
+        _render(data, fetchedAt, prefix = 'Loaded') {
+            if (this.layer) { try { map.removeLayer(this.layer); } catch (e) {} }
+            this.layer = L.geoJSON(data, {
+                style: feature => {
+                    const type = String(feature?.properties?.TYPE_CODE || '').toUpperCase();
+                    const color = this.typeColors[type] || '#94a3b8';
+                    return { color, weight: 1.5, opacity: 0.9, fillColor: color, fillOpacity: 0.14 };
+                },
+                onEachFeature: (feature, featureLayer) => {
+                    featureLayer.bindTooltip(safeHTML(this._tooltip(feature)), { sticky: true });
+                }
+            }).addTo(map);
+            this._setStatus(this._summary(data, fetchedAt, prefix));
+        },
+
+        clear(announce = true) {
+            if (this.layer) { try { map.removeLayer(this.layer); } catch (e) {} }
+            this.layer = null;
+            this._setStatus('FAA SUA off · manual 28-day refresh');
+            if (announce) toast('FAA SUA polygons cleared');
+        },
+
+        async load(force = false) {
+            if (this.loading) return false;
+            this.loading = true;
+            try {
+                const cached = await this._readCache();
+                if (!force && cached) {
+                    this._render(cached.geojson, cached.fetchedAt, 'Loaded cached');
+                    return true;
+                }
+                this._setStatus('Fetching FAA SUA polygons…');
+                const response = await fetchWithTimeout(this._buildUrl(), { cache: 'no-cache' }, 30000);
+                if (!response?.ok) throw new Error('FAA SUA HTTP ' + (response?.status || 0));
+                const data = this._normalize(await response.json());
+                if (!data) throw new Error('FAA SUA response has no polygon features');
+                const fetchedAt = Date.now();
+                const payload = { fetchedAt, geojson: data };
+                await this._saveCache(payload);
+                this._render(data, fetchedAt);
+                toast('FAA SUA polygons loaded');
+                return true;
+            } catch (e) {
+                const cached = await this._readCache();
+                if (cached) {
+                    if (!this.layer) this._render(cached.geojson, cached.fetchedAt, 'Loaded cached');
+                    else this._setStatus(this._summary(cached.geojson, cached.fetchedAt, 'Refresh failed · retaining'));
+                } else {
+                    if (this.layer) { try { map.removeLayer(this.layer); } catch (_) {} }
+                    this.layer = null;
+                    this._setStatus('FAA SUA unavailable; expired or incomplete data was not shown');
+                }
+                toast('FAA SUA load failed');
+                return false;
+            } finally {
+                this.loading = false;
             }
         }
     };

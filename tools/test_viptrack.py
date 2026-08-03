@@ -170,6 +170,28 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("clientSecretInput.value = ''", section)
         self.assertIn("age <= 30 * 86400", section)
 
+    def test_faa_sua_overlay_is_filtered_cached_and_stale_safe(self) -> None:
+        for marker in (
+            "const faaSuaOverlay =",
+            "Special_Use_Airspace/FeatureServer/0/query",
+            "TYPE_CODE IN ('R','P','MOA','W')",
+            "returnGeometry: 'true'",
+            "cacheMaxAge: 28 * 86400000",
+            "skytrackDB.saveDatabase(this.cacheName, payload, this.cacheMaxAge)",
+            "expired or incomplete data was not shown",
+            "toggleFAASUA",
+            "FAA SUA polygons",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const faaSuaOverlay =")
+        end = self.source.index("// ============ X5: LOCAL GEOFENCE EDITOR", start)
+        section = self.source[start:end]
+        self.assertIn("new Set(['R', 'P', 'MOA', 'W'])", section)
+        self.assertIn("['Polygon', 'MultiPolygon'].includes", section)
+        self.assertIn("featureLayer.bindTooltip(safeHTML(this._tooltip(feature))", section)
+        self.assertNotIn("fetchWithProxy", section)
+        self.assertNotIn("setInterval", section)
+
 
 if __name__ == "__main__":
     unittest.main()
