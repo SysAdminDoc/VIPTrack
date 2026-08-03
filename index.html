@@ -406,6 +406,18 @@
         .named-watchlist-rules { color: var(--text-muted); font-size: 9px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .named-watchlist-action { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 3px 5px; }
         .named-watchlist-action:hover { color: var(--text); border-color: var(--accent); }
+        .geofence-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin: 2px 0 8px; }
+        .geofence-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .geofence-actions .settings-btn { margin-top: 0; }
+        .geofence-list { display: grid; gap: 5px; margin-top: 10px; }
+        .geofence-item { display: flex; gap: 6px; align-items: center; padding: 6px 8px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 5px; }
+        .geofence-item.disabled { opacity: 0.55; }
+        .geofence-info { flex: 1; min-width: 0; }
+        .geofence-name { font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .geofence-meta { color: var(--text-muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .geofence-id { color: var(--accent); font-family: monospace; user-select: text; }
+        .geofence-action { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 3px 5px; }
+        .geofence-action:hover { color: var(--text); border-color: var(--accent); }
         .api-status { font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 8px; text-align: center; }
         .api-status.connected { background: rgba(0,200,0,0.2); color: #4ade80; }
         .api-status.info { background: rgba(128,128,128,0.15); color: var(--text-dim); }
@@ -1994,6 +2006,18 @@ if ('serviceWorker' in navigator) {
             <button class="btn-secondary" id="helpBtn" style="width: 100%; margin-top: 6px;">Keyboard shortcuts (?)</button>
         </div>
         <div class="settings-section">
+            <div class="settings-section-title">Geofences (X5)</div>
+            <div class="geofence-help">Name an area, then click Draw circle or Draw polygon. Circle uses two clicks; polygon uses three or more clicks followed by Finish.</div>
+            <input type="text" id="geofenceName" class="settings-input" placeholder="Area name (e.g. Ramstein buffer)" maxlength="80">
+            <div class="geofence-actions">
+                <button class="settings-btn" id="geofenceCircleBtn" type="button">Draw circle</button>
+                <button class="settings-btn" id="geofencePolygonBtn" type="button">Draw polygon</button>
+                <button class="settings-btn secondary" id="geofenceFinishBtn" type="button">Finish polygon</button>
+                <button class="settings-btn secondary" id="geofenceCancelBtn" type="button">Cancel drawing</button>
+            </div>
+            <div class="geofence-list" id="geofenceList"><div class="watchlist-empty">No geofences yet</div></div>
+        </div>
+        <div class="settings-section">
             <div class="settings-section-title">Overlays (X10)</div>
             <input type="file" id="overlayFileInput" accept=".geojson,.json" style="display:none;">
             <button class="btn-secondary" id="overlayLoadFileBtn" style="width: 100%; margin-bottom: 6px;">Load GeoJSON file…</button>
@@ -3479,6 +3503,8 @@ if ('serviceWorker' in navigator) {
                 const entry = this.getWatchedEntry(ac.hex);
                 this.triggerAlert(ac, 'WATCHLIST', entry.name + ' is active');
             }
+
+            try { geofenceManager.checkAircraft(ac); } catch (e) {}
 
             this.namedWatchlists.forEach(list => {
                 if (!list.enabled || !this.matchesNamedRules(ac, list.rules)) return;
@@ -5979,6 +6005,7 @@ if ('serviceWorker' in navigator) {
         
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
+        await geofenceManager.init();
 
         // X25: extended URL filter API — supports ?center=lat,lng&zoom=n&focus=HEX&type=B52
         try {
@@ -6083,7 +6110,12 @@ if ('serviceWorker' in navigator) {
         baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
         currentBaseMap = 'esri-gray'; baseMaps[currentBaseMap].addTo(map);
         let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); }, 800); saveMapPosition(); });
-        map.on('click', () => { deselectAircraft(); _el('settingsPanel').classList.remove('show'); });
+        map.on('click', () => {
+            let drawing = false;
+            try { drawing = geofenceManager?.active; } catch (e) {}
+            if (drawing) return;
+            deselectAircraft(); _el('settingsPanel').classList.remove('show');
+        });
     }
 
 
@@ -7351,6 +7383,12 @@ if ('serviceWorker' in navigator) {
                 ['namedWatchlistName', 'namedWatchlistHexes', 'namedWatchlistRegex', 'namedWatchlistTypes', 'namedWatchlistCountries', 'namedWatchlistAltMin', 'namedWatchlistAltMax', 'namedWatchlistGeofences'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
             }
         });
+
+        // X5: Geofence drawing and persistence handlers
+        document.getElementById('geofenceCircleBtn')?.addEventListener('click', () => geofenceManager.start('circle'));
+        document.getElementById('geofencePolygonBtn')?.addEventListener('click', () => geofenceManager.start('polygon'));
+        document.getElementById('geofenceFinishBtn')?.addEventListener('click', () => geofenceManager.finishPolygon());
+        document.getElementById('geofenceCancelBtn')?.addEventListener('click', () => geofenceManager.cancelDrawing());
         
         // Phase 16: Data source and reliability handlers
         document.getElementById('checkSourcesBtn')?.addEventListener('click', async () => {
@@ -9753,6 +9791,239 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 const idx = parseInt(e.target.dataset.idx, 10);
                 const item = this.layers[idx];
                 if (item) { try { map.removeLayer(item.layer); } catch(_){} this.layers.splice(idx, 1); this.renderList(); }
+            }));
+        }
+    };
+
+    // ============ X5: LOCAL GEOFENCE EDITOR ============
+    // User-owned geometry stays in IndexedDB/localStorage; no site catalog or remote upload is required.
+    const geofenceManager = {
+        geofences: new Map(),
+        layers: new Map(),
+        transitionState: new Map(),
+        active: false,
+        mode: null,
+        draft: { points: [], layer: null, radiusKm: 0 },
+
+        _point(value) {
+            const lat = Array.isArray(value) ? Number(value[0]) : Number(value?.lat);
+            const lng = Array.isArray(value) ? Number(value[1]) : Number(value?.lng ?? value?.lon);
+            return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 ? { lat, lng } : null;
+        },
+
+        normalize(item) {
+            if (!item || !String(item.name ?? '').trim()) return null;
+            const common = {
+                id: String(item.id || ('gf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8))).slice(0, 100),
+                name: String(item.name).trim().slice(0, 80),
+                enabled: item.enabled !== false,
+                createdAt: Number(item.createdAt) || Date.now()
+            };
+            if (item.kind === 'circle') {
+                const center = this._point(item.center);
+                const radiusKm = Number(item.radiusKm);
+                if (!center || !Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 1000) return null;
+                return { ...common, kind: 'circle', center, radiusKm };
+            }
+            const points = (Array.isArray(item.points) ? item.points : []).map(point => this._point(point)).filter(Boolean);
+            if (points.length < 3 || points.length > 100) return null;
+            return { ...common, kind: 'polygon', points };
+        },
+
+        async init() {
+            let saved = null;
+            try { saved = await skytrackDB.loadUserData('geofences'); } catch (e) {}
+            if (!Array.isArray(saved)) {
+                try { saved = JSON.parse(localStorage.getItem('viptrack_geofences') || 'null'); } catch (e) { saved = null; }
+            }
+            if (Array.isArray(saved)) {
+                saved.forEach(item => {
+                    const normalized = this.normalize(item);
+                    if (normalized) this.geofences.set(normalized.id, normalized);
+                });
+            }
+            this.geofences.forEach(geofence => this.addLayer(geofence));
+            this.renderList();
+        },
+
+        async save() {
+            const data = Array.from(this.geofences.values());
+            try {
+                await skytrackDB.saveUserData('geofences', data);
+            } catch (e) {
+                localStorage.setItem('viptrack_geofences', JSON.stringify(data));
+            }
+        },
+
+        style(geofence) {
+            return {
+                color: '#fb7185', weight: 2, opacity: geofence.enabled ? 0.9 : 0.35,
+                fillColor: '#fb7185', fillOpacity: geofence.enabled ? 0.12 : 0.04
+            };
+        },
+
+        addLayer(geofence) {
+            if (!map) return null;
+            this.removeLayer(geofence.id);
+            const layer = geofence.kind === 'circle'
+                ? L.circle([geofence.center.lat, geofence.center.lng], { ...this.style(geofence), radius: geofence.radiusKm * 1000 })
+                : L.polygon(geofence.points.map(point => [point.lat, point.lng]), this.style(geofence));
+            layer.bindTooltip(safeHTML(geofence.name), { direction: 'center', sticky: true });
+            layer.addTo(map);
+            this.layers.set(geofence.id, layer);
+            return layer;
+        },
+
+        removeLayer(id) {
+            const layer = this.layers.get(id);
+            if (layer) {
+                try { map.removeLayer(layer); } catch (e) {}
+                this.layers.delete(id);
+            }
+        },
+
+        updateLayer(geofence) {
+            const layer = this.layers.get(geofence.id);
+            if (layer?.setStyle) layer.setStyle(this.style(geofence));
+        },
+
+        start(mode) {
+            if (!map || !['circle', 'polygon'].includes(mode)) return;
+            this.cancelDrawing(false);
+            this.active = true;
+            this.mode = mode;
+            this.draft = { points: [], layer: null, radiusKm: 0 };
+            map.getContainer().style.cursor = 'crosshair';
+            map.on('click', this._onMapClick, this);
+            toast(mode === 'circle' ? 'Circle: click center, then edge' : 'Polygon: click 3+ points, then Finish polygon');
+        },
+
+        _onMapClick(event) {
+            const point = { lat: event.latlng.lat, lng: event.latlng.lng };
+            if (this.mode === 'circle') {
+                if (!this.draft.points.length) {
+                    this.draft.points.push(point);
+                    this.draft.layer = L.circle([point.lat, point.lng], { ...this.style({ enabled: true }), radius: 0 }).addTo(map);
+                    toast('Circle center set; click the edge');
+                    return;
+                }
+                const center = this.draft.points[0];
+                this.draft.radiusKm = Math.max(0.1, haversineDistance(center.lat, center.lng, point.lat, point.lng));
+                this.saveGeometry({ kind: 'circle', center, radiusKm: this.draft.radiusKm });
+                return;
+            }
+            if (this.mode === 'polygon') {
+                this.draft.points.push(point);
+                if (!this.draft.layer) this.draft.layer = L.polyline([], { color: '#fb7185', weight: 2, dashArray: '6 4' }).addTo(map);
+                this.draft.layer.setLatLngs(this.draft.points.map(item => [item.lat, item.lng]));
+            }
+        },
+
+        finishPolygon() {
+            if (this.mode !== 'polygon') { toast('Start polygon drawing first'); return; }
+            if (this.draft.points.length < 3) { toast('Polygon needs at least 3 points'); return; }
+            this.saveGeometry({ kind: 'polygon', points: this.draft.points.slice() });
+        },
+
+        saveGeometry(geometry) {
+            const nameInput = document.getElementById('geofenceName');
+            const name = String(nameInput?.value || '').trim().slice(0, 80);
+            if (!name) { toast('Enter a geofence name first'); return; }
+            const geofence = this.normalize({ id: 'gf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), name, enabled: true, createdAt: Date.now(), ...geometry });
+            if (!geofence) { toast('Could not save that geofence'); return; }
+            this.cancelDrawing(false);
+            this.geofences.set(geofence.id, geofence);
+            this.addLayer(geofence);
+            this.save();
+            this.renderList();
+            if (nameInput) nameInput.value = '';
+            toast('Saved geofence: ' + geofence.name + ' (' + geofence.id + ')');
+        },
+
+        cancelDrawing(showMessage = true) {
+            if (map) map.off('click', this._onMapClick, this);
+            if (this.draft.layer && map) { try { map.removeLayer(this.draft.layer); } catch (e) {} }
+            this.active = false;
+            this.mode = null;
+            this.draft = { points: [], layer: null, radiusKm: 0 };
+            if (map) map.getContainer().style.cursor = '';
+            if (showMessage) toast('Geofence drawing cancelled');
+        },
+
+        contains(ac, id) {
+            const geofence = this.geofences.get(id);
+            if (!geofence?.enabled || !Number.isFinite(ac?.lat) || !Number.isFinite(ac?.lon)) return false;
+            if (geofence.kind === 'circle') return haversineDistance(geofence.center.lat, geofence.center.lng, ac.lat, ac.lon) <= geofence.radiusKm;
+            return this.pointInPolygon(ac.lat, ac.lon, geofence.points);
+        },
+
+        pointInPolygon(lat, lon, points) {
+            let inside = false;
+            for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+                const yi = points[i].lat, yj = points[j].lat, xi = points[i].lng, xj = points[j].lng;
+                const intersects = ((yi > lat) !== (yj > lat)) && lon < (xj - xi) * (lat - yi) / ((yj - yi) || Number.EPSILON) + xi;
+                if (intersects) inside = !inside;
+            }
+            return inside;
+        },
+
+        checkAircraft(ac) {
+            if (!ac?.hex || !Number.isFinite(ac.lat) || !Number.isFinite(ac.lon)) return;
+            this.geofences.forEach(geofence => {
+                if (!geofence.enabled) return;
+                const key = geofence.id + '_' + ac.hex;
+                const inside = this.contains(ac, geofence.id);
+                const previous = this.transitionState.get(key);
+                this.transitionState.set(key, inside);
+                if (previous === undefined || previous === inside || typeof alertSystem === 'undefined') return;
+                alertSystem.triggerAlert(ac, 'WATCHLIST', geofence.name + (inside ? ' entry' : ' exit'), 'geofence_' + geofence.id);
+            });
+        },
+
+        toggle(id) {
+            const geofence = this.geofences.get(id);
+            if (!geofence) return;
+            geofence.enabled = !geofence.enabled;
+            this.updateLayer(geofence);
+            this.save();
+            this.renderList();
+        },
+
+        remove(id) {
+            const geofence = this.geofences.get(id);
+            if (!geofence) return;
+            this.removeLayer(id);
+            this.geofences.delete(id);
+            for (const key of this.transitionState.keys()) if (key.startsWith(id + '_')) this.transitionState.delete(key);
+            try {
+                alertSystem.namedWatchlists.forEach(list => { list.rules.geofences = list.rules.geofences.filter(value => value !== id); });
+                alertSystem.saveNamedWatchlists();
+                alertSystem.updateNamedWatchlistUI();
+            } catch (e) {}
+            this.save();
+            this.renderList();
+            toast('Removed geofence: ' + geofence.name);
+        },
+
+        renderList() {
+            const container = document.getElementById('geofenceList');
+            if (!container) return;
+            if (!this.geofences.size) {
+                container.innerHTML = safeHTML('<div class="watchlist-empty">No geofences yet</div>');
+                return;
+            }
+            const items = Array.from(this.geofences.values()).sort((a, b) => b.createdAt - a.createdAt).map(geofence => {
+                const shape = geofence.kind === 'circle' ? 'circle ' + geofence.radiusKm.toFixed(1) + ' km' : 'polygon ' + geofence.points.length + ' points';
+                return '<div class="geofence-item' + (geofence.enabled ? '' : ' disabled') + '" data-id="' + geofence.id + '">' +
+                    '<div class="geofence-info"><div class="geofence-name">' + geofence.name + '</div>' +
+                    '<div class="geofence-meta">' + shape + ' · <span class="geofence-id">' + geofence.id + '</span></div></div>' +
+                    '<button class="geofence-action" data-action="toggle" type="button">' + (geofence.enabled ? 'On' : 'Off') + '</button>' +
+                    '<button class="geofence-action" data-action="remove" type="button" aria-label="Remove ' + geofence.name + '">x</button></div>';
+            }).join('');
+            container.innerHTML = safeHTML(items);
+            container.querySelectorAll('.geofence-action').forEach(button => button.addEventListener('click', () => {
+                const id = button.closest('.geofence-item')?.dataset.id;
+                if (button.dataset.action === 'remove') this.remove(id); else this.toggle(id);
             }));
         }
     };

@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - DOMPurify-backed HTML sink sanitization with a fail-closed escaped fallback and SRI-pinned CDN delivery.
 - Daily cached PIA/LADD protection data that suppresses registration enrichment, registration-based photo lookups, and operator display for protected aircraft.
 - Persisted named watchlists with AND-matched hex, callsign regex, type, country, altitude, and geofence rules, plus independent alert cooldowns.
+- Local geofence editor with persisted circle/polygon geometry, map drawing controls, visibility toggles, and entry/exit alerts.
 - ADSB.fi as a fourth rotating live-data source with health tracking.
 - Emergency squawk auto-highlight for 7500 (hijack) / 7600 (NORDO) / 7700 (general) with optional audible tone.
 - ADSBdb route lookup (`api.adsbdb.com/v0/callsign/{flight}`) to enrich the route panel with origin / midpoint / destination ICAO when public.

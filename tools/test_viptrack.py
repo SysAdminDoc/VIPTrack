@@ -76,6 +76,24 @@ class VipTrackContracts(unittest.TestCase):
         section = self.source[start:end]
         self.assertIn("container.innerHTML = safeHTML(items)", section)
 
+    def test_geofence_editor_persists_geometry_and_alerts_transitions(self) -> None:
+        for marker in (
+            "const geofenceManager =",
+            "geofences: new Map()",
+            "start('circle')",
+            "start('polygon')",
+            "pointInPolygon",
+            "checkAircraft(ac)",
+            "geofence.name + (inside ? ' entry' : ' exit')",
+            "saveUserData('geofences'",
+        ):
+            self.assertIn(marker, self.source)
+        geofence_start = self.source.index("const geofenceManager =")
+        geofence_end = self.source.index("// ============ X6: COINCIDENCE DETECTOR", geofence_start)
+        geofence_section = self.source[geofence_start:geofence_end]
+        self.assertIn("layer.bindTooltip(safeHTML(geofence.name)", geofence_section)
+        self.assertIn("container.innerHTML = safeHTML(items)", geofence_section)
+
 
 if __name__ == "__main__":
     unittest.main()
