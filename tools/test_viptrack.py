@@ -210,6 +210,25 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("trailLine._group?.getLayers?.()", section)
         self.assertNotIn("navigator.share({ title, text: 'Follow this flight:'", section)
 
+    def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
+        for marker in (
+            "const SW_CACHE_SCHEMA = '4.16'",
+            "crypto.subtle.digest('SHA-256'",
+            "const swManifestHash = await getServiceWorkerManifestHash",
+            "'viptrack-' + SW_CACHE_SCHEMA + '-' + swManifestHash.slice(0, 16)",
+            "const API_CACHE_TTL_MS = 60000",
+            "X-VIPTrack-Cached-At",
+            "const TILE_CACHE_LIMIT = 1000",
+            "X-VIPTrack-Tile-Last-Used",
+            "entries.sort((a, b) => a.lastUsed - b.lastUsed)",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("// Service Worker Registration")
+        end = self.source.index("</script>", start)
+        section = self.source[start:end]
+        self.assertNotIn("keys.length > 600", section)
+        self.assertNotIn("keys.length - 500", section)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1386,25 +1386,104 @@ URL.revokeObjectURL(manifestUrl);
 </script>
 <script>
 // Service Worker Registration
+const SW_CACHE_SCHEMA = '4.16';
+const SW_STATIC_ASSETS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/silhouettes/aircraft.png',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo.ico',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-16x16.png',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-48x48.png',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png'
+];
+async function getServiceWorkerManifestHash(manifestText) {
+    try {
+        if (globalThis.crypto?.subtle) {
+            const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(manifestText));
+            return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+    } catch (e) {}
+    let hash = 2166136261;
+    for (const char of manifestText) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
         try {
             // Clear old service workers first
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
+            const swManifestText = JSON.stringify({ schemaVersion: SW_CACHE_SCHEMA, staticAssets: SW_STATIC_ASSETS });
+            const swManifestHash = await getServiceWorkerManifestHash(swManifestText);
+            const swCacheName = 'viptrack-' + SW_CACHE_SCHEMA + '-' + swManifestHash.slice(0, 16);
             const swCode = `
-                const CACHE_NAME = 'viptrack-v4.15';
-                const STATIC_ASSETS = [
-                    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
-                    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
-                    'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
-                    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/silhouettes/aircraft.png',
-                    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo.ico',
-                    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-16x16.png',
-                    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png',
-                    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-48x48.png',
-                    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png'
-                ];
+                const CACHE_NAME = '${swCacheName}';
+                const CACHE_SCHEMA_VERSION = '${SW_CACHE_SCHEMA}';
+                const MANIFEST_HASH = '${swManifestHash}';
+                const STATIC_ASSETS = ${JSON.stringify(SW_STATIC_ASSETS)};
+                const API_CACHE_TTL_MS = 60000;
+                const TILE_CACHE_NAME = CACHE_NAME + '-tiles';
+                const TILE_CACHE_LIMIT = 1000;
+
+                function isReferenceAsset(url) {
+                    return url.hostname.includes('githubusercontent.com') &&
+                        (url.pathname.includes('/data/') || url.pathname.includes('/assets/'));
+                }
+
+                function isStaticRequest(url) {
+                    return STATIC_ASSETS.some(asset => url.href.includes(asset)) ||
+                        url.hostname.includes('cdnjs.cloudflare.com') ||
+                        (url.hostname.includes('githubusercontent.com') && url.pathname.includes('/logo/'));
+                }
+
+                function isTileRequest(url) {
+                    return url.hostname.includes('tile') || url.hostname.includes('mt0.google') ||
+                        url.hostname.includes('mt1.google') || url.hostname.includes('mt2.google') ||
+                        url.hostname.includes('mt3.google') || url.pathname.includes('/{z}/{x}/{y}');
+                }
+
+                function isApiRequest(url, request) {
+                    if (request.method !== 'GET') return false;
+                    if (url.origin === self.location.origin) return url.pathname.includes('/api/');
+                    return !isReferenceAsset(url) && !isStaticRequest(url) && !isTileRequest(url);
+                }
+
+                async function cacheWithTimestamp(cache, request, response, headerName) {
+                    const headers = new Headers(response.headers);
+                    headers.set(headerName, String(Date.now()));
+                    ['content-encoding', 'content-length', 'transfer-encoding'].forEach(name => headers.delete(name));
+                    const body = await response.clone().arrayBuffer();
+                    await cache.put(request, new Response(body, { status: response.status, statusText: response.statusText, headers }));
+                }
+
+                async function freshApiCache(request) {
+                    const cache = await caches.open(CACHE_NAME);
+                    const cached = await cache.match(request);
+                    if (!cached) return null;
+                    const cachedAt = Number(cached.headers.get('X-VIPTrack-Cached-At'));
+                    if (!Number.isFinite(cachedAt) || Date.now() - cachedAt > API_CACHE_TTL_MS) {
+                        await cache.delete(request);
+                        return null;
+                    }
+                    return cached;
+                }
+
+                async function touchTile(cache, request, response) {
+                    await cacheWithTimestamp(cache, request, response, 'X-VIPTrack-Tile-Last-Used');
+                }
+
+                async function evictTiles(cache) {
+                    const requests = await cache.keys();
+                    if (requests.length <= TILE_CACHE_LIMIT) return;
+                    const entries = await Promise.all(requests.map(async request => {
+                        const response = await cache.match(request);
+                        return { request, lastUsed: Number(response?.headers.get('X-VIPTrack-Tile-Last-Used')) || 0 };
+                    }));
+                    entries.sort((a, b) => a.lastUsed - b.lastUsed);
+                    await Promise.all(entries.slice(0, entries.length - TILE_CACHE_LIMIT).map(entry => cache.delete(entry.request)));
+                }
                 
                 self.addEventListener('install', event => {
                     event.waitUntil(
@@ -1416,7 +1495,7 @@ if ('serviceWorker' in navigator) {
                 self.addEventListener('activate', event => {
                     event.waitUntil(
                         caches.keys().then(keys => 
-                            Promise.all(keys.filter(k => k !== CACHE_NAME && k !== CACHE_NAME + '-tiles').map(k => caches.delete(k)))
+                            Promise.all(keys.filter(k => k !== CACHE_NAME && k !== TILE_CACHE_NAME).map(k => caches.delete(k)))
                         )
                     );
                     self.clients.claim();
@@ -1425,22 +1504,16 @@ if ('serviceWorker' in navigator) {
                 self.addEventListener('fetch', event => {
                     const url = new URL(event.request.url);
                     
-                    // Network-first for live API data (ADS-B feeds, traces, weather)
-                    if (url.hostname.includes('airplanes.live') ||
-                        url.hostname.includes('opensky') || 
-                        url.hostname.includes('adsbexchange') ||
-                        url.hostname.includes('rainviewer') ||
-                        url.hostname.includes('planespotters') ||
-                        url.hostname.includes('wikipedia.org') ||
-                        url.pathname.includes('/traces/')) {
+                    // Network-first for cross-origin API/data responses. The private
+                    // timestamp header makes the offline fallback expire at 60s.
+                    if (isApiRequest(url, event.request)) {
                         event.respondWith(
                             fetch(event.request).then(response => {
-                                if (response.ok) {
-                                    const clone = response.clone();
-                                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+                                if (response.ok && response.type !== 'opaque') {
+                                    event.waitUntil(caches.open(CACHE_NAME).then(cache => cacheWithTimestamp(cache, event.request, response, 'X-VIPTrack-Cached-At')).catch(() => {}));
                                 }
                                 return response;
-                            }).catch(() => caches.match(event.request))
+                            }).catch(() => freshApiCache(event.request).then(cached => cached || Response.error()))
                         );
                         return;
                     }
@@ -1464,9 +1537,7 @@ if ('serviceWorker' in navigator) {
                     }
                     
                     // Cache-first for CDN static assets (Leaflet, pako, logos, sprites)
-                    if (STATIC_ASSETS.some(a => event.request.url.includes(a)) ||
-                        url.hostname.includes('cdnjs.cloudflare.com') ||
-                        (url.hostname.includes('githubusercontent.com') && url.pathname.includes('/logo/'))) {
+                    if (isStaticRequest(url)) {
                         event.respondWith(
                             caches.match(event.request).then(cached => {
                                 if (cached) return cached;
@@ -1482,38 +1553,23 @@ if ('serviceWorker' in navigator) {
                         return;
                     }
                     
-                    // Cache map tiles with deferred LRU eviction
-                    if (url.hostname.includes('tile') || url.hostname.includes('mt0.google') ||
-                        url.hostname.includes('mt1.google') || url.hostname.includes('mt2.google') ||
-                        url.hostname.includes('mt3.google') || url.pathname.includes('/{z}/{x}/{y}')) {
+                    // Cache map tiles with explicit last-used LRU eviction
+                    if (isTileRequest(url)) {
                         event.respondWith(
-                            caches.match(event.request).then(cached => {
-                                const fetchPromise = fetch(event.request).then(response => {
-                                    if (response.ok) {
-                                        const clone = response.clone();
-                                        caches.open(CACHE_NAME + '-tiles').then(cache => {
-                                            cache.put(event.request, clone);
-                                            // Deferred eviction - don't block tile delivery
-                                            if (typeof self.requestIdleCallback === 'function') {
-                                                self.requestIdleCallback(() => cache.keys().then(keys => {
-                                                    if (keys.length > 600) {
-                                                        const toDelete = keys.slice(0, keys.length - 500);
-                                                        toDelete.forEach(k => cache.delete(k));
-                                                    }
-                                                }));
-                                            } else {
-                                                setTimeout(() => cache.keys().then(keys => {
-                                                    if (keys.length > 600) {
-                                                        const toDelete = keys.slice(0, keys.length - 500);
-                                                        toDelete.forEach(k => cache.delete(k));
-                                                    }
-                                                }), 5000);
-                                            }
-                                        });
-                                    }
-                                    return response;
-                                }).catch(() => cached);
-                                return cached || fetchPromise;
+                            caches.open(TILE_CACHE_NAME).then(async cache => {
+                                const cached = await cache.match(event.request);
+                                if (cached) {
+                                    event.waitUntil(touchTile(cache, event.request, cached).catch(() => {}));
+                                    return cached;
+                                }
+                                const response = await fetch(event.request);
+                                if (response.ok && response.type !== 'opaque') {
+                                    await cacheWithTimestamp(cache, event.request, response, 'X-VIPTrack-Tile-Last-Used');
+                                    await evictTiles(cache);
+                                }
+                                return response;
+                            }).catch(() => {
+                                return caches.open(TILE_CACHE_NAME).then(cache => cache.match(event.request)).then(cached => cached || Response.error());
                             })
                         );
                         return;

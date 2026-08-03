@@ -16,6 +16,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Direct tar1090/readsb receiver coverage adapter with 36-sector observed range polygon, optional stats max-range outline, URL persistence, and coordinate fallbacks.
 - Manual OpenSky historical track replay using user-supplied OAuth2 client credentials, 30-day validation, and no live-loop or proxy use.
 - Manual FAA NASR/ADDS special-use airspace overlay for restricted, prohibited, MOA, and warning polygons, with a 28-day IndexedDB cache and stale-data refusal.
+- ServiceWorker cache names now include a SHA-256 asset-manifest hash and schema version; cross-origin API fallbacks expire after 60 seconds and tile storage uses a 1,000-entry last-used LRU.
 - ADSB.fi as a fourth rotating live-data source with health tracking.
 - Emergency squawk auto-highlight for 7500 (hijack) / 7600 (NORDO) / 7700 (general) with optional audible tone.
 - ADSBdb route lookup (`api.adsbdb.com/v0/callsign/{flight}`) to enrich the route panel with origin / midpoint / destination ICAO when public.

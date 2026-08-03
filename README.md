@@ -174,7 +174,7 @@ ADS-B (Automatic Dependent Surveillance-Broadcast) — aircraft broadcast their 
 Many military aircraft don't broadcast ADS-B, especially during operations. Some use Mode-C (altitude only) or transponder-off. Aircraft using Privacy ICAO Addresses appear with randomized hex codes that rotate periodically.
 
 **Q: Can I run this offline?**
-Partially. After the first load, the ServiceWorker caches the app itself. Aircraft data requires an internet connection, but previously loaded databases and map tiles remain available offline.
+Partially. After the first load, the ServiceWorker caches the app itself. Aircraft data requires an internet connection; API fallbacks expire after 60 seconds, while previously loaded map tiles remain available offline up to a 1,000-tile least-recently-used cap.
 
 **Q: How is this different from SkyTrack?**
 VIPTrack is purpose-built for military and VIP monitoring. It loads all mil/VIP/PIA aircraft globally on startup (no viewport panning needed), filters out commercial traffic entirely, and uses dedicated API endpoints for faster data delivery. SkyTrack is a general-purpose tracker that shows all aircraft.
