@@ -7,11 +7,12 @@
          Allows only the feeds, CDN, and reference domains the app actually uses. -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
-        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
+        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
-        worker-src 'self' blob:;
+        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
+        worker-src 'self' blob: https://cdn.jsdelivr.net;
+        frame-src 'self';
         manifest-src 'self' blob:;
         frame-ancestors 'self';
         base-uri 'self';
@@ -82,6 +83,12 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         #map { position: absolute; inset: 0; z-index: 1; }
+        #globe3d { position: absolute; inset: 0; z-index: 1; display: none; background: #050b16; }
+        #globe3d .cesium-viewer, #globe3d .cesium-widget { width: 100%; height: 100%; }
+        #globe3d iframe { display: block; width: 100%; height: 100%; border: 0; }
+        body.cesium-3d-mode #map { display: none; }
+        body.cesium-3d-mode #globe3d { display: block; }
+        body.cesium-3d-mode .hud-3d { display: block; }
         .leaflet-tile-container img, .leaflet-tile { outline: 0 !important; border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; image-rendering: -webkit-optimize-contrast; backface-visibility: hidden; }
         .leaflet-tile-pane { will-change: auto !important; }
         .leaflet-tile-pane, .leaflet-container { background: #323232 !important; }
@@ -1612,6 +1619,7 @@ if ('serviceWorker' in navigator) {
     </div>
     <div id="sidebarWrapper" style="display:none;position:fixed;top:0;left:0;width:360px;height:100vh;z-index:9999;background:#0d0d1a;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.1);box-shadow:4px 0 20px rgba(0,0,0,0.4);"></div>
     <div id="map"></div>
+    <div id="globe3d" aria-label="3D globe view"></div>
     <!-- Phase 16: Reliability Indicators -->
     <div class="data-source-indicator" id="dataSourceIndicator">
         <span class="source-name">Connecting...</span>
@@ -1684,7 +1692,8 @@ if ('serviceWorker' in navigator) {
     
     <!-- 3D HUD -->
     <div class="hud-3d" id="hud3d">
-        <div class="hud-3d-title">3D Controls</div>
+        <div class="hud-3d-title">3D Globe</div>
+        <div class="hud-3d-row" id="cesium3dStatus" role="status" aria-live="polite">Loading renderer...</div>
         <div class="hud-3d-row"><span class="hud-3d-key">Drag</span> Rotate globe</div>
         <div class="hud-3d-row"><span class="hud-3d-key">Scroll</span> Zoom in/out</div>
         <div class="hud-3d-row"><span class="hud-3d-key">R-Drag</span> Tilt camera</div>
@@ -6153,6 +6162,204 @@ if ('serviceWorker' in navigator) {
         return 'commercial';
     }
     function getAirlineCode(cs) { return cs?.length >= 3 && /^[A-Z]{3}$/.test(cs.substring(0, 3)) ? cs.substring(0, 3) : null; }
+
+    // L1: Opt-in Cesium globe. The library is loaded only for ?3d=1 and never uses a Cesium ion token.
+    const CESIUM_VERSION = '1.143';
+    const CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@' + CESIUM_VERSION + '/Build/Cesium/';
+    const CESIUM_JS_URL = CESIUM_BASE_URL + 'Cesium.js';
+    const CESIUM_JS_INTEGRITY = 'sha512-mexEiWjKPe7eqeQMhzHg5B5ENdrWI0NMQwVUZu7MXhS3t8dZeKeJQxAWQfXgFtXjdVpza0Gm+wVolB02nnymKg==';
+    const CESIUM_CSS_URL = CESIUM_BASE_URL + 'Widgets/widgets.css';
+    const CESIUM_CSS_INTEGRITY = 'sha512-fsYfjqOKt+KyVW0YZa1aHucMVyjVuLVkCP/187bJFe+AO9vSyJnjHd3Qkt4sioYq1qrnHu81rPY3KDK8fRRykA==';
+    const cesium3DManager = {
+        requested: false,
+        viewer: null,
+        frame: null,
+        Cesium: null,
+        entityByHex: new Map(),
+        libraryPromise: null,
+
+        enable() {
+            this.requested = true;
+            document.body.classList.add('cesium-3d-mode');
+            _el('hud3d')?.classList.add('show');
+        },
+
+        disable() {
+            this.requested = false;
+            if (this.viewer) {
+                try { this.viewer.destroy(); } catch (e) { _dbg('Cesium destroy failed:', e.message); }
+                this.viewer = null;
+            }
+            this.Cesium = null;
+            if (this.frame) {
+                this.frame.remove();
+                this.frame = null;
+            }
+            this.entityByHex.clear();
+            this.libraryPromise = null;
+            document.body.classList.remove('cesium-3d-mode');
+            _el('hud3d')?.classList.remove('show');
+            if (map) map.invalidateSize();
+        },
+
+        setStatus(text) {
+            const status = _el('cesium3dStatus');
+            if (status) status.textContent = text;
+        },
+
+        async loadLibrary() {
+            if (this.libraryPromise) return this.libraryPromise;
+            this.libraryPromise = new Promise((resolve, reject) => {
+                const frame = document.createElement('iframe');
+                frame.id = 'globe3dFrame';
+                frame.title = 'Cesium 3D globe';
+                frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+                this.frame = frame;
+                document.getElementById('globe3d').replaceChildren(frame);
+                frame.addEventListener('error', () => reject(new Error('Cesium frame failed to load')), { once: true });
+                frame.addEventListener('load', () => {
+                    const frameDocument = frame.contentDocument;
+                    const frameWindow = frame.contentWindow;
+                    if (!frameDocument || !frameWindow) { reject(new Error('Cesium frame is inaccessible')); return; }
+                    const frameScript = frameDocument.querySelector('script[src$="/Cesium.js"]');
+                    const frameStylesheet = frameDocument.querySelector('link[href$="/Widgets/widgets.css"]');
+                    if (frameWindow.CESIUM_BASE_URL !== CESIUM_BASE_URL ||
+                        frameScript?.src !== CESIUM_JS_URL || frameScript?.integrity !== CESIUM_JS_INTEGRITY ||
+                        frameStylesheet?.href !== CESIUM_CSS_URL || frameStylesheet?.integrity !== CESIUM_CSS_INTEGRITY ||
+                        !frameDocument.getElementById('cesiumFrameContainer') || !frameWindow.Cesium) {
+                        reject(new Error('Cesium frame loaded without the renderer'));
+                        return;
+                    }
+                    resolve(frameWindow.Cesium);
+                }, { once: true });
+                frame.src = new URL('cesium-frame.html', document.baseURI).href;
+            });
+            return this.libraryPromise;
+        },
+
+        async init() {
+            if (!this.requested || this.viewer) return;
+            this.setStatus('Loading renderer...');
+            const Cesium = await this.loadLibrary();
+            this.Cesium = Cesium;
+            const frameDocument = this.frame?.contentDocument;
+            const viewer = new Cesium.Viewer(frameDocument?.getElementById('cesiumFrameContainer'), {
+                animation: false,
+                baseLayer: false,
+                baseLayerPicker: false,
+                fullscreenButton: false,
+                geocoder: false,
+                homeButton: false,
+                infoBox: false,
+                navigationHelpButton: false,
+                sceneModePicker: false,
+                selectionIndicator: true,
+                shouldAnimate: false,
+                timeline: false,
+                vrButton: false,
+                requestRenderMode: true,
+                maximumRenderTimeChange: Infinity
+            });
+            viewer.imageryLayers.add(new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider({
+                url: 'https://tile.openstreetmap.org/',
+                credit: '© OpenStreetMap contributors'
+            })));
+            viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#050b16');
+            viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#10182a');
+            viewer.scene.globe.enableLighting = false;
+            this.viewer = viewer;
+            viewer.selectedEntityChanged.addEventListener(entity => {
+                const property = entity?.properties?.hex;
+                const hex = typeof property === 'string' ? property : property?.getValue?.(viewer.clock.currentTime);
+                if (hex && aircraftCache[hex] && selectedHex !== hex) selectAircraft(hex);
+            });
+            viewer.camera.setView({
+                destination: Cesium.Cartesian3.fromDegrees(CONFIG.center[1], CONFIG.center[0], 12000000)
+            });
+            this.setStatus('0 aircraft');
+            this.sync();
+        },
+
+        isVisible(ac) {
+            if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) return false;
+            if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
+            if (settings.filter === 'military') {
+                if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
+                return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
+            }
+            return true;
+        },
+
+        colorFor(ac, Cesium) {
+            if (ac.piaInfo) return Cesium.Color.fromCssColorString('#ff5c70');
+            if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return Cesium.Color.fromCssColorString('#ffd166');
+            if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) return Cesium.Color.fromCssColorString('#4ade80');
+            return Cesium.Color.fromCssColorString('#38bdf8');
+        },
+
+        positionFor(ac, Cesium) {
+            const altitudeFeet = Number(ac.alt_baro);
+            const altitudeMeters = Number.isFinite(altitudeFeet) ? Math.max(0, altitudeFeet * 0.3048) : 0;
+            return Cesium.Cartesian3.fromDegrees(Number(ac.lon), Number(ac.lat), altitudeMeters);
+        },
+
+        sync() {
+            if (!this.viewer || !this.Cesium) return;
+            const Cesium = this.Cesium;
+            const activeHexes = new Set();
+            let visibleCount = 0;
+            this.viewer.entities.suspendEvents();
+            try {
+                Object.values(aircraftCache).forEach(ac => {
+                    const lat = Number(ac.lat), lon = Number(ac.lon), hex = String(ac.hex || '');
+                    if (!hex || !Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180 || !this.isVisible(ac)) return;
+                    activeHexes.add(hex);
+                    visibleCount++;
+                    const color = this.colorFor(ac, Cesium);
+                    const position = this.positionFor(ac, Cesium);
+                    const labelText = String(ac.flight || '').trim() || hex;
+                    const point = {
+                        color,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 1,
+                        pixelSize: hex === selectedHex ? 12 : 8
+                    };
+                    const label = settings.showLabels ? {
+                        text: labelText.slice(0, 32),
+                        font: '11px sans-serif',
+                        fillColor: color,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 3,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                        pixelOffset: new Cesium.Cartesian2(0, -10),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    } : undefined;
+                    let entity = this.entityByHex.get(hex);
+                    if (!entity) {
+                        entity = this.viewer.entities.add({ id: 'viptrack-aircraft-' + hex, name: labelText, properties: { hex }, position, point, label });
+                        this.entityByHex.set(hex, entity);
+                    } else {
+                        entity.name = labelText;
+                        entity.position = position;
+                        entity.point = point;
+                        entity.label = label;
+                        entity.show = true;
+                    }
+                });
+                for (const [hex, entity] of this.entityByHex) {
+                    if (!activeHexes.has(hex)) {
+                        this.viewer.entities.remove(entity);
+                        this.entityByHex.delete(hex);
+                    }
+                }
+            } finally {
+                this.viewer.entities.resumeEvents();
+            }
+            this.setStatus(visibleCount.toLocaleString() + ' aircraft');
+            this.viewer.scene.requestRender();
+        }
+    };
     async function fetchWithProxy(url, options = {}) { if (!CONFIG.isLocalFile) { try { const r = await fetchWithTimeout(url, options); if (r?.ok) return r; } catch(e) {} } for (let i = 0; i < CONFIG.corsProxies.length; i++) { const idx = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length; try { const r = await fetchWithTimeout(CONFIG.corsProxies[idx](url), {}); if (r?.ok) { lastSuccessfulProxy = idx; return r; } } catch(e) {} } return null; }
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...options, signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
     function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('viptrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
@@ -6233,6 +6440,17 @@ if ('serviceWorker' in navigator) {
         
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
+        if (urlParams.get('3d') === '1') {
+            cesium3DManager.enable();
+            setLoadingProgress(82, 'Loading 3D globe...');
+            try {
+                await cesium3DManager.init();
+            } catch (e) {
+                cesium3DManager.disable();
+                console.warn('3D globe unavailable; continuing with the 2D map', e);
+                toast('3D globe unavailable; using 2D map');
+            }
+        }
         await curatedOverlayManager.init();
         receiverCoverageManager.init();
         openSkyHistoricalManager.init();
@@ -6618,6 +6836,7 @@ if ('serviceWorker' in navigator) {
             }
             if (markers[ac.hex]) updateMarker(ac); else createMarker(ac);
         });
+        cesium3DManager.sync();
     }
     // Coalesced wrapper: multiple rapid calls collapse to one rAF
     function updateMarkers() { if (_updateMarkersRaf) return; _updateMarkersRaf = requestAnimationFrame(() => { _updateMarkersRaf = 0; _updateMarkersCore(); }); }

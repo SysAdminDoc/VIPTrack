@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
+CESIUM_FRAME = ROOT / "cesium-frame.html"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -228,6 +229,53 @@ class VipTrackContracts(unittest.TestCase):
         section = self.source[start:end]
         self.assertNotIn("keys.length > 600", section)
         self.assertNotIn("keys.length - 500", section)
+
+    def test_cesium_globe_is_opt_in_lazy_loaded_and_synced(self) -> None:
+        frame_source = CESIUM_FRAME.read_text(encoding="utf-8")
+        for marker in (
+            "?3d=1",
+            "urlParams.get('3d') === '1'",
+            "const cesium3DManager =",
+            "CESIUM_VERSION = '1.143'",
+            "CESIUM_JS_INTEGRITY",
+            "CESIUM_CSS_INTEGRITY",
+            "frame.setAttribute('sandbox', 'allow-scripts allow-same-origin')",
+            "new URL('cesium-frame.html', document.baseURI).href",
+            "new Cesium.Viewer(frameDocument",
+            "new Cesium.OpenStreetMapImageryProvider",
+            "Cesium.Cartesian3.fromDegrees",
+            "entityByHex: new Map()",
+            "this.viewer.entities.suspendEvents()",
+            "cesium3DManager.sync();",
+            "body.cesium-3d-mode",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertNotIn("Cesium.Ion.defaultAccessToken", self.source)
+        parent_csp = re.search(
+            r'<meta http-equiv="Content-Security-Policy" content="([\s\S]*?)">',
+            self.source,
+            flags=re.IGNORECASE,
+        )
+        self.assertIsNotNone(parent_csp)
+        self.assertNotIn("'unsafe-eval'", parent_csp.group(1))
+        self.assertNotRegex(self.source, r'<script[^>]+src="[^"]*Cesium\.js"')
+        for marker in (
+            "script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
+            "window.CESIUM_BASE_URL",
+            "https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/Cesium.js",
+            "https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/Widgets/widgets.css",
+            'integrity="sha512-mexEiWjKPe7eqeQMhzHg5B5ENdrWI0NMQwVUZu7MXhS3t8dZeKeJQxAWQfXgFtXjdVpza0Gm+wVolB02nnymKg=="',
+            'integrity="sha512-fsYfjqOKt+KyVW0YZa1aHucMVyjVuLVkCP/187bJFe+AO9vSyJnjHd3Qkt4sioYq1qrnHu81rPY3KDK8fRRykA=="',
+            'crossorigin="anonymous"',
+        ):
+            self.assertIn(marker, frame_source)
+        frame_csp = re.search(
+            r'<meta http-equiv="Content-Security-Policy" content="([\s\S]*?)">',
+            frame_source,
+            flags=re.IGNORECASE,
+        )
+        self.assertIsNotNone(frame_csp)
+        self.assertIn("'unsafe-eval'", frame_csp.group(1))
 
 
 if __name__ == "__main__":

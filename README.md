@@ -28,10 +28,13 @@ VIPTrack makes it easy to monitor military and VIP aircraft worldwide. Unlike ge
 ```bash
 git clone https://github.com/SysAdminDoc/VIPTrack.git
 cd VIPTrack
-# Open index.html in any browser — no build step, no server, no dependencies
+# Open index.html in any browser for the 2D map — no build step or dependencies
+# For the optional ?3d=1 globe, use any static HTTP server instead:
+python -m http.server 8000
+# Then open http://127.0.0.1:8000/index.html?3d=1
 ```
 
-Zero-dependency, single-file web application. Just open `index.html`.
+Zero-build, dependency-free static web application. The normal 2D map works from `index.html`; the optional 3D globe uses the same-origin `cesium-frame.html` child and therefore needs HTTP(S) hosting.
 
 ## Features
 
@@ -87,6 +90,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | Aircraft Labels | Optional callsign labels on map markers |
 | Sprite Icons | Type-accurate aircraft silhouettes from a sprite sheet (90+ types) |
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
+| 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the 2D data feed |
 | Share Flight | Generate shareable links for specific aircraft |
 | Follow Mode | Camera tracks the selected aircraft automatically |
 | Weather Radar | Precipitation overlay from RainViewer |
@@ -118,7 +122,7 @@ Access via the gear icon. All settings persist in localStorage.
 ## Architecture
 
 ```
-index.html (single file)
+Static app files (`index.html` + `cesium-frame.html`)
     |
     |-- Data Layer
     |     |-- ADSB One / ADSB.lol / Airplanes.live (mil + pia endpoints)
@@ -137,6 +141,7 @@ index.html (single file)
     |     |-- Smooth marker animation (requestAnimationFrame)
     |     |-- Grid decimation at low zoom for performance
     |     |-- Altitude-colored history trails
+    |     |-- Optional Cesium 1.143 globe (`?3d=1`, lazy-loaded, no ion token)
     |
     |-- UI
           |-- Aircraft detail sidebar (Overview / Aircraft / Route)
@@ -147,14 +152,15 @@ index.html (single file)
 
 ## Tech Stack
 
-Everything runs client-side in a single `index.html`:
+Everything runs client-side in the static app files; `index.html` owns the application state and the optional child frame only hosts Cesium's renderer:
 
 - **Leaflet 1.9.4** — 2D map rendering and markers
+- **CesiumJS 1.143** — optional 3D globe renderer loaded only with `?3d=1`
 - **ServiceWorker** — Offline caching of assets
 - **localStorage** — Settings, map position, aircraft cache persistence
 - **IndexedDB** — Airport and registration database caching
 
-All external libraries loaded from cdnjs.cloudflare.com CDN. No npm, no bundler, no server.
+Leaflet and pako load from cdnjs.cloudflare.com; Cesium loads from the pinned jsDelivr URL. No npm or bundler is required; use GitHub Pages or another static HTTP(S) server for `?3d=1`.
 
 ## Browser Support
 

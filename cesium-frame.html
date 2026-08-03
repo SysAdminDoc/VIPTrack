@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'none';
+        base-uri 'none';
+        script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+        style-src 'unsafe-inline' https://cdn.jsdelivr.net;
+        img-src data: blob: https:;
+        connect-src https://cdn.jsdelivr.net https://tile.openstreetmap.org;
+        worker-src blob: https://cdn.jsdelivr.net;
+        font-src data: https://cdn.jsdelivr.net;
+        object-src 'none';
+    ">
+    <title>VIPTrack 3D Globe</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/Widgets/widgets.css" integrity="sha512-fsYfjqOKt+KyVW0YZa1aHucMVyjVuLVkCP/187bJFe+AO9vSyJnjHd3Qkt4sioYq1qrnHu81rPY3KDK8fRRykA==" crossorigin="anonymous">
+    <style>
+        html, body, #cesiumFrameContainer { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #050b16; }
+    </style>
+    <script>
+        window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/Cesium.js" integrity="sha512-mexEiWjKPe7eqeQMhzHg5B5ENdrWI0NMQwVUZu7MXhS3t8dZeKeJQxAWQfXgFtXjdVpza0Gm+wVolB02nnymKg==" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="cesiumFrameContainer" role="application" aria-label="Cesium 3D globe"></div>
+</body>
+</html>
