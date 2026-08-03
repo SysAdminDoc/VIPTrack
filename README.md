@@ -32,9 +32,10 @@ cd VIPTrack
 # For the optional ?3d=1 globe, use any static HTTP server instead:
 python -m http.server 8000
 # Then open http://127.0.0.1:8000/index.html?3d=1
+# Or use the opt-in GPU renderer: http://127.0.0.1:8000/index.html?renderer=webgl
 ```
 
-Zero-build, dependency-free static web application. The normal 2D map works from `index.html`; the optional 3D globe uses the same-origin `cesium-frame.html` child and therefore needs HTTP(S) hosting.
+Zero-build, dependency-free static web application. The normal Leaflet 2D map works from `index.html`; the optional Cesium globe (`?3d=1`) and MapLibre/deck.gl GPU renderer (`?renderer=webgl`) are lazy-loaded from pinned CDN assets and need HTTP(S) hosting.
 
 ## Features
 
@@ -91,6 +92,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | Sprite Icons | Type-accurate aircraft silhouettes from a sprite sheet (90+ types) |
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
 | 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the 2D data feed |
+| WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers and `TripsLayer` history trails while Leaflet remains the default |
 | Share Flight | Generate shareable links for specific aircraft |
 | Follow Mode | Camera tracks the selected aircraft automatically |
 | Weather Radar | Precipitation overlay from RainViewer |
@@ -142,6 +144,7 @@ Static app files (`index.html` + `cesium-frame.html`)
     |     |-- Grid decimation at low zoom for performance
     |     |-- Altitude-colored history trails
     |     |-- Optional Cesium 1.143 globe (`?3d=1`, lazy-loaded, no ion token)
+    |     |-- Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 (`?renderer=webgl`)
     |
     |-- UI
           |-- Aircraft detail sidebar (Overview / Aircraft / Route)
@@ -152,15 +155,16 @@ Static app files (`index.html` + `cesium-frame.html`)
 
 ## Tech Stack
 
-Everything runs client-side in the static app files; `index.html` owns the application state and the optional child frame only hosts Cesium's renderer:
+Everything runs client-side in the static app files; `index.html` owns the application state, while the optional child frame isolates Cesium's renderer:
 
 - **Leaflet 1.9.4** — 2D map rendering and markers
 - **CesiumJS 1.143** — optional 3D globe renderer loaded only with `?3d=1`
+- **MapLibre GL JS 5.24.0 + deck.gl 9.2.1** — optional GPU map, `IconLayer` aircraft, and `TripsLayer` history loaded only with `?renderer=webgl`
 - **ServiceWorker** — Offline caching of assets
 - **localStorage** — Settings, map position, aircraft cache persistence
 - **IndexedDB** — Airport and registration database caching
 
-Leaflet and pako load from cdnjs.cloudflare.com; Cesium loads from the pinned jsDelivr URL. No npm or bundler is required; use GitHub Pages or another static HTTP(S) server for `?3d=1`.
+Leaflet and pako load from cdnjs.cloudflare.com; Cesium, MapLibre, and deck.gl load from pinned jsDelivr URLs. No npm or bundler is required; use GitHub Pages or another static HTTP(S) server for either optional renderer.
 
 ## Browser Support
 

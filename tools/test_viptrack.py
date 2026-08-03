@@ -277,6 +277,36 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIsNotNone(frame_csp)
         self.assertIn("'unsafe-eval'", frame_csp.group(1))
 
+    def test_webgl_renderer_is_opt_in_and_uses_gpu_layers(self) -> None:
+        for marker in (
+            "?renderer=webgl",
+            "urlParams.get('renderer') === 'webgl'",
+            "const webglMapManager =",
+            "MAPLIBRE_VERSION = '5.24.0'",
+            "DECKGL_VERSION = '9.2.1'",
+            "WEBGL_MAP_STYLE",
+            "new maplibregl.Map",
+            "new deck.MapboxOverlay",
+            "new IconLayer",
+            "new TripsLayer",
+            "getPath: trip => trip.path",
+            "getTimestamps: trip => trip.timestamps",
+            "webglMapManager.sync();",
+            "body.webgl-mode",
+            "script.integrity = integrity",
+            "link.integrity = MAPLIBRE_CSS_INTEGRITY",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertNotIn("maplibregl.Map({ container: _el('map')", self.source)
+        self.assertIn("MAPLIBRE_JS_INTEGRITY = 'sha512-", self.source)
+        self.assertIn("MAPLIBRE_CSS_INTEGRITY = 'sha512-", self.source)
+        self.assertIn("DECKGL_JS_INTEGRITY = 'sha512-", self.source)
+        self.assertNotIn("'unsafe-eval'", re.search(
+            r'<meta http-equiv="Content-Security-Policy" content="([\s\S]*?)">',
+            self.source,
+            flags=re.IGNORECASE,
+        ).group(1))
+
 
 if __name__ == "__main__":
     unittest.main()

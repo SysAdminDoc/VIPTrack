@@ -83,12 +83,21 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
         #map { position: absolute; inset: 0; z-index: 1; }
+        #webglMap { position: absolute; inset: 0; z-index: 1; display: none; background: #111827; }
+        #webglMap .maplibregl-map, #webglMap .maplibregl-canvas-container { width: 100%; height: 100%; }
+        #webglMap .maplibregl-ctrl-group { background: var(--bg-panel); border: 1px solid var(--border); }
+        #webglMap .maplibregl-ctrl-group button { filter: invert(1); }
+        #webglMap .maplibregl-ctrl-attrib { background: var(--bg-panel); color: var(--text-dim); }
+        #webglMap .maplibregl-ctrl-attrib a { color: var(--accent); }
         #globe3d { position: absolute; inset: 0; z-index: 1; display: none; background: #050b16; }
         #globe3d .cesium-viewer, #globe3d .cesium-widget { width: 100%; height: 100%; }
         #globe3d iframe { display: block; width: 100%; height: 100%; border: 0; }
         body.cesium-3d-mode #map { display: none; }
         body.cesium-3d-mode #globe3d { display: block; }
         body.cesium-3d-mode .hud-3d { display: block; }
+        body.webgl-mode #map { display: none; }
+        body.webgl-mode #webglMap { display: block; }
+        body.webgl-mode .hud-3d { display: block; }
         .leaflet-tile-container img, .leaflet-tile { outline: 0 !important; border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; image-rendering: -webkit-optimize-contrast; backface-visibility: hidden; }
         .leaflet-tile-pane { will-change: auto !important; }
         .leaflet-tile-pane, .leaflet-container { background: #323232 !important; }
@@ -1619,6 +1628,7 @@ if ('serviceWorker' in navigator) {
     </div>
     <div id="sidebarWrapper" style="display:none;position:fixed;top:0;left:0;width:360px;height:100vh;z-index:9999;background:#0d0d1a;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.1);box-shadow:4px 0 20px rgba(0,0,0,0.4);"></div>
     <div id="map"></div>
+    <div id="webglMap" aria-label="WebGL aircraft map"></div>
     <div id="globe3d" aria-label="3D globe view"></div>
     <!-- Phase 16: Reliability Indicators -->
     <div class="data-source-indicator" id="dataSourceIndicator">
@@ -1692,7 +1702,7 @@ if ('serviceWorker' in navigator) {
     
     <!-- 3D HUD -->
     <div class="hud-3d" id="hud3d">
-        <div class="hud-3d-title">3D Globe</div>
+        <div class="hud-3d-title" id="hud3dTitle">3D Globe</div>
         <div class="hud-3d-row" id="cesium3dStatus" role="status" aria-live="polite">Loading renderer...</div>
         <div class="hud-3d-row"><span class="hud-3d-key">Drag</span> Rotate globe</div>
         <div class="hud-3d-row"><span class="hud-3d-key">Scroll</span> Zoom in/out</div>
@@ -6360,6 +6370,244 @@ if ('serviceWorker' in navigator) {
             this.viewer.scene.requestRender();
         }
     };
+    // L2: Optional MapLibre/deck.gl renderer via ?renderer=webgl. Leaflet remains the default path.
+    const MAPLIBRE_VERSION = '5.24.0';
+    const DECKGL_VERSION = '9.2.1';
+    const MAPLIBRE_JS_URL = 'https://cdn.jsdelivr.net/npm/maplibre-gl@' + MAPLIBRE_VERSION + '/dist/maplibre-gl.js';
+    const MAPLIBRE_CSS_URL = 'https://cdn.jsdelivr.net/npm/maplibre-gl@' + MAPLIBRE_VERSION + '/dist/maplibre-gl.css';
+    const DECKGL_JS_URL = 'https://cdn.jsdelivr.net/npm/deck.gl@' + DECKGL_VERSION + '/dist.min.js';
+    const MAPLIBRE_JS_INTEGRITY = 'sha512-rOFgoUgWaVi69JW1dzBu6PWF9xKW9rxYfY5u2SexFABHhWk0qUWkJoWNz4UuZRMvSXsNZG66+tU5B+HlwWF5kA==';
+    const MAPLIBRE_CSS_INTEGRITY = 'sha512-KIMsMWIdnoG9OwZa+oaIafmbDonqck1UCmq+/zcUi2aaZ97N9QE6TqpTM+n36EO40HGh64hU/375zxtjx7WTyQ==';
+    const DECKGL_JS_INTEGRITY = 'sha512-hxfLlzMh9aW+o6lAmaVunmT7CUUY7jWCU2xeDNZSiOyju0ioraOIqMd5B5Usb9I2nu+zsqzQFPqowXso7Yya8A==';
+    const WEBGL_AIRCRAFT_ICON = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path fill="#fff" d="M16 1.5l3.2 10.1 9.8 5.2v3L19.2 18v7.2l4 3.3v2l-7.2-2.2L8.8 30.5v-2l4-3.3V18L3 19.8v-3l9.8-5.2z"/></svg>');
+    const WEBGL_MAP_STYLE = {
+        version: 8,
+        sources: {
+            osm: {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap contributors'
+            }
+        },
+        layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+    };
+    const webglMapManager = {
+        requested: false,
+        renderer: null,
+        overlay: null,
+        libraryPromise: null,
+        moveTimeout: 0,
+
+        enable() {
+            this.requested = true;
+            document.body.classList.add('webgl-mode');
+            _el('hud3d')?.classList.add('show');
+            const title = _el('hud3dTitle');
+            if (title) title.textContent = 'WebGL Map';
+        },
+
+        disable() {
+            this.requested = false;
+            clearTimeout(this.moveTimeout);
+            this.moveTimeout = 0;
+            const renderer = this.renderer;
+            const overlay = this.overlay;
+            this.renderer = null;
+            this.overlay = null;
+            if (renderer && overlay) {
+                try { renderer.removeControl(overlay); } catch (e) { _dbg('WebGL overlay detach failed:', e.message); }
+                try { overlay.finalize(); } catch (e) { _dbg('WebGL overlay finalize failed:', e.message); }
+            }
+            if (renderer) {
+                try { renderer.remove(); } catch (e) { _dbg('MapLibre destroy failed:', e.message); }
+            }
+            this.libraryPromise = null;
+            document.body.classList.remove('webgl-mode');
+            _el('hud3d')?.classList.remove('show');
+            const title = _el('hud3dTitle');
+            if (title) title.textContent = '3D Globe';
+            if (map) map.invalidateSize();
+        },
+
+        setStatus(text) {
+            const status = _el('cesium3dStatus');
+            if (status) status.textContent = text;
+        },
+
+        loadStylesheet() {
+            if (document.querySelector('link[data-viptrack-webgl-css]')) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = MAPLIBRE_CSS_URL;
+                link.integrity = MAPLIBRE_CSS_INTEGRITY;
+                link.crossOrigin = 'anonymous';
+                link.dataset.viptrackWebglCss = '1';
+                link.onload = resolve;
+                link.onerror = () => reject(new Error('MapLibre stylesheet failed to load'));
+                document.head.appendChild(link);
+            });
+        },
+
+        loadScript(url, integrity, marker, globalName) {
+            if (globalThis[globalName]) return Promise.resolve();
+            const previous = document.querySelector('script[data-viptrack-webgl-script="' + marker + '"]');
+            if (previous) previous.remove();
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.integrity = integrity;
+                script.crossOrigin = 'anonymous';
+                script.dataset.viptrackWebglScript = marker;
+                script.onload = () => globalThis[globalName] ? resolve() : reject(new Error(marker + ' loaded without its global API'));
+                script.onerror = () => reject(new Error(marker + ' failed to load'));
+                document.head.appendChild(script);
+            });
+        },
+
+        async loadLibrary() {
+            if (this.libraryPromise) return this.libraryPromise;
+            this.libraryPromise = Promise.all([
+                this.loadStylesheet(),
+                this.loadScript(MAPLIBRE_JS_URL, MAPLIBRE_JS_INTEGRITY, 'maplibre', 'maplibregl'),
+                this.loadScript(DECKGL_JS_URL, DECKGL_JS_INTEGRITY, 'deckgl', 'deck')
+            ]).then(() => {
+                if (!globalThis.maplibregl?.Map || !globalThis.deck?.MapboxOverlay || !globalThis.deck?.IconLayer || !globalThis.deck?.TripsLayer) {
+                    throw new Error('WebGL libraries loaded without the required APIs');
+                }
+                return { maplibregl: globalThis.maplibregl, deck: globalThis.deck };
+            });
+            return this.libraryPromise;
+        },
+
+        async init() {
+            if (!this.requested || this.renderer) return;
+            this.setStatus('Loading WebGL renderer...');
+            const { maplibregl, deck } = await this.loadLibrary();
+            const renderer = new maplibregl.Map({
+                container: _el('webglMap'),
+                style: WEBGL_MAP_STYLE,
+                center: [CONFIG.center[1], CONFIG.center[0]],
+                zoom: CONFIG.zoom,
+                maxPitch: 70,
+                attributionControl: true,
+                renderWorldCopies: true,
+                canvasContextAttributes: { antialias: true }
+            });
+            this.renderer = renderer;
+            renderer.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
+            renderer.on('error', event => { if (event?.error) _dbg('MapLibre renderer error:', event.error.message || event.error); });
+            renderer.on('moveend', () => {
+                const center = renderer.getCenter();
+                localStorage.setItem('viptrack_map', JSON.stringify({ lat: center.lat, lng: center.lng, zoom: renderer.getZoom() }));
+                clearTimeout(this.moveTimeout);
+                this.moveTimeout = setTimeout(() => loadAircraft(), 800);
+            });
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('MapLibre style load timed out')), 15000);
+                renderer.once('load', () => {
+                    clearTimeout(timeout);
+                    this.overlay = new deck.MapboxOverlay({ interleaved: false, layers: [] });
+                    renderer.addControl(this.overlay);
+                    this.setStatus('0 aircraft');
+                    this.sync();
+                    resolve();
+                });
+            });
+        },
+
+        isVisible(ac) {
+            if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) return false;
+            if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
+            if (settings.filter === 'military') {
+                if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
+                return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
+            }
+            return true;
+        },
+
+        colorFor(ac) {
+            if (ac.piaInfo) return [255, 92, 112, 255];
+            if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return [255, 209, 102, 255];
+            if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) return [74, 222, 128, 255];
+            return [56, 189, 248, 255];
+        },
+
+        iconFor() {
+            return { id: 'aircraft', url: WEBGL_AIRCRAFT_ICON, width: 32, height: 32, anchorX: 16, anchorY: 16, mask: true };
+        },
+
+        collectTrips(aircraft, now) {
+            return aircraft.map(ac => {
+                const path = [], timestamps = [];
+                const history = Array.isArray(ac.history) ? ac.history.slice(-120) : [];
+                history.forEach((point, index) => {
+                    const lat = Number(point?.[0]), lon = Number(point?.[1]);
+                    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) return;
+                    const fallback = now - ((history.length - index) * (Number(CONFIG.refreshInterval) || 6000) / 1000);
+                    let timestamp = Number(point?.[3]);
+                    if (!Number.isFinite(timestamp)) timestamp = fallback;
+                    else if (timestamp > 1e12) timestamp /= 1000;
+                    path.push([lon, lat]);
+                    timestamps.push(timestamp);
+                });
+                const currentLat = Number(ac.lat), currentLon = Number(ac.lon);
+                if (Number.isFinite(currentLat) && Number.isFinite(currentLon) &&
+                    (path.length === 0 || path[path.length - 1][0] !== currentLon || path[path.length - 1][1] !== currentLat)) {
+                    path.push([currentLon, currentLat]);
+                    timestamps.push(now);
+                }
+                return { hex: ac.hex, path, timestamps };
+            }).filter(trip => trip.path.length > 1);
+        },
+
+        sync() {
+            if (!this.renderer || !this.overlay || !globalThis.deck) return;
+            const now = Date.now() / 1000;
+            const aircraft = Object.values(aircraftCache).filter(ac => {
+                const lat = Number(ac.lat), lon = Number(ac.lon);
+                return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && this.isVisible(ac);
+            });
+            const { IconLayer, TripsLayer } = globalThis.deck;
+            const iconLayer = new IconLayer({
+                id: 'viptrack-webgl-aircraft',
+                data: aircraft,
+                pickable: true,
+                getIcon: ac => this.iconFor(ac),
+                getPosition: ac => [Number(ac.lon), Number(ac.lat)],
+                getColor: ac => this.colorFor(ac),
+                getAngle: ac => Number.isFinite(Number(ac.track)) ? Number(ac.track) : 0,
+                getSize: ac => ac.hex === selectedHex ? 34 : 24,
+                sizeUnits: 'pixels',
+                sizeMinPixels: 12,
+                sizeMaxPixels: 40,
+                billboard: true,
+                onClick: info => {
+                    const hex = info.object?.hex;
+                    if (hex && aircraftCache[hex]) { selectAircraft(hex); return true; }
+                    return false;
+                }
+            });
+            const tripsLayer = new TripsLayer({
+                id: 'viptrack-webgl-trails',
+                data: this.collectTrips(aircraft, now),
+                getPath: trip => trip.path,
+                getTimestamps: trip => trip.timestamps,
+                getColor: trip => this.colorFor(aircraftCache[trip.hex] || {}),
+                getWidth: 2,
+                widthMinPixels: 1,
+                opacity: 0.7,
+                trailLength: 3600,
+                currentTime: now,
+                capRounded: true,
+                jointRounded: true
+            });
+            this.overlay.setProps({ layers: [tripsLayer, iconLayer] });
+            this.setStatus(aircraft.length.toLocaleString() + ' aircraft');
+            this.renderer.triggerRepaint();
+        }
+    };
     async function fetchWithProxy(url, options = {}) { if (!CONFIG.isLocalFile) { try { const r = await fetchWithTimeout(url, options); if (r?.ok) return r; } catch(e) {} } for (let i = 0; i < CONFIG.corsProxies.length; i++) { const idx = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length; try { const r = await fetchWithTimeout(CONFIG.corsProxies[idx](url), {}); if (r?.ok) { lastSuccessfulProxy = idx; return r; } } catch(e) {} } return null; }
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...options, signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
     function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('viptrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
@@ -6440,7 +6688,17 @@ if ('serviceWorker' in navigator) {
         
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
-        if (urlParams.get('3d') === '1') {
+        if (urlParams.get('renderer') === 'webgl') {
+            webglMapManager.enable();
+            setLoadingProgress(82, 'Loading WebGL map...');
+            try {
+                await webglMapManager.init();
+            } catch (e) {
+                webglMapManager.disable();
+                console.warn('WebGL renderer unavailable; continuing with the 2D map', e);
+                toast('WebGL renderer unavailable; using 2D map');
+            }
+        } else if (urlParams.get('3d') === '1') {
             cesium3DManager.enable();
             setLoadingProgress(82, 'Loading 3D globe...');
             try {
@@ -6837,6 +7095,7 @@ if ('serviceWorker' in navigator) {
             if (markers[ac.hex]) updateMarker(ac); else createMarker(ac);
         });
         cesium3DManager.sync();
+        webglMapManager.sync();
     }
     // Coalesced wrapper: multiple rapid calls collapse to one rAF
     function updateMarkers() { if (_updateMarkersRaf) return; _updateMarkersRaf = requestAnimationFrame(() => { _updateMarkersRaf = 0; _updateMarkersCore(); }); }
