@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -112,6 +113,21 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("ac.r", section)
         self.assertNotIn("ac.ownOp", section)
         self.assertIn("list.innerHTML = safeHTML", section)
+
+    def test_curated_overlay_manifest_and_loader_contract(self) -> None:
+        manifest_path = ROOT / "data" / "overlays" / "manifest.json"
+        geojson_path = ROOT / "data" / "overlays" / "mil-patterns.geojson"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        geojson = json.loads(geojson_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["schemaVersion"], 1)
+        self.assertEqual(len(manifest["presets"]), 4)
+        self.assertEqual(len({preset["id"] for preset in manifest["presets"]}), 4)
+        self.assertEqual(len(geojson["features"]), 4)
+        self.assertTrue(all(feature["properties"]["template"] for feature in geojson["features"]))
+        self.assertTrue(all(not feature["properties"]["verified"] for feature in geojson["features"]))
+        for marker in ("const curatedOverlayManager =", "data/overlays/manifest.json", "setPreset(id", "filter: feature => feature?.properties?.presetId === preset.id"):
+            self.assertIn(marker, self.source)
+        self.assertIn("curatedOverlayList", self.source)
 
 
 if __name__ == "__main__":

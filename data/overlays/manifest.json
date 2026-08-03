@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "description": "Opt-in illustrative analyst templates. These are not live tasking, NOTAM boundaries, or authoritative airspace data.",
+  "presets": [
+    {
+      "id": "awacs-orbit-template",
+      "name": "AWACS orbit template",
+      "description": "Illustrative racetrack for annotating an AWACS/E-3/E-7 pattern.",
+      "color": "#38bdf8",
+      "url": "mil-patterns.geojson"
+    },
+    {
+      "id": "tanker-racetrack-template",
+      "name": "Tanker racetrack template",
+      "description": "Illustrative refuelling racetrack for KC-46/MRTT analysis.",
+      "color": "#f59e0b",
+      "url": "mil-patterns.geojson"
+    },
+    {
+      "id": "drone-cap-template",
+      "name": "Drone CAP template",
+      "description": "Illustrative CAP box for annotating a drone pattern.",
+      "color": "#a78bfa",
+      "url": "mil-patterns.geojson"
+    },
+    {
+      "id": "exercise-box-template",
+      "name": "Exercise box template",
+      "description": "Illustrative NOTAM/exercise box for analyst notes.",
+      "color": "#fb7185",
+      "url": "mil-patterns.geojson"
+    }
+  ]
+}

@@ -424,6 +424,15 @@
         .geofence-id { color: var(--accent); font-family: monospace; user-select: text; }
         .geofence-action { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 3px 5px; }
         .geofence-action:hover { color: var(--text); border-color: var(--accent); }
+        .curated-overlay-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin: 2px 0 8px; }
+        .curated-overlay-list { display: grid; gap: 5px; }
+        .curated-overlay-item { display: flex; align-items: center; gap: 7px; padding: 6px 8px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 5px; }
+        .curated-overlay-swatch { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+        .curated-overlay-info { flex: 1; min-width: 0; }
+        .curated-overlay-name { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .curated-overlay-description { color: var(--text-muted); font-size: 9px; line-height: 1.3; }
+        .curated-overlay-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 3px 6px; }
+        .curated-overlay-btn:hover { border-color: var(--accent); color: var(--text); }
         .api-status { font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 8px; text-align: center; }
         .api-status.connected { background: rgba(0,200,0,0.2); color: #4ade80; }
         .api-status.info { background: rgba(128,128,128,0.15); color: var(--text-dim); }
@@ -2038,6 +2047,11 @@ if ('serviceWorker' in navigator) {
             </div>
             <button class="btn-secondary" id="overlayClearBtn" style="width: 100%;">Clear all overlays</button>
             <div id="overlaysList" style="margin-top:8px;"></div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Curated Pattern Templates (X12)</div>
+            <div class="curated-overlay-help">Opt-in illustrative geometry for analyst annotation only. These templates are not live tasking, NOTAM boundaries, or authoritative airspace data.</div>
+            <div class="curated-overlay-list" id="curatedOverlayList"><div class="watchlist-empty">Loading templates…</div></div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Alert Webhook (X4)</div>
@@ -6118,6 +6132,7 @@ if ('serviceWorker' in navigator) {
         
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
+        await curatedOverlayManager.init();
         await geofenceManager.init();
         await piaRotationTimeline.init();
 
@@ -9909,6 +9924,98 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 const item = this.layers[idx];
                 if (item) { try { map.removeLayer(item.layer); } catch(_){} this.layers.splice(idx, 1); this.renderList(); }
             }));
+        }
+    };
+
+    // ============ X12: CURATED MILITARY PATTERN TEMPLATES ============
+    const curatedOverlayManager = {
+        manifestUrl: 'data/overlays/manifest.json',
+        presets: [],
+        layers: new Map(),
+
+        fallbackPresets: [
+            { id: 'awacs-orbit-template', name: 'AWACS orbit template', description: 'Illustrative racetrack for annotating an AWACS/E-3/E-7 pattern.', color: '#38bdf8', url: 'mil-patterns.geojson' },
+            { id: 'tanker-racetrack-template', name: 'Tanker racetrack template', description: 'Illustrative refuelling racetrack for KC-46/MRTT analysis.', color: '#f59e0b', url: 'mil-patterns.geojson' },
+            { id: 'drone-cap-template', name: 'Drone CAP template', description: 'Illustrative CAP box for annotating a drone pattern.', color: '#a78bfa', url: 'mil-patterns.geojson' },
+            { id: 'exercise-box-template', name: 'Exercise box template', description: 'Illustrative NOTAM/exercise box for analyst notes.', color: '#fb7185', url: 'mil-patterns.geojson' }
+        ],
+
+        normalizePreset(item) {
+            if (!item || !/^[a-z0-9-]{3,80}$/.test(String(item.id || ''))) return null;
+            const url = String(item.url || '').trim();
+            if (!url || url.startsWith('javascript:') || url.startsWith('data:')) return null;
+            return {
+                id: String(item.id),
+                name: String(item.name || item.id).slice(0, 80),
+                description: String(item.description || '').slice(0, 180),
+                color: /^#[0-9A-Fa-f]{6}$/.test(String(item.color || '')) ? String(item.color) : '#38bdf8',
+                url
+            };
+        },
+
+        async init() {
+            let manifest = null;
+            try {
+                const response = await fetchWithTimeout(this.manifestUrl, { cache: 'no-cache' }, 5000);
+                if (response?.ok) manifest = await response.json();
+            } catch (e) {}
+            const source = Array.isArray(manifest?.presets) ? manifest.presets : this.fallbackPresets;
+            this.presets = source.map(item => this.normalizePreset(item)).filter(Boolean);
+            this.render();
+            let saved = [];
+            try { saved = JSON.parse(localStorage.getItem('viptrack_curated_overlays_v1') || '[]'); } catch (e) {}
+            for (const id of Array.isArray(saved) ? saved : []) if (this.presets.some(preset => preset.id === id)) await this.setPreset(id, false);
+            this.render();
+        },
+
+        async setPreset(id, announce = true) {
+            const preset = this.presets.find(item => item.id === id);
+            if (!preset) return;
+            if (this.layers.has(id)) {
+                try { map.removeLayer(this.layers.get(id)); } catch (e) {}
+                this.layers.delete(id);
+                this.persist();
+                this.render();
+                if (announce) toast('Removed template: ' + preset.name);
+                return;
+            }
+            try {
+                const response = await fetchWithTimeout(new URL(preset.url, new URL(this.manifestUrl, location.href)).href, { cache: 'no-cache' }, 8000);
+                if (!response?.ok) throw new Error('Template unavailable');
+                const data = await response.json();
+                const layer = L.geoJSON(data, {
+                    filter: feature => feature?.properties?.presetId === preset.id,
+                    style: { color: preset.color, weight: 2, opacity: 0.9, fillColor: preset.color, fillOpacity: 0.12 },
+                    pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 5, color: preset.color, fillColor: preset.color, fillOpacity: 0.65 }),
+                    onEachFeature: (feature, featureLayer) => {
+                        const label = String(feature.properties?.name || preset.name);
+                        featureLayer.bindTooltip(safeHTML(label), { direction: 'top' });
+                    }
+                }).addTo(map);
+                this.layers.set(id, layer);
+                this.persist();
+                this.render();
+                if (announce) toast('Loaded template: ' + preset.name);
+            } catch (e) {
+                if (announce) toast('Could not load template: ' + preset.name);
+            }
+        },
+
+        persist() {
+            try { localStorage.setItem('viptrack_curated_overlays_v1', JSON.stringify(Array.from(this.layers.keys()))); } catch (e) {}
+        },
+
+        render() {
+            const container = document.getElementById('curatedOverlayList');
+            if (!container) return;
+            if (!this.presets.length) {
+                container.innerHTML = safeHTML('<div class="watchlist-empty">No templates available</div>');
+                return;
+            }
+            container.innerHTML = safeHTML(this.presets.map(preset => '<div class="curated-overlay-item"><span class="curated-overlay-swatch" style="background:' + preset.color + '"></span>' +
+                '<div class="curated-overlay-info"><div class="curated-overlay-name">' + preset.name + '</div><div class="curated-overlay-description">' + preset.description + '</div></div>' +
+                '<button class="curated-overlay-btn" type="button" data-id="' + preset.id + '">' + (this.layers.has(preset.id) ? 'On' : 'Load') + '</button></div>').join(''));
+            container.querySelectorAll('.curated-overlay-btn').forEach(button => button.addEventListener('click', () => this.setPreset(button.dataset.id)));
         }
     };
 

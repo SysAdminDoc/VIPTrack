@@ -1,0 +1,62 @@
+{
+  "type": "FeatureCollection",
+  "name": "VIPTrack illustrative military pattern templates",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "presetId": "awacs-orbit-template",
+        "name": "Illustrative AWACS orbit template",
+        "template": true,
+        "verified": false,
+        "source": "VIPTrack generic geometry template"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[8.0, 50.0], [8.8, 50.4], [9.6, 50.0], [8.8, 49.6], [8.0, 50.0]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "presetId": "tanker-racetrack-template",
+        "name": "Illustrative tanker racetrack template",
+        "template": true,
+        "verified": false,
+        "source": "VIPTrack generic geometry template"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-3.0, 42.0], [-2.0, 42.2], [-1.0, 42.0], [-2.0, 41.8], [-3.0, 42.0]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "presetId": "drone-cap-template",
+        "name": "Illustrative drone CAP template",
+        "template": true,
+        "verified": false,
+        "source": "VIPTrack generic geometry template"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-115.2, 35.1], [-114.6, 35.1], [-114.6, 35.7], [-115.2, 35.7], [-115.2, 35.1]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "presetId": "exercise-box-template",
+        "name": "Illustrative exercise box template",
+        "template": true,
+        "verified": false,
+        "source": "VIPTrack generic geometry template"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[1.5, 51.0], [3.5, 51.0], [3.5, 52.0], [1.5, 52.0], [1.5, 51.0]]]
+      }
+    }
+  ]
+}
