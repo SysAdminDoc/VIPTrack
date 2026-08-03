@@ -52,6 +52,30 @@ class VipTrackContracts(unittest.TestCase):
     def test_csp_covers_tfr_mirror(self) -> None:
         self.assertIn("https://tfr2go.com", self.source)
 
+    def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
+        for marker in (
+            "namedWatchlists: new Map()",
+            "normalizeNamedRules",
+            "matchesNamedRules",
+            "named_watchlists",
+            "namedWatchlistGeofences",
+            "this.triggerAlert(ac, 'WATCHLIST', list.name + ' matched', 'named_' + list.id)",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertRegex(self.source, r"rules\.hexes\.length")
+        self.assertRegex(self.source, r"rules\.callsignRegex")
+        self.assertRegex(self.source, r"rules\.types\.length")
+        self.assertRegex(self.source, r"rules\.countries\.length")
+        self.assertRegex(self.source, r"rules\.altMin")
+        self.assertRegex(self.source, r"rules\.geofences\.length")
+
+    def test_named_watchlist_dynamic_markup_uses_safe_html(self) -> None:
+        marker = "updateNamedWatchlistUI()"
+        start = self.source.index(marker)
+        end = self.source.index("// ============ WEATHER SYSTEM", start)
+        section = self.source[start:end]
+        self.assertIn("container.innerHTML = safeHTML(items)", section)
+
 
 if __name__ == "__main__":
     unittest.main()

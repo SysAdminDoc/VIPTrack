@@ -395,6 +395,17 @@
         .settings-input { width: 100%; padding: 8px 10px; background: rgba(128,128,128,0.15); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; font-family: monospace; outline: none; margin-bottom: 8px; }
         .settings-btn { width: 100%; padding: 8px 12px; background: var(--accent); border: none; border-radius: 6px; color: #000; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; }
         .settings-btn.secondary { background: rgba(128,128,128,0.2); color: var(--text); }
+        .named-watchlist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .named-watchlist-grid .settings-input { min-width: 0; margin-bottom: 4px; }
+        .named-watchlist-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin: 2px 0 8px; }
+        .named-watchlist-list { display: grid; gap: 5px; margin-top: 10px; }
+        .named-watchlist-item { display: flex; gap: 6px; align-items: center; padding: 6px 8px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 5px; }
+        .named-watchlist-item.disabled { opacity: 0.55; }
+        .named-watchlist-info { flex: 1; min-width: 0; }
+        .named-watchlist-name { font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .named-watchlist-rules { color: var(--text-muted); font-size: 9px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .named-watchlist-action { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 3px 5px; }
+        .named-watchlist-action:hover { color: var(--text); border-color: var(--accent); }
         .api-status { font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 8px; text-align: center; }
         .api-status.connected { background: rgba(0,200,0,0.2); color: #4ade80; }
         .api-status.info { background: rgba(128,128,128,0.15); color: var(--text-dim); }
@@ -1944,6 +1955,22 @@ if ('serviceWorker' in navigator) {
             </div>
         </div>
         <div class="settings-section">
+            <div class="settings-section-title">Named Watchlists (X2)</div>
+            <div class="named-watchlist-help">All filled rules must match. Hexes, types, countries, and geofences accept comma-separated values; type values also match their ICAO prefix.</div>
+            <input type="text" id="namedWatchlistName" class="settings-input" placeholder="List name (e.g. Air Force One)" maxlength="80">
+            <div class="named-watchlist-grid">
+                <input type="text" id="namedWatchlistHexes" class="settings-input" placeholder="Hexes: AE1234, 43C001" maxlength="800">
+                <input type="text" id="namedWatchlistTypes" class="settings-input" placeholder="Types: B52, KC46" maxlength="240">
+                <input type="text" id="namedWatchlistRegex" class="settings-input" placeholder="Callsign regex: ^RCH" maxlength="256">
+                <input type="text" id="namedWatchlistCountries" class="settings-input" placeholder="Countries: US, UK" maxlength="160">
+                <input type="number" id="namedWatchlistAltMin" class="settings-input" placeholder="Min altitude (ft)" min="-2000" max="100000" step="100">
+                <input type="number" id="namedWatchlistAltMax" class="settings-input" placeholder="Max altitude (ft)" min="-2000" max="100000" step="100">
+            </div>
+            <input type="text" id="namedWatchlistGeofences" class="settings-input" placeholder="Geofence IDs (optional)" maxlength="240">
+            <button class="settings-btn" id="namedWatchlistAddBtn" type="button">Create named watchlist</button>
+            <div class="named-watchlist-list" id="namedWatchlistList"><div class="watchlist-empty">No named watchlists yet</div></div>
+        </div>
+        <div class="settings-section">
             <div class="settings-section-title">Data Sources (Phase 16)</div>
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
             <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;">Check All Sources</button>
@@ -3215,6 +3242,7 @@ if ('serviceWorker' in navigator) {
         soundEnabled: true,
         notificationsEnabled: false,
         watchlist: new Map(),
+        namedWatchlists: new Map(),
         alertHistory: new Set(),
         militaryAlertRadius: 50,
         userLocation: null,
@@ -3225,6 +3253,135 @@ if ('serviceWorker' in navigator) {
             WATCHLIST: { icon: '*', color: '#ffd700', sound: 'chime', priority: 2, cooldown: 300000 },
             MILITARY: { icon: '#', color: '#4a90d9', sound: 'blip', priority: 3, cooldown: 600000 },
             INTERESTING: { icon: '+', color: '#a855f7', sound: 'soft', priority: 4, cooldown: 600000 }
+        },
+
+        splitRuleValues(value) {
+            const values = Array.isArray(value) ? value : String(value ?? '').split(/[\s,]+/);
+            return [...new Set(values.map(item => String(item).trim()).filter(Boolean))];
+        },
+
+        normalizeNamedRules(rules = {}) {
+            const numberOrNull = value => value === '' || value === null || value === undefined || !Number.isFinite(Number(value)) ? null : Number(value);
+            let altMin = numberOrNull(rules.altMin), altMax = numberOrNull(rules.altMax);
+            if (altMin !== null && altMax !== null && altMin > altMax) [altMin, altMax] = [altMax, altMin];
+            return {
+                hexes: this.splitRuleValues(rules.hexes).map(value => value.toUpperCase()).filter(value => /^[0-9A-F]{6}$/.test(value)),
+                callsignRegex: String(rules.callsignRegex ?? '').trim().slice(0, 256),
+                types: this.splitRuleValues(rules.types).map(value => value.toUpperCase()).slice(0, 32),
+                countries: this.splitRuleValues(rules.countries).map(value => value.toUpperCase()).slice(0, 32),
+                altMin,
+                altMax,
+                geofences: this.splitRuleValues(rules.geofences).slice(0, 32)
+            };
+        },
+
+        normalizeNamedWatchlist(item) {
+            if (!item || !String(item.name ?? '').trim()) return null;
+            return {
+                id: String(item.id || ('named_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8))).slice(0, 100),
+                name: String(item.name).trim().slice(0, 80),
+                enabled: item.enabled !== false,
+                rules: this.normalizeNamedRules(item.rules || {}),
+                createdAt: Number(item.createdAt) || Date.now()
+            };
+        },
+
+        validateNamedRules(rules) {
+            if (rules.callsignRegex) {
+                try { new RegExp(rules.callsignRegex, 'i'); } catch (e) { return 'Callsign regex is invalid'; }
+            }
+            const hasRule = rules.hexes.length || rules.callsignRegex || rules.types.length || rules.countries.length || rules.altMin !== null || rules.altMax !== null || rules.geofences.length;
+            return hasRule ? '' : 'Add at least one matching rule';
+        },
+
+        async loadNamedWatchlists() {
+            let saved = null;
+            try { saved = await skytrackDB.loadUserData('named_watchlists'); } catch (e) {}
+            if (!Array.isArray(saved)) {
+                try { saved = JSON.parse(localStorage.getItem('viptrack_named_watchlists') || 'null'); } catch (e) { saved = null; }
+            }
+            if (Array.isArray(saved)) {
+                saved.forEach(item => {
+                    const normalized = this.normalizeNamedWatchlist(item);
+                    if (normalized && !this.validateNamedRules(normalized.rules)) this.namedWatchlists.set(normalized.id, normalized);
+                });
+            }
+        },
+
+        async saveNamedWatchlists() {
+            const data = Array.from(this.namedWatchlists.values());
+            try {
+                await skytrackDB.saveUserData('named_watchlists', data);
+            } catch (e) {
+                localStorage.setItem('viptrack_named_watchlists', JSON.stringify(data));
+            }
+        },
+
+        createNamedWatchlist(name, rawRules) {
+            const normalizedName = String(name || '').trim().slice(0, 80);
+            if (!normalizedName) { toast('Enter a watchlist name'); return null; }
+            const rules = this.normalizeNamedRules(rawRules);
+            const validationError = this.validateNamedRules(rules);
+            if (validationError) { toast(validationError); return null; }
+            const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'named_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            const entry = { id, name: normalizedName, enabled: true, rules, createdAt: Date.now() };
+            this.namedWatchlists.set(id, entry);
+            this.saveNamedWatchlists();
+            this.updateNamedWatchlistUI();
+            toast('Created named watchlist: ' + normalizedName);
+            return entry;
+        },
+
+        toggleNamedWatchlist(id) {
+            const entry = this.namedWatchlists.get(id);
+            if (!entry) return;
+            entry.enabled = !entry.enabled;
+            this.saveNamedWatchlists();
+            this.updateNamedWatchlistUI();
+        },
+
+        removeNamedWatchlist(id) {
+            const entry = this.namedWatchlists.get(id);
+            if (!entry) return;
+            this.namedWatchlists.delete(id);
+            this.saveNamedWatchlists();
+            this.updateNamedWatchlistUI();
+            toast('Removed named watchlist: ' + entry.name);
+        },
+
+        matchesNamedRules(ac, rules) {
+            if (!ac || !rules) return false;
+            if (rules.hexes.length && !rules.hexes.includes(String(ac.hex || '').toUpperCase())) return false;
+            if (rules.callsignRegex) {
+                let matches = false;
+                try { matches = new RegExp(rules.callsignRegex, 'i').test(String(ac.flight || '').trim()); } catch (e) { return false; }
+                if (!matches) return false;
+            }
+            const typeValues = [ac.t, ac.desc, ac.category, ac.category_type, ac.interesting?.type, ac.militaryInfo?.type].filter(Boolean).map(value => String(value).toUpperCase());
+            if (rules.types.length && !rules.types.some(rule => typeValues.some(value => value === rule || value.startsWith(rule)))) return false;
+            const countryValues = [ac.country, ac.interesting?.country, ac.militaryInfo?.country, ac.militaryRangeInfo?.country, ac.civilianInteresting?.country].filter(Boolean).map(value => String(value).toUpperCase());
+            if (rules.countries.length && !rules.countries.some(rule => countryValues.includes(rule))) return false;
+            if (rules.altMin !== null || rules.altMax !== null) {
+                const altitude = typeof ac.alt_baro === 'number' ? ac.alt_baro : typeof ac.alt_geom === 'number' ? ac.alt_geom : ac.alt_baro === 'ground' ? 0 : null;
+                if (altitude === null || (rules.altMin !== null && altitude < rules.altMin) || (rules.altMax !== null && altitude > rules.altMax)) return false;
+            }
+            if (rules.geofences.length) {
+                let manager = null;
+                try { manager = geofenceManager; } catch (e) {}
+                if (!manager || typeof manager.contains !== 'function' || !rules.geofences.some(id => manager.contains(ac, id))) return false;
+            }
+            return true;
+        },
+
+        namedRulesSummary(rules) {
+            const summary = [];
+            if (rules.hexes.length) summary.push(rules.hexes.length + ' hex' + (rules.hexes.length === 1 ? '' : 'es'));
+            if (rules.callsignRegex) summary.push('callsign /' + rules.callsignRegex + '/');
+            if (rules.types.length) summary.push('type ' + rules.types.join(', '));
+            if (rules.countries.length) summary.push('country ' + rules.countries.join(', '));
+            if (rules.altMin !== null || rules.altMax !== null) summary.push('alt ' + (rules.altMin ?? '0') + '-' + (rules.altMax ?? '∞') + 'ft');
+            if (rules.geofences.length) summary.push('geofence ' + rules.geofences.join(', '));
+            return summary.join(' · ');
         },
         
         async init() {
@@ -3239,6 +3396,8 @@ if ('serviceWorker' in navigator) {
                     JSON.parse(ls).forEach(item => this.watchlist.set(item.hex.toUpperCase(), item));
                 }
             }
+
+            await this.loadNamedWatchlists();
             
             const settings = JSON.parse(localStorage.getItem('viptrack_alert_settings') || '{}');
             this.enabled = settings.enabled !== false;
@@ -3247,8 +3406,9 @@ if ('serviceWorker' in navigator) {
             this.notificationsEnabled = settings.notificationsEnabled && Notification.permission === 'granted';
             
             this.startLocationTracking();
-            _dbg('Alert system initialized:', this.watchlist.size, 'watched aircraft');
+            _dbg('Alert system initialized:', this.watchlist.size, 'watched aircraft and', this.namedWatchlists.size, 'named watchlists');
             this.updateWatchlistUI();
+            this.updateNamedWatchlistUI();
         },
         
         startLocationTracking() {
@@ -3319,6 +3479,11 @@ if ('serviceWorker' in navigator) {
                 const entry = this.getWatchedEntry(ac.hex);
                 this.triggerAlert(ac, 'WATCHLIST', entry.name + ' is active');
             }
+
+            this.namedWatchlists.forEach(list => {
+                if (!list.enabled || !this.matchesNamedRules(ac, list.rules)) return;
+                this.triggerAlert(ac, 'WATCHLIST', list.name + ' matched', 'named_' + list.id);
+            });
             
             if (this.userLocation && this.militaryAlertRadius > 0) {
                 if (ac.militaryInfo || ac.militaryRangeInfo) {
@@ -3339,9 +3504,9 @@ if ('serviceWorker' in navigator) {
             }
         },
         
-        triggerAlert(ac, type, message) {
+        triggerAlert(ac, type, message, keySuffix = '') {
             const alertType = this.ALERT_TYPES[type];
-            const alertKey = type + '_' + ac.hex;
+            const alertKey = type + '_' + ac.hex + (keySuffix ? '_' + keySuffix : '');
             const lastTime = this.lastAlertTime[alertKey] || 0;
             if (Date.now() - lastTime < alertType.cooldown) return;
             this.lastAlertTime[alertKey] = Date.now();
@@ -3516,6 +3681,31 @@ if ('serviceWorker' in navigator) {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.removeFromWatchlist(btn.dataset.hex);
+                });
+            });
+        },
+
+        updateNamedWatchlistUI() {
+            const container = document.getElementById('namedWatchlistList');
+            if (!container) return;
+            if (this.namedWatchlists.size === 0) {
+                container.innerHTML = safeHTML('<div class="watchlist-empty">No named watchlists yet</div>');
+                return;
+            }
+            const items = Array.from(this.namedWatchlists.values())
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .map(entry => '<div class="named-watchlist-item' + (entry.enabled ? '' : ' disabled') + '" data-id="' + entry.id + '">' +
+                    '<div class="named-watchlist-info"><div class="named-watchlist-name">' + entry.name + '</div>' +
+                    '<div class="named-watchlist-rules">' + this.namedRulesSummary(entry.rules) + '</div></div>' +
+                    '<button class="named-watchlist-action" data-action="toggle" type="button">' + (entry.enabled ? 'On' : 'Off') + '</button>' +
+                    '<button class="named-watchlist-action" data-action="remove" type="button" aria-label="Remove ' + entry.name + '">x</button></div>')
+                .join('');
+            container.innerHTML = safeHTML(items);
+            container.querySelectorAll('.named-watchlist-action').forEach(button => {
+                button.addEventListener('click', () => {
+                    const id = button.closest('.named-watchlist-item')?.dataset.id;
+                    if (button.dataset.action === 'remove') this.removeNamedWatchlist(id);
+                    else this.toggleNamedWatchlist(id);
                 });
             });
         }
@@ -7143,6 +7333,23 @@ if ('serviceWorker' in navigator) {
             alertSystem.militaryAlertRadius = parseInt(this.value);
             alertSystem.saveSettings();
             toast(this.value === '0' ? 'Military alerts disabled' : 'Military alerts: ' + this.value + 'km radius');
+        });
+
+        // X2: Named watchlist rule editor
+        document.getElementById('namedWatchlistAddBtn')?.addEventListener('click', () => {
+            const value = id => document.getElementById(id)?.value || '';
+            const entry = alertSystem.createNamedWatchlist(value('namedWatchlistName'), {
+                hexes: value('namedWatchlistHexes'),
+                callsignRegex: value('namedWatchlistRegex'),
+                types: value('namedWatchlistTypes'),
+                countries: value('namedWatchlistCountries'),
+                altMin: value('namedWatchlistAltMin'),
+                altMax: value('namedWatchlistAltMax'),
+                geofences: value('namedWatchlistGeofences')
+            });
+            if (entry) {
+                ['namedWatchlistName', 'namedWatchlistHexes', 'namedWatchlistRegex', 'namedWatchlistTypes', 'namedWatchlistCountries', 'namedWatchlistAltMin', 'namedWatchlistAltMax', 'namedWatchlistGeofences'].forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+            }
         });
         
         // Phase 16: Data source and reliability handlers
