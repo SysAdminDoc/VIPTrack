@@ -94,6 +94,25 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("layer.bindTooltip(safeHTML(geofence.name)", geofence_section)
         self.assertIn("container.innerHTML = safeHTML(items)", geofence_section)
 
+    def test_pia_rotation_timeline_is_local_and_privacy_safe(self) -> None:
+        for marker in (
+            "const piaRotationTimeline =",
+            "windowMs: 20 * 86400000",
+            "profileKey(ac)",
+            "pia_rotation_timeline",
+            "PIA rotation timeline",
+            "public PIA addresses observed within the 20-day rotation window",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const piaRotationTimeline =")
+        end = self.source.index("// ============ AIRPORT FREQUENCIES DATABASE", start)
+        section = self.source[start:end]
+        self.assertIn("flight", section)
+        self.assertIn("ac?.t", section)
+        self.assertNotIn("ac.r", section)
+        self.assertNotIn("ac.ownOp", section)
+        self.assertIn("list.innerHTML = safeHTML", section)
+
 
 if __name__ == "__main__":
     unittest.main()

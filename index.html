@@ -368,6 +368,12 @@
         .interesting-section { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 179, 8, 0.05)); border-left: 2px solid var(--historic); }
         .interesting-section.pia { background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(219, 39, 119, 0.05)); border-left: 3px solid var(--pia); }
         .interesting-section.vip { background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 170, 0, 0.08)); border-left: 3px solid var(--vip); }
+        .pia-rotation-section { background: rgba(236, 72, 153, 0.06); border-left: 3px solid var(--pia); }
+        .pia-rotation-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-bottom: 7px; }
+        .pia-rotation-list { display: grid; gap: 4px; }
+        .pia-rotation-item { display: flex; justify-content: space-between; gap: 8px; padding: 5px 7px; background: var(--bg-darker); border-radius: 4px; font-size: 10px; }
+        .pia-rotation-hex { color: var(--accent); font-family: monospace; font-weight: 600; }
+        .pia-rotation-time { color: var(--text-muted); text-align: right; }
         .interesting-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 600; color: var(--historic); }
         .interesting-header.pia { color: var(--pia); }
         .interesting-header.vip { color: var(--vip); }
@@ -1775,6 +1781,11 @@ if ('serviceWorker' in navigator) {
                 <div class="info-row"><span class="info-label">Tag</span><span class="info-value" id="interestingTag">---</span></div>
                 <div class="info-row"><span class="info-label">Operator</span><span class="info-value" id="interestingOperator">---</span></div>
                 <div id="categoryBadgeRow" style="margin-top: 8px;"></div>
+            </div>
+            <div class="info-section pia-rotation-section" id="piaRotationSection" style="display:none;">
+                <div class="interesting-header pia"><span class="interesting-icon">↻</span><span class="interesting-title">PIA rotation timeline</span></div>
+                <div class="pia-rotation-help">Local anonymised profile; public PIA addresses observed within the 20-day rotation window.</div>
+                <div class="pia-rotation-list" id="piaRotationList"></div>
             </div>
             <div class="info-section" id="routeSection" style="display:none;">
                 <div class="route-display">
@@ -4855,6 +4866,108 @@ if ('serviceWorker' in navigator) {
         return isPrivacyProtectedAircraft(ac) ? 'PIA — operator anonymised' : (ac?.r || 'N/A');
     }
 
+    // ============ X7: PRIVACY-SAFE PIA ROTATION TIMELINE ============
+    // Correlation is deliberately limited to an opaque local fingerprint of callsign + type.
+    // Registration and operator fields are never read, stored, or displayed here.
+    const piaRotationTimeline = {
+        windowMs: 20 * 86400000,
+        profiles: new Map(),
+        saveTimer: null,
+
+        hash(value) {
+            let hash = 2166136261;
+            for (let i = 0; i < value.length; i++) {
+                hash ^= value.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(16).padStart(8, '0');
+        },
+
+        profileKey(ac) {
+            const callsign = String(ac?.flight || '').trim().toUpperCase();
+            const type = String(ac?.t || '').trim().toUpperCase();
+            if (!callsign || !type) return null;
+            return 'pia_' + this.hash(callsign + '|' + type);
+        },
+
+        async init() {
+            let saved = null;
+            try { saved = await skytrackDB.loadUserData('pia_rotation_timeline'); } catch (e) {}
+            if (!Array.isArray(saved)) {
+                try { saved = JSON.parse(localStorage.getItem('viptrack_pia_rotation_v1') || 'null'); } catch (e) { saved = null; }
+            }
+            const profiles = Array.isArray(saved) ? saved : Array.isArray(saved?.profiles) ? saved.profiles : [];
+            profiles.forEach(profile => {
+                if (!profile?.key || !Array.isArray(profile.sightings)) return;
+                const sightings = profile.sightings.filter(item => /^[0-9A-F]{6}$/.test(String(item.hex || '').toUpperCase()) && Number.isFinite(Number(item.lastSeen)));
+                if (sightings.length) this.profiles.set(String(profile.key), { key: String(profile.key), sightings });
+            });
+            this.prune(Date.now());
+        },
+
+        prune(now = Date.now()) {
+            const cutoff = now - this.windowMs;
+            this.profiles.forEach((profile, key) => {
+                profile.sightings = profile.sightings.filter(item => Number(item.lastSeen) >= cutoff).slice(-20);
+                if (!profile.sightings.length) this.profiles.delete(key);
+            });
+        },
+
+        scheduleSave() {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = setTimeout(() => this.save(), 1000);
+        },
+
+        async save() {
+            const data = Array.from(this.profiles.values());
+            try {
+                await skytrackDB.saveUserData('pia_rotation_timeline', data);
+            } catch (e) {
+                try { localStorage.setItem('viptrack_pia_rotation_v1', JSON.stringify(data)); } catch (e2) {}
+            }
+        },
+
+        record(ac) {
+            if (!isPrivacyProtectedAircraft(ac)) return null;
+            const key = this.profileKey(ac);
+            if (!key) return null;
+            const hex = String(ac.hex || '').toUpperCase();
+            if (!/^[0-9A-F]{6}$/.test(hex)) return null;
+            const seenAt = Number.isFinite(Number(ac.lastSeen)) ? Number(ac.lastSeen) : Date.now();
+            let profile = this.profiles.get(key);
+            if (!profile) { profile = { key, sightings: [] }; this.profiles.set(key, profile); }
+            let sighting = profile.sightings.find(item => item.hex === hex);
+            if (!sighting) { sighting = { hex, firstSeen: seenAt, lastSeen: seenAt }; profile.sightings.push(sighting); }
+            sighting.firstSeen = Math.min(Number(sighting.firstSeen) || seenAt, seenAt);
+            sighting.lastSeen = Math.max(Number(sighting.lastSeen) || seenAt, seenAt);
+            this.prune(seenAt);
+            this.scheduleSave();
+            if (typeof selectedHex !== 'undefined' && selectedHex === hex) this.render(ac);
+            return profile;
+        },
+
+        formatTime(timestamp) {
+            const date = new Date(Number(timestamp));
+            return Number.isNaN(date.getTime()) ? 'unknown' : date.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+
+        render(ac) {
+            const section = document.getElementById('piaRotationSection');
+            const list = document.getElementById('piaRotationList');
+            if (!section || !list) return;
+            if (!isPrivacyProtectedAircraft(ac)) { section.style.display = 'none'; list.innerHTML = safeHTML(''); return; }
+            section.style.display = 'block';
+            const key = this.profileKey(ac);
+            const profile = key ? this.profiles.get(key) : null;
+            const sightings = profile ? [...profile.sightings].sort((a, b) => b.lastSeen - a.lastSeen) : [];
+            if (!sightings.length) {
+                list.innerHTML = safeHTML('<div class="pia-rotation-help">Needs a callsign and type before a local rotation profile can be correlated.</div>');
+                return;
+            }
+            list.innerHTML = safeHTML(sightings.map(item => '<div class="pia-rotation-item"><span class="pia-rotation-hex">' + item.hex + (item.hex === ac.hex ? ' · current' : '') + '</span><span class="pia-rotation-time">' + this.formatTime(item.lastSeen) + '</span></div>').join(''));
+        }
+    };
+
     // ============ AIRPORT FREQUENCIES DATABASE ============
     const frequencyDB = {
         frequencies: new Map(),
@@ -6006,6 +6119,7 @@ if ('serviceWorker' in navigator) {
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
         await geofenceManager.init();
+        await piaRotationTimeline.init();
 
         // X25: extended URL filter API — supports ?center=lat,lng&zoom=n&focus=HEX&type=B52
         try {
@@ -6080,7 +6194,7 @@ if ('serviceWorker' in navigator) {
         
         if (hadCache && Object.keys(aircraftCache).length) {
             setLoadingProgress(85, 'Restoring aircraft...');
-            Object.values(aircraftCache).forEach(ac => { ac._enriched = false; _enrichAircraft(ac, ac.hex); });
+            Object.values(aircraftCache).forEach(ac => { ac._enriched = false; _enrichAircraft(ac, ac.hex); piaRotationTimeline.record(ac); });
             updateCounts(); updateMarkersSync();
         }
         
@@ -6288,6 +6402,7 @@ if ('serviceWorker' in navigator) {
                 
                 // Re-classify (depends on mutable fields like altitude, squawk)
                 existing.category_type = classifyAircraft(existing);
+                piaRotationTimeline.record(existing);
                 alertSystem.checkAircraft(existing);
             } else {
                 // New aircraft — full initialization + enrichment
@@ -6304,6 +6419,7 @@ if ('serviceWorker' in navigator) {
                 const isPia = !!cached.piaInfo;
                 if (!isMil && !isVip && !isPia) return; // VIPTrack: skip non-military/VIP/PIA aircraft entirely
                 aircraftCache[hex] = cached;
+                piaRotationTimeline.record(cached);
             }
             } catch(e) { _dbg('Error processing aircraft', ac?.hex, e); }
         });
@@ -7000,6 +7116,7 @@ if ('serviceWorker' in navigator) {
         _selectLock = Date.now();
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
         selectedHex = hex; const ac = aircraftCache[hex]; if (!ac) return;
+        piaRotationTimeline.render(ac);
         document.getElementById('infoCallsign').textContent = ac.flight || 'N/A'; document.getElementById('infoHex').textContent = ac.hex; document.getElementById('infoReg').textContent = getDisplayRegistration(ac);
         const typeDesc = aircraftTypeDB.getDescription(ac.t); document.getElementById('infoType').textContent = typeDesc || ac.t || 'N/A';
         const descRow = document.getElementById('infoDescRow'); if (ac.desc) { document.getElementById('infoDesc').textContent = ac.desc; descRow.style.display = 'flex'; } else descRow.style.display = 'none';
