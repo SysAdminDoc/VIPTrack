@@ -10,7 +10,7 @@
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com;
+        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com;
         worker-src 'self' blob:;
         manifest-src 'self' blob:;
         frame-ancestors 'self';
@@ -433,6 +433,11 @@
         .curated-overlay-description { color: var(--text-muted); font-size: 9px; line-height: 1.3; }
         .curated-overlay-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 3px 6px; }
         .curated-overlay-btn:hover { border-color: var(--accent); color: var(--text); }
+        .receiver-coverage-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin: 2px 0 8px; }
+        .receiver-coverage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+        .receiver-coverage-actions { display: flex; gap: 5px; margin-top: 6px; }
+        .receiver-coverage-actions button { flex: 1; }
+        .receiver-coverage-status { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: 7px; min-height: 14px; }
         .api-status { font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 8px; text-align: center; }
         .api-status.connected { background: rgba(0,200,0,0.2); color: #4ade80; }
         .api-status.info { background: rgba(128,128,128,0.15); color: var(--text-dim); }
@@ -2007,6 +2012,20 @@ if ('serviceWorker' in navigator) {
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
             <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;">Check All Sources</button>
             <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;">Clear Offline Cache</button>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">Receiver Coverage (X13)</div>
+            <div class="receiver-coverage-help">Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.</div>
+            <input type="url" id="receiverCoverageUrl" class="settings-input" placeholder="http://receiver.local/tar1090" maxlength="320" autocomplete="off">
+            <div class="receiver-coverage-grid">
+                <input type="number" id="receiverCoverageLat" class="settings-input" placeholder="Latitude fallback" min="-90" max="90" step="0.000001">
+                <input type="number" id="receiverCoverageLon" class="settings-input" placeholder="Longitude fallback" min="-180" max="180" step="0.000001">
+            </div>
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="receiverCoverageLoadBtn" type="button">Load coverage</button>
+                <button class="btn-secondary" id="receiverCoverageClearBtn" type="button">Clear</button>
+            </div>
+            <div class="receiver-coverage-status" id="receiverCoverageStatus" role="status" aria-live="polite">No receiver coverage loaded</div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Map &amp; Tools</div>
@@ -6133,6 +6152,7 @@ if ('serviceWorker' in navigator) {
         setLoadingProgress(80, 'Initializing map...');
         initMap(); initUI();
         await curatedOverlayManager.init();
+        receiverCoverageManager.init();
         await geofenceManager.init();
         await piaRotationTimeline.init();
 
@@ -7658,6 +7678,10 @@ if ('serviceWorker' in navigator) {
             else toast('Enter a URL');
         });
         document.getElementById('overlayClearBtn')?.addEventListener('click', () => geojsonLoader.clear());
+
+        // X13: direct tar1090/readsb receiver coverage
+        document.getElementById('receiverCoverageLoadBtn')?.addEventListener('click', () => receiverCoverageManager.load());
+        document.getElementById('receiverCoverageClearBtn')?.addEventListener('click', () => receiverCoverageManager.clear());
 
         // X4: Webhook
         const _wkUrl = document.getElementById('webhookUrl');
@@ -10016,6 +10040,198 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 '<div class="curated-overlay-info"><div class="curated-overlay-name">' + preset.name + '</div><div class="curated-overlay-description">' + preset.description + '</div></div>' +
                 '<button class="curated-overlay-btn" type="button" data-id="' + preset.id + '">' + (this.layers.has(preset.id) ? 'On' : 'Load') + '</button></div>').join(''));
             container.querySelectorAll('.curated-overlay-btn').forEach(button => button.addEventListener('click', () => this.setPreset(button.dataset.id)));
+        }
+    };
+
+    // ============ X13: RECEIVER COVERAGE POLYGON ============
+    // Read common tar1090/readsb JSON directly from an operator-supplied URL.
+    // The polygon is directional observed range, not a promise of RF coverage.
+    const receiverCoverageManager = {
+        storageKey: 'viptrack_receiver_coverage_v1',
+        baseUrl: '',
+        layer: null,
+        receiverMarker: null,
+        sectorCount: 36,
+        maxAgeSeconds: 15 * 60,
+
+        init() {
+            let saved = null;
+            try { saved = JSON.parse(localStorage.getItem(this.storageKey) || 'null'); } catch (e) {}
+            const urlInput = document.getElementById('receiverCoverageUrl');
+            const latInput = document.getElementById('receiverCoverageLat');
+            const lonInput = document.getElementById('receiverCoverageLon');
+            if (urlInput && typeof saved?.url === 'string') urlInput.value = saved.url.slice(0, 320);
+            if (latInput && Number.isFinite(Number(saved?.lat))) latInput.value = saved.lat;
+            if (lonInput && Number.isFinite(Number(saved?.lon))) lonInput.value = saved.lon;
+        },
+
+        _number(value, min, max) {
+            const number = Number(value);
+            return Number.isFinite(number) && number >= min && number <= max ? number : null;
+        },
+
+        _normalizeUrl(value) {
+            try {
+                const url = new URL(String(value || '').trim());
+                if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+                url.hash = '';
+                return url.href.replace(/\/+$/, '');
+            } catch (e) { return null; }
+        },
+
+        _endpoint(baseUrl, file) {
+            const url = new URL(baseUrl);
+            url.search = '';
+            url.hash = '';
+            let path = url.pathname || '/';
+            const lower = path.toLowerCase();
+            const dataIndex = lower.lastIndexOf('/data/');
+            if (dataIndex >= 0) path = path.slice(0, dataIndex + 6);
+            else if (lower.endsWith('/data')) path += '/';
+            else path = path.replace(/\/+$/, '') + '/data/';
+            url.pathname = path + file;
+            return url.href;
+        },
+
+        async _fetchJson(url) {
+            const response = await fetchWithTimeout(url, { cache: 'no-cache' }, 8000);
+            if (!response?.ok) throw new Error('HTTP ' + (response?.status || 0));
+            const data = await response.json();
+            if (!data || typeof data !== 'object') throw new Error('Invalid JSON');
+            return data;
+        },
+
+        _receiver(data) {
+            const source = data?.receiver && typeof data.receiver === 'object' ? data.receiver : data;
+            const lat = this._number(source?.lat ?? source?.latitude, -90, 90);
+            const lon = this._number(source?.lon ?? source?.lng ?? source?.longitude, -180, 180);
+            return lat === null || lon === null ? null : { lat, lon };
+        },
+
+        _statsMaxKm(data) {
+            // graphs1090/readsb reports last1min.max_distance in metres.
+            const candidates = [data?.last1min?.max_distance, data?.now?.max_distance, data?.max_distance];
+            for (const value of candidates) {
+                const metres = Number(value);
+                if (Number.isFinite(metres) && metres > 0) return Math.min(4000, metres / 1000);
+            }
+            return 0;
+        },
+
+        _bearing(fromLat, fromLon, toLat, toLon) {
+            const lat1 = fromLat * Math.PI / 180;
+            const lat2 = toLat * Math.PI / 180;
+            const dLon = (toLon - fromLon) * Math.PI / 180;
+            const y = Math.sin(dLon) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        },
+
+        _destination(lat, lon, bearing, distanceKm) {
+            const radius = 6371;
+            const angular = distanceKm / radius;
+            const bearingRad = bearing * Math.PI / 180;
+            const latRad = lat * Math.PI / 180;
+            const lonRad = lon * Math.PI / 180;
+            const destinationLat = Math.asin(Math.sin(latRad) * Math.cos(angular) + Math.cos(latRad) * Math.sin(angular) * Math.cos(bearingRad));
+            const destinationLon = lonRad + Math.atan2(Math.sin(bearingRad) * Math.sin(angular) * Math.cos(latRad), Math.cos(angular) - Math.sin(latRad) * Math.sin(destinationLat));
+            return [destinationLat * 180 / Math.PI, ((destinationLon * 180 / Math.PI + 540) % 360) - 180];
+        },
+
+        _setStatus(message) {
+            const status = document.getElementById('receiverCoverageStatus');
+            if (status) status.textContent = message;
+        },
+
+        _saveInputs(url, lat, lon) {
+            try { localStorage.setItem(this.storageKey, JSON.stringify({ url, lat, lon })); } catch (e) {}
+        },
+
+        _clearLayers() {
+            if (this.layer) { try { map.removeLayer(this.layer); } catch (e) {} }
+            if (this.receiverMarker) { try { map.removeLayer(this.receiverMarker); } catch (e) {} }
+            this.layer = null;
+            this.receiverMarker = null;
+        },
+
+        clear(announce = true) {
+            this._clearLayers();
+            this.baseUrl = '';
+            this._setStatus('No receiver coverage loaded');
+            if (announce) toast('Receiver coverage cleared');
+        },
+
+        async load() {
+            const urlInput = document.getElementById('receiverCoverageUrl');
+            const latInput = document.getElementById('receiverCoverageLat');
+            const lonInput = document.getElementById('receiverCoverageLon');
+            const baseUrl = this._normalizeUrl(urlInput?.value);
+            if (!baseUrl) { this._setStatus('Enter an http(s) feeder URL without embedded credentials'); toast('Invalid receiver URL'); return; }
+            const fallbackLat = this._number(latInput?.value, -90, 90);
+            const fallbackLon = this._number(lonInput?.value, -180, 180);
+            this._setStatus('Loading receiver.json, aircraft.json, and stats.json…');
+            const [receiverData, aircraftData, statsData] = await Promise.all([
+                this._fetchJson(this._endpoint(baseUrl, 'receiver.json')).catch(() => null),
+                this._fetchJson(this._endpoint(baseUrl, 'aircraft.json')).catch(() => null),
+                this._fetchJson(this._endpoint(baseUrl, 'stats.json')).catch(() => null)
+            ]);
+            const receiver = this._receiver(receiverData) || (fallbackLat !== null && fallbackLon !== null ? { lat: fallbackLat, lon: fallbackLon } : null);
+            if (!receiver) {
+                this._setStatus('Receiver location unavailable. Supply latitude and longitude fallbacks.');
+                toast('Receiver location unavailable');
+                return;
+            }
+
+            const aircraft = Array.isArray(aircraftData?.aircraft) ? aircraftData.aircraft : (Array.isArray(aircraftData) ? aircraftData : []);
+            const bins = Array.from({ length: this.sectorCount }, () => 0);
+            let positions = 0;
+            for (const item of aircraft) {
+                const lat = this._number(item?.lat, -90, 90);
+                const lon = this._number(item?.lon ?? item?.lng, -180, 180);
+                if (lat === null || lon === null) continue;
+                const age = Number(item.seen_pos ?? item.seen);
+                if (Number.isFinite(age) && age > this.maxAgeSeconds) continue;
+                const distanceKm = haversineDistance(receiver.lat, receiver.lon, lat, lon);
+                if (!Number.isFinite(distanceKm) || distanceKm < 0.1 || distanceKm > 4000) continue;
+                const bearing = this._bearing(receiver.lat, receiver.lon, lat, lon);
+                const sector = Math.min(this.sectorCount - 1, Math.floor(bearing / (360 / this.sectorCount)));
+                bins[sector] = Math.max(bins[sector], distanceKm);
+                positions++;
+            }
+
+            this._clearLayers();
+            this.baseUrl = baseUrl;
+            this._saveInputs(baseUrl, receiver.lat, receiver.lon);
+            this.receiverMarker = L.circleMarker([receiver.lat, receiver.lon], { radius: 5, color: '#f8fafc', fillColor: '#22d3ee', fillOpacity: 0.95, weight: 2 }).addTo(map);
+            this.receiverMarker.bindTooltip(safeHTML('Receiver ' + receiver.lat.toFixed(4) + ', ' + receiver.lon.toFixed(4)), { direction: 'top' });
+
+            const layers = [];
+            const observedSectors = bins.filter(value => value > 0).length;
+            const maxObservedKm = Math.max(...bins, 0);
+            if (positions > 0) {
+                const points = bins.map((distanceKm, index) => this._destination(receiver.lat, receiver.lon, (index + 0.5) * (360 / this.sectorCount), distanceKm));
+                const polygon = L.polygon(points, { color: '#22d3ee', weight: 2, opacity: 0.9, fillColor: '#22d3ee', fillOpacity: 0.16 });
+                polygon.bindTooltip(safeHTML('Observed receiver coverage · ' + observedSectors + '/' + this.sectorCount + ' sectors · max ' + maxObservedKm.toFixed(0) + ' km'), { sticky: true });
+                layers.push(polygon);
+            }
+            const statsMaxKm = this._statsMaxKm(statsData);
+            if (statsMaxKm > 0) {
+                const rangeOutline = L.circle([receiver.lat, receiver.lon], { radius: statsMaxKm * 1000, color: '#f59e0b', weight: 1, opacity: 0.8, fill: false, dashArray: '5 5' });
+                rangeOutline.bindTooltip(safeHTML('readsb observed maximum · ' + statsMaxKm.toFixed(0) + ' km'), { sticky: true });
+                layers.push(rangeOutline);
+            }
+            if (layers.length) this.layer = L.layerGroup(layers).addTo(map);
+
+            const bounds = this.layer?.getBounds?.();
+            if (bounds?.isValid?.()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 9 });
+            if (!positions) {
+                this._setStatus('Receiver found at ' + receiver.lat.toFixed(4) + ', ' + receiver.lon.toFixed(4) + '; no fresh aircraft positions returned.');
+                toast('Receiver found; no fresh positions');
+                return;
+            }
+            const rangeText = statsMaxKm > 0 ? ' · readsb max ' + statsMaxKm.toFixed(0) + ' km' : '';
+            this._setStatus('Loaded ' + positions + ' fresh positions · ' + observedSectors + '/' + this.sectorCount + ' sectors · max ' + maxObservedKm.toFixed(0) + ' km' + rangeText);
+            toast('Receiver coverage loaded');
         }
     };
 

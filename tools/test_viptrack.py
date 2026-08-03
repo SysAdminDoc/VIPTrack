@@ -129,6 +129,27 @@ class VipTrackContracts(unittest.TestCase):
             self.assertIn(marker, self.source)
         self.assertIn("curatedOverlayList", self.source)
 
+    def test_receiver_coverage_uses_direct_tar1090_json_and_directional_bins(self) -> None:
+        for marker in (
+            "const receiverCoverageManager =",
+            "receiverCoverageUrl",
+            "receiver.json",
+            "aircraft.json",
+            "stats.json",
+            "sectorCount: 36",
+            "max_distance",
+            "metres / 1000",
+            "No feeder data is sent to a proxy",
+            "receiverCoverageLoadBtn",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const receiverCoverageManager =")
+        end = self.source.index("// ============ X5: LOCAL GEOFENCE EDITOR", start)
+        section = self.source[start:end]
+        self.assertNotIn("fetchWithProxy", section)
+        self.assertIn("Math.floor(bearing / (360 / this.sectorCount))", section)
+        self.assertIn("L.polygon(points", section)
+
 
 if __name__ == "__main__":
     unittest.main()

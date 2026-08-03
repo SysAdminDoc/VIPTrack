@@ -13,6 +13,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Local geofence editor with persisted circle/polygon geometry, map drawing controls, visibility toggles, and entry/exit alerts.
 - Privacy-safe PIA rotation timeline retaining public hex sightings for a local 20-day callsign/type profile without registration or operator correlation.
 - Opt-in curated military pattern templates backed by explicit unverified GeoJSON presets for AWACS, tanker, drone CAP, and exercise annotations.
+- Direct tar1090/readsb receiver coverage adapter with 36-sector observed range polygon, optional stats max-range outline, URL persistence, and coordinate fallbacks.
 - ADSB.fi as a fourth rotating live-data source with health tracking.
 - Emergency squawk auto-highlight for 7500 (hijack) / 7600 (NORDO) / 7700 (general) with optional audible tone.
 - ADSBdb route lookup (`api.adsbdb.com/v0/callsign/{flight}`) to enrich the route panel with origin / midpoint / destination ICAO when public.
