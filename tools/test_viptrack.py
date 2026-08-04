@@ -96,6 +96,24 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
+    def test_openaip_overlay_is_opt_in_key_gated_and_class_legended(self) -> None:
+        for marker in (
+            "const openAipAirspaceOverlay =",
+            "api.tiles.openaip.net/api/data/airspaces/{z}/{x}/{y}.png",
+            "viptrack_openaip_api_key_v1",
+            "if (!this._isValidKey(this.apiKey))",
+            "id=\"toggleOpenAIP\"",
+            "id=\"openAipSaveKeyBtn\"",
+            "id=\"openAipClearKeyBtn\"",
+            "for (const letter of 'ABCDEFG')",
+            "L.DomUtil.create('div', 'openaip-legend')",
+            "attribution: '&copy; OpenAIP'",
+        ):
+            self.assertIn(marker, self.source)
+        manager = re.search(r"const openAipAirspaceOverlay =([\s\S]*?)// ============ X5", self.source)
+        self.assertIsNotNone(manager)
+        self.assertIsNone(re.search(r"apiKey\s*=\s*['\"][A-Za-z0-9]{8,}", manager.group(1)))
+
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
             "namedWatchlists: new Map()",

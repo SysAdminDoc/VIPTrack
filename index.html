@@ -454,6 +454,10 @@
         .receiver-coverage-actions { display: flex; gap: 5px; margin-top: 6px; }
         .receiver-coverage-actions button { flex: 1; }
         .receiver-coverage-status { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: 7px; min-height: 14px; }
+        .openaip-legend { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; color: var(--text); box-shadow: 0 2px 10px rgba(0,0,0,0.35); font-size: 10px; line-height: 1.25; }
+        .openaip-legend-title { color: var(--text-dim); font-size: 10px; font-weight: 700; letter-spacing: 0.4px; margin-bottom: 5px; text-transform: uppercase; }
+        .openaip-legend-item { align-items: center; display: flex; gap: 6px; white-space: nowrap; }
+        .openaip-legend-swatch { border-radius: 2px; height: 8px; width: 18px; }
         .api-status { font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 8px; text-align: center; }
         .api-status.connected { background: rgba(0,200,0,0.2); color: #4ade80; }
         .api-status.info { background: rgba(128,128,128,0.15); color: var(--text-dim); }
@@ -2178,6 +2182,17 @@ if ('serviceWorker' in navigator) {
                 <button class="btn-secondary" id="faaSuaClearBtn" type="button">Clear</button>
             </div>
             <div class="receiver-coverage-status" id="faaSuaStatus" role="status" aria-live="polite">FAA SUA off · manual 28-day refresh</div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title">OpenAIP Airspace (L6)</div>
+            <div class="receiver-coverage-help">Opt-in Class A–G airspace tiles from OpenAIP. Your API key stays in this browser and is sent only to OpenAIP tile requests. Informational only — not for navigation or operational decisions.</div>
+            <input type="password" id="openAipApiKey" class="settings-input" placeholder="OpenAIP API key" maxlength="256" autocomplete="new-password">
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="openAipSaveKeyBtn" type="button">Save key</button>
+                <button class="btn-secondary" id="openAipClearKeyBtn" type="button">Clear key</button>
+            </div>
+            <div class="setting-row"><span class="setting-label">Show Class A–G</span><div class="toggle" id="toggleOpenAIP"></div></div>
+            <div class="receiver-coverage-status" id="openAipStatus" role="status" aria-live="polite">OpenAIP off · API key required</div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title">Geofences (X5)</div>
@@ -7006,6 +7021,7 @@ if ('serviceWorker' in navigator) {
         receiverCoverageManager.init();
         openSkyHistoricalManager.init();
         faaSuaOverlay.init();
+        openAipAirspaceOverlay.init();
         await geofenceManager.init();
         await piaRotationTimeline.init();
 
@@ -8574,6 +8590,24 @@ if ('serviceWorker' in navigator) {
         document.getElementById('faaSuaClearBtn')?.addEventListener('click', () => {
             faaSuaOverlay.clear();
             _faaSuaToggle?.classList.remove('on');
+        });
+
+        // L6: optional OpenAIP Class A–G tile overlay
+        const _openAipToggle = document.getElementById('toggleOpenAIP');
+        _openAipToggle?.addEventListener('click', () => {
+            const enabled = _openAipToggle.classList.toggle('on');
+            if (enabled && !openAipAirspaceOverlay.enable()) _openAipToggle.classList.remove('on');
+            if (!enabled) openAipAirspaceOverlay.disable();
+        });
+        document.getElementById('openAipSaveKeyBtn')?.addEventListener('click', () => {
+            const input = document.getElementById('openAipApiKey');
+            if (openAipAirspaceOverlay.saveKey(input?.value || '')) toast('OpenAIP API key saved locally');
+            else toast('Enter a valid OpenAIP API key');
+        });
+        document.getElementById('openAipClearKeyBtn')?.addEventListener('click', () => {
+            openAipAirspaceOverlay.clearKey();
+            _openAipToggle?.classList.remove('on');
+            toast('OpenAIP API key cleared');
         });
 
         // X4: Webhook
@@ -11501,6 +11535,108 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             } finally {
                 this.loading = false;
             }
+        }
+    };
+
+    // ============ L6: OPENAIP AIRSPACE OVERLAY ============
+    // The tile API is opt-in and key-gated. No aircraft or map telemetry is sent
+    // by VIPTrack; the key is stored locally and appended only to OpenAIP tiles.
+    const openAipAirspaceOverlay = {
+        storageKey: 'viptrack_openaip_api_key_v1',
+        tileUrl: 'https://{s}.api.tiles.openaip.net/api/data/airspaces/{z}/{x}/{y}.png',
+        apiKey: '',
+        layer: null,
+        legend: null,
+        classColors: { A: '#f43f5e', B: '#fb7185', C: '#f59e0b', D: '#fbbf24', E: '#38bdf8', F: '#60a5fa', G: '#94a3b8' },
+
+        init() {
+            try { this.apiKey = localStorage.getItem(this.storageKey) || ''; } catch (e) { this.apiKey = ''; }
+            const input = document.getElementById('openAipApiKey');
+            if (input) input.value = this.apiKey;
+            this._setStatus(this.apiKey ? 'OpenAIP off · key stored locally' : 'OpenAIP off · API key required');
+        },
+
+        _setStatus(message) {
+            const status = document.getElementById('openAipStatus');
+            if (status) status.textContent = message;
+        },
+
+        _isValidKey(value) {
+            return value.length >= 8 && value.length <= 256 && !/\s/.test(value);
+        },
+
+        saveKey(value) {
+            const key = String(value || '').trim();
+            if (!this._isValidKey(key)) return false;
+            this.apiKey = key;
+            try { localStorage.setItem(this.storageKey, key); } catch (e) {}
+            this._setStatus(this.layer ? 'OpenAIP on · key updated locally' : 'OpenAIP off · key stored locally');
+            if (this.layer) this.enable();
+            return true;
+        },
+
+        clearKey() {
+            this.apiKey = '';
+            try { localStorage.removeItem(this.storageKey); } catch (e) {}
+            const input = document.getElementById('openAipApiKey');
+            if (input) input.value = '';
+            this.disable();
+            this._setStatus('OpenAIP off · API key required');
+        },
+
+        _legendControl() {
+            const control = L.control({ position: 'bottomleft' });
+            control.onAdd = () => {
+                const container = L.DomUtil.create('div', 'openaip-legend');
+                const title = document.createElement('div');
+                title.className = 'openaip-legend-title';
+                title.textContent = 'OpenAIP classes';
+                container.appendChild(title);
+                for (const letter of 'ABCDEFG') {
+                    const row = document.createElement('div');
+                    row.className = 'openaip-legend-item';
+                    const swatch = document.createElement('span');
+                    swatch.className = 'openaip-legend-swatch';
+                    swatch.style.background = this.classColors[letter];
+                    const label = document.createElement('span');
+                    label.textContent = 'Class ' + letter;
+                    row.append(swatch, label);
+                    container.appendChild(row);
+                }
+                L.DomEvent.disableClickPropagation(container);
+                return container;
+            };
+            return control;
+        },
+
+        enable() {
+            if (!this._isValidKey(this.apiKey)) {
+                this._setStatus('OpenAIP unavailable · enter an API key first');
+                return false;
+            }
+            this.disable(false);
+            const url = this.tileUrl + '?apiKey=' + encodeURIComponent(this.apiKey);
+            this.layer = L.tileLayer(url, {
+                attribution: '&copy; OpenAIP',
+                className: 'openaip-airspace-tile',
+                maxNativeZoom: 14,
+                maxZoom: 18,
+                minZoom: 3,
+                opacity: 0.58,
+                subdomains: '123'
+            }).addTo(map);
+            this.layer.on('tileerror', () => this._setStatus('OpenAIP tile error · check the API key or service status'));
+            this.legend = this._legendControl().addTo(map);
+            this._setStatus('OpenAIP on · Class A–G · informational only');
+            return true;
+        },
+
+        disable(announce = true) {
+            if (this.layer) { try { map.removeLayer(this.layer); } catch (e) {} }
+            if (this.legend) { try { map.removeControl(this.legend); } catch (e) {} }
+            this.layer = null;
+            this.legend = null;
+            if (announce) this._setStatus(this.apiKey ? 'OpenAIP off · key stored locally' : 'OpenAIP off · API key required');
         }
     };
 
