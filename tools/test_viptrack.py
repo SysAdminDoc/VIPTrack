@@ -528,6 +528,27 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("trailLine._group?.getLayers?.()", section)
         self.assertNotIn("navigator.share({ title, text: 'Follow this flight:'", section)
 
+    def test_trail_retention_and_map_bookmarks_are_local_and_persistent(self) -> None:
+        for marker in (
+            "clearOldData(maxAgeDays = 7)",
+            "id=\"trailRetention\"",
+            "value=\"1\"",
+            "value=\"7\"",
+            "value=\"14\"",
+            "value=\"30\"",
+            "viptrack_trail_retention_days",
+            "trailRetentionApply",
+            "let bookmarks = []",
+            "viptrack_bookmarks",
+            "addBookmark(name)",
+            "goToBookmark(id)",
+            "Saved Locations",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertIn("await skytrackDB.clearOldData(retention)", self.source)
+        self.assertIn("localStorage.setItem('viptrack_bookmarks'", self.source)
+        self.assertIn("map.setView([b.lat, b.lng], b.zoom)", self.source)
+
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         for marker in (
             "const SW_CACHE_SCHEMA = '4.17'",

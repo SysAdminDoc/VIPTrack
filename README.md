@@ -117,8 +117,9 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
 | 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the live feed and selected historical traces get a Cesium clock scrubber |
 | WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers, `TripsLayer` history trails, and opt-in CARTO Voyager or Stadia Alidade Smooth Dark vector basemaps while Leaflet remains the default |
-| Share Flight | Generate shareable links for specific aircraft |
+| Share Flight | Generate a current-trail PNG for supported Web Share clients, with a copy-link fallback |
 | Web Share Target | Accepts shared ICAO hexes or N-numbers and centers the map on a matching aircraft |
+| Map Bookmarks | Save named camera positions locally and jump back to them from the bottom panel |
 | Background Refresh | Installed Chromium PWAs may refresh public military, VIP, and PIA reference caches every 12 hours through Periodic Background Sync; no watchlist identifiers are transmitted |
 | Follow Mode | Camera tracks the selected aircraft automatically |
 | Weather Radar | Precipitation overlay from RainViewer |
@@ -146,6 +147,8 @@ Access via the gear icon. All settings persist in localStorage.
 | Military Alert Radius | 50nm | Distance trigger for military alerts |
 | Sound Alerts | Off | Audio notifications |
 | Desktop Notifications | Off | Browser notification popups |
+| Trail Retention | 7 days | Remove older IndexedDB trail history on startup or on demand (24 h / 7 d / 14 d / 30 d) |
+| Map Bookmarks | None | Save named map camera positions in local storage |
 
 ## Architecture
 
