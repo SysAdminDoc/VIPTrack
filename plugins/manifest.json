@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "name": "VIPTrack optional plugins and overlays",
+  "description": "Explicitly opt-in, same-origin extensions for analyst annotation.",
+  "plugins": [
+    {
+      "id": "awacs-orbit-template",
+      "kind": "geojson-preset",
+      "name": "AWACS orbit template",
+      "description": "Illustrative racetrack for annotating an AWACS/E-3/E-7 pattern.",
+      "presetId": "awacs-orbit-template",
+      "geojson": "../data/overlays/mil-patterns.geojson",
+      "requiresOptIn": true,
+      "verified": false
+    },
+    {
+      "id": "tanker-racetrack-template",
+      "kind": "geojson-preset",
+      "name": "Tanker racetrack template",
+      "description": "Illustrative refuelling racetrack for KC-46/MRTT analysis.",
+      "presetId": "tanker-racetrack-template",
+      "geojson": "../data/overlays/mil-patterns.geojson",
+      "requiresOptIn": true,
+      "verified": false
+    },
+    {
+      "id": "drone-cap-template",
+      "kind": "geojson-preset",
+      "name": "Drone CAP template",
+      "description": "Illustrative CAP box for annotating a drone pattern.",
+      "presetId": "drone-cap-template",
+      "geojson": "../data/overlays/mil-patterns.geojson",
+      "requiresOptIn": true,
+      "verified": false
+    },
+    {
+      "id": "exercise-box-template",
+      "kind": "geojson-preset",
+      "name": "Exercise box template",
+      "description": "Illustrative NOTAM/exercise box for analyst notes.",
+      "presetId": "exercise-box-template",
+      "geojson": "../data/overlays/mil-patterns.geojson",
+      "requiresOptIn": true,
+      "verified": false
+    }
+  ],
+  "modules": []
+}

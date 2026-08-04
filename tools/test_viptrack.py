@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
 CESIUM_FRAME = ROOT / "cesium-frame.html"
 FAA_DIR = ROOT / "data" / "faa"
+PLUGINS_MANIFEST = ROOT / "plugins" / "manifest.json"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -113,6 +114,30 @@ class VipTrackContracts(unittest.TestCase):
         manager = re.search(r"const openAipAirspaceOverlay =([\s\S]*?)// ============ X5", self.source)
         self.assertIsNotNone(manager)
         self.assertIsNone(re.search(r"apiKey\s*=\s*['\"][A-Za-z0-9]{8,}", manager.group(1)))
+
+    def test_plugin_manifest_is_explicit_opt_in_and_same_origin_only(self) -> None:
+        manifest = json.loads(PLUGINS_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["schemaVersion"], 1)
+        self.assertEqual(len(manifest["plugins"]), 4)
+        self.assertEqual(manifest["modules"], [])
+        preset_manifest = json.loads((ROOT / "data" / "overlays" / "manifest.json").read_text(encoding="utf-8"))
+        preset_ids = {preset["id"] for preset in preset_manifest["presets"]}
+        self.assertEqual({entry["presetId"] for entry in manifest["plugins"]}, preset_ids)
+        for entry in manifest["plugins"]:
+            self.assertEqual(entry["kind"], "geojson-preset")
+            self.assertTrue(entry["requiresOptIn"])
+            self.assertFalse(entry["verified"])
+            self.assertEqual(entry["geojson"], "../data/overlays/mil-patterns.geojson")
+        for marker in (
+            "const pluginManifestManager =",
+            "plugins/manifest.json",
+            "entry.requiresOptIn !== true",
+            "url.origin === location.origin",
+            "await import(url.href)",
+            "id=\"pluginManifestList\"",
+            "pluginManifestManager.init();",
+        ):
+            self.assertIn(marker, self.source)
 
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
