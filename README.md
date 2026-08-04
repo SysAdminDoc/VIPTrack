@@ -115,6 +115,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers and `TripsLayer` history trails while Leaflet remains the default |
 | Share Flight | Generate shareable links for specific aircraft |
 | Web Share Target | Accepts shared ICAO hexes or N-numbers and centers the map on a matching aircraft |
+| Background Refresh | Installed Chromium PWAs may refresh public military, VIP, and PIA reference caches every 12 hours through Periodic Background Sync; no watchlist identifiers are transmitted |
 | Follow Mode | Camera tracks the selected aircraft automatically |
 | Weather Radar | Precipitation overlay from RainViewer |
 

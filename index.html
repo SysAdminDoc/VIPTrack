@@ -1442,7 +1442,9 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.16';
+const SW_CACHE_SCHEMA = '4.17';
+const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
+const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_STATIC_ASSETS = [
     'manifest.json',
     'assets/logo/SkyTrack_Logo-16x16.png',
@@ -1461,6 +1463,18 @@ const SW_STATIC_ASSETS = [
     'data/aircraft/registrations.json',
     'workers/registration-opfs-worker.js'
 ];
+// Public reference files only: no watchlist identifiers, telemetry, or live
+// aircraft queries are sent by the background refresh.
+const SW_PERIODIC_REFRESH_ASSETS = [
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-mil.csv',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-gov.csv',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-pol.csv',
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-pia.csv',
+    'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-mil.csv',
+    'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-gov.csv',
+    'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pol.csv',
+    'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pia.csv'
+];
 async function getServiceWorkerManifestHash(manifestText) {
     try {
         if (globalThis.crypto?.subtle) {
@@ -1478,7 +1492,7 @@ if ('serviceWorker' in navigator) {
             // Clear old service workers first
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) await r.unregister();
-            const swManifestText = JSON.stringify({ schemaVersion: SW_CACHE_SCHEMA, staticAssets: SW_STATIC_ASSETS });
+            const swManifestText = JSON.stringify({ schemaVersion: SW_CACHE_SCHEMA, staticAssets: SW_STATIC_ASSETS, periodicAssets: SW_PERIODIC_REFRESH_ASSETS });
             const swManifestHash = await getServiceWorkerManifestHash(swManifestText);
             const swCacheName = 'viptrack-' + SW_CACHE_SCHEMA + '-' + swManifestHash.slice(0, 16);
             const swCode = `
@@ -1486,6 +1500,8 @@ if ('serviceWorker' in navigator) {
                 const CACHE_SCHEMA_VERSION = '${SW_CACHE_SCHEMA}';
                 const MANIFEST_HASH = '${swManifestHash}';
                 const STATIC_ASSETS = ${JSON.stringify(SW_STATIC_ASSETS)};
+                const PERIODIC_SYNC_TAG = '${SW_PERIODIC_SYNC_TAG}';
+                const PERIODIC_REFRESH_ASSETS = ${JSON.stringify(SW_PERIODIC_REFRESH_ASSETS)};
                 const API_CACHE_TTL_MS = 60000;
                 const TILE_CACHE_NAME = CACHE_NAME + '-tiles';
                 const TILE_CACHE_LIMIT = 1000;
@@ -1547,6 +1563,22 @@ if ('serviceWorker' in navigator) {
                     entries.sort((a, b) => a.lastUsed - b.lastUsed);
                     await Promise.all(entries.slice(0, entries.length - TILE_CACHE_LIMIT).map(entry => cache.delete(entry.request)));
                 }
+
+                async function refreshPeriodicAssets() {
+                    const cache = await caches.open(CACHE_NAME);
+                    const results = await Promise.all(PERIODIC_REFRESH_ASSETS.map(async asset => {
+                        try {
+                            const request = new Request(asset, { method: 'GET', cache: 'no-cache', credentials: 'omit' });
+                            const response = await fetch(request);
+                            if (!response.ok || response.type === 'opaque') return false;
+                            await cache.put(request, response.clone());
+                            return true;
+                        } catch (error) {
+                            return false;
+                        }
+                    }));
+                    return results.filter(Boolean).length;
+                }
                 
                 self.addEventListener('install', event => {
                     event.waitUntil(
@@ -1562,6 +1594,11 @@ if ('serviceWorker' in navigator) {
                         )
                     );
                     self.clients.claim();
+                });
+
+                self.addEventListener('periodicsync', event => {
+                    if (event.tag !== PERIODIC_SYNC_TAG) return;
+                    event.waitUntil(refreshPeriodicAssets());
                 });
                 
                 self.addEventListener('fetch', event => {
@@ -1656,6 +1693,14 @@ if ('serviceWorker' in navigator) {
             const registration = await navigator.serviceWorker.register(swUrl, { scope: '/' });
             URL.revokeObjectURL(swUrl);
             _dbg('ServiceWorker registered:', registration.scope);
+            if (registration.periodicSync && typeof registration.periodicSync.register === 'function') {
+                try {
+                    await registration.periodicSync.register(SW_PERIODIC_SYNC_TAG, { minInterval: SW_PERIODIC_SYNC_MIN_INTERVAL_MS });
+                    _dbg('Periodic Background Sync registered:', SW_PERIODIC_SYNC_TAG);
+                } catch (error) {
+                    _dbg('Periodic Background Sync unavailable:', error);
+                }
+            }
         } catch (error) {
             _dbg('ServiceWorker registration failed:', error);
         }
