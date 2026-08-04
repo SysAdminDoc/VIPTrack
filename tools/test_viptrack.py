@@ -299,6 +299,36 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("this.rolling.slice(-12)", section)
         self.assertIn("this.latencySamples", section)
 
+    def test_track_shape_heuristics_are_local_unverified_and_pia_safe(self) -> None:
+        for marker in (
+            "const trackHeuristicManager =",
+            "minPoints: 8",
+            "minDurationMs: 45 * 1000",
+            "_haversineNm",
+            "_bearing",
+            "directRatio",
+            "averageAltitude >= 40000",
+            "info.heuristicOrbit",
+            "info.heuristicTransit",
+            "info.heuristicHold",
+            "trackHeuristicManager.update(existing)",
+            "trackHeuristicManager.update(cached)",
+            "trackHeuristicManager.render(ac)",
+            "id=\"trackHeuristicsSection\"",
+            "Unverified pattern hints",
+            "isPrivacyProtectedAircraft(ac)",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const trackHeuristicManager =")
+        end = self.source.index("// ============ AIRPORT FREQUENCIES DATABASE", start)
+        section = self.source[start:end]
+        self.assertNotIn("fetch(", section)
+        self.assertNotIn("localStorage", section)
+        self.assertNotIn("ac.r", section)
+        self.assertNotIn("ac.ownOp", section)
+        self.assertIn("trackHeuristics = { tags: [], metrics: null", section)
+        self.assertNotIn("trackHeuristics: a.trackHeuristics", self.source)
+
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
             "namedWatchlists: new Map()",

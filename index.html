@@ -384,6 +384,15 @@
         .interesting-section { background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 179, 8, 0.05)); border-left: 2px solid var(--historic); }
         .interesting-section.pia { background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(219, 39, 119, 0.05)); border-left: 3px solid var(--pia); }
         .interesting-section.vip { background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 170, 0, 0.08)); border-left: 3px solid var(--vip); }
+        .heuristic-section { background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(59, 130, 246, 0.04)); border-left: 2px solid #60a5fa; }
+        .heuristic-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-bottom: 7px; }
+        .heuristic-list { display: grid; gap: 4px; }
+        .heuristic-tag { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--bg-darker); border-radius: 4px; font-size: 10px; color: var(--text); }
+        .heuristic-tag-dot { width: 7px; height: 7px; border-radius: 50%; background: #60a5fa; flex: 0 0 auto; }
+        .heuristic-tag.orbit .heuristic-tag-dot { background: #f59e0b; }
+        .heuristic-tag.hold .heuristic-tag-dot { background: #a78bfa; }
+        .heuristic-tag.transit .heuristic-tag-dot { background: #34d399; }
+        .heuristic-empty { color: var(--text-muted); font-size: 10px; font-style: italic; }
         .pia-rotation-section { background: rgba(236, 72, 153, 0.06); border-left: 3px solid var(--pia); }
         .pia-rotation-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-bottom: 7px; }
         .pia-rotation-list { display: grid; gap: 4px; }
@@ -2008,6 +2017,17 @@ if ('serviceWorker' in navigator) {
             <div class="pia-rotation-help" data-i18n="info.piaHelp">Local anonymised profile; public PIA addresses observed within the 20-day rotation window.</div>
                 <div class="pia-rotation-list" id="piaRotationList"></div>
             </div>
+            <div class="info-section heuristic-section" id="trackHeuristicsSection" style="display:none;">
+                <div class="interesting-header"><span class="interesting-icon">⌁</span><span class="interesting-title" data-i18n="info.trackHeuristics">Track-shape heuristics</span></div>
+                <div class="heuristic-help" data-i18n="info.heuristicHelp">Unverified pattern hints from this local trail. They are not aircraft identification, operational classification, or tasking.</div>
+                <div class="heuristic-list" id="trackHeuristicsList"></div>
+                <div class="heuristic-label-catalog" hidden aria-hidden="true">
+                    <span data-i18n="info.heuristicOrbit">Heuristic orbit / tanker-AWACS candidate</span>
+                    <span data-i18n="info.heuristicTransit">Heuristic high-altitude transit</span>
+                    <span data-i18n="info.heuristicHold">Heuristic sustained traffic hold</span>
+                    <span data-i18n="info.noHeuristics">No supported pattern detected yet</span>
+                </div>
+            </div>
             <div class="info-section" id="routeSection" style="display:none;">
                 <div class="route-display">
             <div class="route-airport"><div class="route-code" id="routeFrom">---</div><div class="route-name" id="routeFromName" data-i18n="route.departure">Departure</div></div>
@@ -2496,6 +2516,10 @@ if ('serviceWorker' in navigator) {
             document.documentElement.lang = this.current;
             const selector = document.getElementById('languageSelect');
             if (selector) selector.value = this.current;
+            if (typeof trackHeuristicManager !== 'undefined') {
+                const selected = typeof selectedHex !== 'undefined' && typeof aircraftCache !== 'undefined' && selectedHex ? aircraftCache[selectedHex] : null;
+                trackHeuristicManager.render(selected || null);
+            }
         },
         async setLanguage(locale) {
             const next = String(locale || '').toLowerCase();
@@ -5661,6 +5685,131 @@ if ('serviceWorker' in navigator) {
         }
     };
 
+    // L15: local track-shape hints.  These are deliberately unverified pattern
+    // matches from the in-memory trail only; they do not identify an aircraft,
+    // infer a mission, or correlate PIA addresses with registrations.
+    const trackHeuristicManager = {
+        minPoints: 8,
+        minDurationMs: 45 * 1000,
+        maxPoints: 120,
+
+        _haversineNm(a, b) {
+            const radiusNm = 3440.069;
+            const lat1 = a[0] * Math.PI / 180;
+            const lat2 = b[0] * Math.PI / 180;
+            const dLat = (b[0] - a[0]) * Math.PI / 180;
+            const dLon = (b[1] - a[1]) * Math.PI / 180;
+            const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+            return 2 * radiusNm * Math.asin(Math.min(1, Math.sqrt(h)));
+        },
+
+        _bearing(a, b) {
+            const lat1 = a[0] * Math.PI / 180;
+            const lat2 = b[0] * Math.PI / 180;
+            const dLon = (b[1] - a[1]) * Math.PI / 180;
+            const y = Math.sin(dLon) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        },
+
+        _angleDelta(next, previous) {
+            return ((next - previous + 540) % 360) - 180;
+        },
+
+        analyse(history) {
+            const points = (Array.isArray(history) ? history : []).map(point => {
+                if (!Array.isArray(point) || point.length < 4) return null;
+                const values = [Number(point[0]), Number(point[1]), Number(point[2]), Number(point[3])];
+                return values.every(Number.isFinite) ? values : null;
+            }).filter(Boolean).slice(-this.maxPoints);
+            if (points.length < this.minPoints) return null;
+            const durationMs = points[points.length - 1][3] - points[0][3];
+            if (!Number.isFinite(durationMs) || durationMs < this.minDurationMs) return null;
+
+            const segments = [];
+            let totalDistance = 0;
+            for (let i = 1; i < points.length; i++) {
+                const distance = this._haversineNm(points[i - 1], points[i]);
+                totalDistance += distance;
+                if (distance >= 0.02) segments.push({ distance, bearing: this._bearing(points[i - 1], points[i]) });
+            }
+            if (segments.length < 3 || totalDistance < 0.5) return null;
+
+            const directDistance = this._haversineNm(points[0], points[points.length - 1]);
+            const directRatio = directDistance / totalDistance;
+            const deltas = [];
+            let turns = 0;
+            let turnMagnitude = 0;
+            let directionReversals = 0;
+            let previousTurnDirection = 0;
+            for (let i = 1; i < segments.length; i++) {
+                const delta = this._angleDelta(segments[i].bearing, segments[i - 1].bearing);
+                const magnitude = Math.abs(delta);
+                if (magnitude < 10) continue;
+                deltas.push(delta);
+                turns++;
+                turnMagnitude += magnitude;
+                const direction = delta > 0 ? 1 : -1;
+                if (previousTurnDirection && direction !== previousTurnDirection) directionReversals++;
+                previousTurnDirection = direction;
+            }
+
+            const altitudes = points.map(point => point[2]).filter(altitude => altitude >= 0);
+            const averageAltitude = altitudes.length ? altitudes.reduce((sum, altitude) => sum + altitude, 0) / altitudes.length : 0;
+            const altitudeRange = altitudes.length ? Math.max(...altitudes) - Math.min(...altitudes) : Infinity;
+            const metrics = {
+                pointCount: points.length,
+                durationSeconds: Math.round(durationMs / 1000),
+                totalDistanceNm: Number(totalDistance.toFixed(1)),
+                directRatio: Number(directRatio.toFixed(3)),
+                turns,
+                directionReversals,
+                averageAltitudeFt: Math.round(averageAltitude),
+                altitudeRangeFt: Number.isFinite(altitudeRange) ? Math.round(altitudeRange) : null
+            };
+            const tags = [];
+            const orbit = totalDistance >= 5 && directRatio <= 0.70 && turns >= 5 && turnMagnitude >= 120;
+            const hold = totalDistance >= 2 && directRatio <= 0.55 && turns >= 3 && directionReversals >= 1;
+            const transit = averageAltitude >= 40000 && totalDistance >= 5 && directRatio >= 0.88 && turns <= 2 && altitudeRange <= 12000;
+            if (orbit) tags.push({ id: 'orbit', tone: 'orbit', labelKey: 'info.heuristicOrbit' });
+            else if (hold) tags.push({ id: 'hold', tone: 'hold', labelKey: 'info.heuristicHold' });
+            if (transit) tags.push({ id: 'transit', tone: 'transit', labelKey: 'info.heuristicTransit' });
+            return { tags, metrics };
+        },
+
+        update(ac) {
+            if (!ac) return null;
+            const updatedAt = Date.now();
+            if (isPrivacyProtectedAircraft(ac)) {
+                ac.trackHeuristics = { tags: [], metrics: null, updatedAt };
+            } else {
+                const result = this.analyse(ac.history);
+                ac.trackHeuristics = { tags: result?.tags || [], metrics: result?.metrics || null, updatedAt };
+            }
+            if (typeof selectedHex !== 'undefined' && selectedHex === ac.hex) this.render(ac);
+            return ac.trackHeuristics;
+        },
+
+        render(ac) {
+            const section = document.getElementById('trackHeuristicsSection');
+            const list = document.getElementById('trackHeuristicsList');
+            if (!section || !list) return;
+            const state = ac?.trackHeuristics;
+            if (!state?.metrics || isPrivacyProtectedAircraft(ac)) {
+                section.style.display = 'none';
+                list.innerHTML = safeHTML('');
+                return;
+            }
+            const tags = Array.isArray(state.tags) ? state.tags : [];
+            const markup = tags.length ? tags.map(tag => {
+                const label = i18nManager.t(tag.labelKey, tag.labelKey);
+                return '<div class="heuristic-tag ' + escapeHTML(tag.tone || '') + '"><span class="heuristic-tag-dot"></span><span>' + escapeHTML(label) + '</span></div>';
+            }).join('') : '<div class="heuristic-empty">' + escapeHTML(i18nManager.t('info.noHeuristics', 'No supported pattern detected yet')) + '</div>';
+            section.style.display = 'block';
+            list.innerHTML = safeHTML(markup);
+        }
+    };
+
     // ============ AIRPORT FREQUENCIES DATABASE ============
     const frequencyDB = {
         frequencies: new Map(),
@@ -7761,6 +7910,7 @@ if ('serviceWorker' in navigator) {
                 existing.category_type = classifyAircraft(existing);
                 piaRotationTimeline.record(existing);
                 alertSystem.checkAircraft(existing);
+                trackHeuristicManager.update(existing);
             } else {
                 // New aircraft — full initialization + enrichment
                 const history = [];
@@ -7777,6 +7927,7 @@ if ('serviceWorker' in navigator) {
                 if (!isMil && !isVip && !isPia) return; // VIPTrack: skip non-military/VIP/PIA aircraft entirely
                 aircraftCache[hex] = cached;
                 piaRotationTimeline.record(cached);
+                trackHeuristicManager.update(cached);
             }
             } catch(e) { _dbg('Error processing aircraft', ac?.hex, e); }
         });
@@ -8481,7 +8632,7 @@ if ('serviceWorker' in navigator) {
     function selectAircraft(hex) {
         _selectLock = Date.now();
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
-        selectedHex = hex; const ac = aircraftCache[hex]; if (!ac) return;
+        selectedHex = hex; const ac = aircraftCache[hex]; if (!ac) { trackHeuristicManager.render(null); return; }
         faaRegistryManager.enrich(ac).then(() => {
             if (selectedHex !== hex || !ac.faaOwner || isPrivacyProtectedAircraft(ac)) return;
             const ownerRow = document.getElementById('infoFaaOwnerRow');
@@ -8565,6 +8716,8 @@ if ('serviceWorker' in navigator) {
             if (interestingSection) interestingSection.style.display = 'none';
             if (categoryBadgeRow) categoryBadgeRow.innerHTML = safeHTML('');
         }
+
+        trackHeuristicManager.render(ac);
         
         // Update route display
         updateRouteDisplay(ac);
@@ -8760,6 +8913,7 @@ if ('serviceWorker' in navigator) {
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
         if (cesium3DManager.requested) cesium3DManager.clearPlayback(false);
         selectedHex = null;
+        trackHeuristicManager.render(null);
         const _pnl = _el('infoPanel');
         _pnl.classList.remove('show');
         _el('sidebarWrapper').style.display = 'none';

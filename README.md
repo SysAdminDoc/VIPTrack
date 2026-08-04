@@ -59,7 +59,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
-| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 281 UI keys |
+| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 297 UI keys |
 | Type Photos | Local representative aircraft-type images with a silhouette fallback | 522 manifest entries |
 
 ### Aircraft Type Photo Enrichment
@@ -83,6 +83,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Airline Banners | Airline branding displayed for identified carriers |
 | Altitude Chart | Live altitude profile showing climb/descent phases |
 | History Trail | Altitude-colored flight path rendered on the map |
+| Track-shape Heuristics | Local, unverified orbit, sustained-hold, and high-altitude transit hints from the in-memory trail; no ML or PIA correlation |
 | External Links | Quick links to Airframes.io ACARS context, FlightAware, FlightRadar24, ADS-B Exchange, Planespotters |
 
 ### Search and Filtering
@@ -162,6 +163,7 @@ Static app files (`index.html` + `cesium-frame.html`)
     |     |-- OPFS registration cache (dedicated worker; compact index, IndexedDB/CSV fallback)
     |     |-- Optional OpenAIP Class A–G airspace tiles (user-keyed, no aircraft telemetry)
     |     |-- Plugin catalog (`plugins/manifest.json`, same-origin opt-in)
+    |     |-- Track-shape heuristics (local in-memory trail rules; unverified labels)
     |     |-- Airline DB (5,800+), Callsign Prefixes (5,774)
     |     |-- Registration DB, Alliance DB
     |
