@@ -45,6 +45,8 @@
     "emergency.unknown": "Non attribué",
     "filter.all": "Tout",
     "filter.allTitle": "Tous les aéronefs militaires et VIP",
+    "filter.curated": "Sélection",
+    "filter.curatedTitle": "Aéronefs intéressants, notables et historiques",
     "filter.mil": "Mil",
     "filter.military": "Militaire",
     "filter.vip": "VIP",

@@ -1842,6 +1842,7 @@ if ('serviceWorker' in navigator) {
     <div class="filter-chips-bar" id="filterChipsBar">
         <button class="filter-chip-btn" data-filter="military" data-i18n="filter.military">Military</button>
         <button class="filter-chip-btn" data-filter="vip" data-i18n="filter.vip">VIP</button>
+        <button class="filter-chip-btn" data-filter="curated" data-i18n="filter.curated">Curated</button>
     </div>
     
     <!-- 3D HUD -->
@@ -2006,6 +2007,7 @@ if ('serviceWorker' in navigator) {
         <button class="filter-btn vip-btn active" data-filter="mil-vip" title="All Military + VIP Aircraft" data-i18n-title="filter.allTitle"><span data-i18n="filter.all">All</span> <span class="count" id="countMilVIP">0</span></button>
         <button class="filter-btn" data-filter="military"><span data-i18n="filter.mil">Mil</span> <span class="count" id="countMil">0</span></button>
         <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
+        <button class="filter-btn flagged" data-filter="curated" title="Interesting, notable, and historic aircraft" data-i18n-title="filter.curatedTitle"><span data-i18n="filter.curated">Curated</span> <span class="count" id="countCurated">0</span></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo" data-i18n="common.loading">Loading...</div></div>
@@ -7112,6 +7114,20 @@ if ('serviceWorker' in navigator) {
         if (PRIVATE_TYPES.some(t => type.startsWith(t))) return 'private';
         return 'commercial';
     }
+    // L18: explicit plane-alert-db membership defines the curated view. This
+    // excludes aircraft that are only present because of a military heuristic
+    // or a live feed classification, so ordinary commercial traffic cannot
+    // leak into the Interesting / Notable / Historic mode.
+    function isCuratedAircraft(ac) {
+        if (!ac?.hex) return false;
+        const hex = String(ac.hex).toUpperCase();
+        return Boolean(
+            ac.isVIP || badgersBestDB.isVIP(hex) ||
+            (interestingDB.loaded && interestingDB.isInteresting(hex)) ||
+            ac.civilianInteresting ||
+            (civilianDB.loaded && civilianDB.isCivilianInteresting(hex))
+        );
+    }
     function getAirlineCode(cs) { return cs?.length >= 3 && /^[A-Z]{3}$/.test(cs.substring(0, 3)) ? cs.substring(0, 3) : null; }
 
     // L1: Opt-in Cesium globe. The library is loaded only for ?3d=1 and never uses a Cesium ion token.
@@ -7430,6 +7446,7 @@ if ('serviceWorker' in navigator) {
         isVisible(ac) {
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) return false;
             if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) return false;
+            if (settings.filter === 'curated') return isCuratedAircraft(ac);
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
@@ -7698,6 +7715,7 @@ if ('serviceWorker' in navigator) {
         isVisible(ac) {
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) return false;
             if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) return false;
+            if (settings.filter === 'curated') return isCuratedAircraft(ac);
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
@@ -7794,8 +7812,8 @@ if ('serviceWorker' in navigator) {
     function saveAircraftCache() { try { const d = { ts: Date.now(), ac: {} }; const keys = Object.keys(aircraftCache); for (let i = 0; i < keys.length; i++) { const h = keys[i], a = aircraftCache[h]; d.ac[h] = { hex: a.hex, flight: a.flight, r: a.r, t: a.t, desc: a.desc, ownOp: a.ownOp, lat: a.lat, lon: a.lon, alt_baro: a.alt_baro, gs: a.gs, track: a.track, baro_rate: a.baro_rate, squawk: a.squawk, category: a.category, dbFlags: a.dbFlags, from: a.from, to: a.to, lastSeen: a.lastSeen, history: a.history?.slice(-50) || [] }; } localStorage.setItem('viptrack_aircraft', JSON.stringify(d)); } catch(e){} }
     function loadAircraftCache() { try { const s = localStorage.getItem('viptrack_aircraft'); if (s) { const d = JSON.parse(s); if (Date.now() - d.ts < CONFIG.cacheExpiry) { aircraftCache = d.ac; return true; } } } catch(e){} return false; }
     function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
-    function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to mil-vip subset
-        if (!['mil-vip','military','vip'].includes(settings.filter)) settings.filter = 'mil-vip'; }
+    function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to supported curated subsets
+        if (!['mil-vip','military','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip'; }
     function loadBookmarks() { try { const s = localStorage.getItem('viptrack_bookmarks'); if (s) bookmarks = JSON.parse(s); } catch(e) { bookmarks = []; } renderBookmarks(); }
     function saveBookmarks() { localStorage.setItem('viptrack_bookmarks', JSON.stringify(bookmarks)); renderBookmarks(); }
     function addBookmark(name) { const c = map.getCenter(); bookmarks.push({ id: Date.now(), name, lat: c.lat, lng: c.lng, zoom: map.getZoom() }); saveBookmarks(); toast('Saved: ' + name); }
@@ -8234,16 +8252,19 @@ if ('serviceWorker' in navigator) {
     }
 
     function updateCounts() {
-        const counts = { milVip: 0, military: 0, vip: 0 };
+        const counts = { milVip: 0, military: 0, vip: 0, curated: 0 };
         Object.values(aircraftCache).forEach(ac => {
             counts.milVip++;
             const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
             if (isVip) counts.vip++;
             else if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
+            if (isCuratedAircraft(ac)) counts.curated++;
         });
         _el('countMilVIP').textContent = counts.milVip;
         _el('countMil').textContent = counts.military;
         _el('countVIP').textContent = counts.vip;
+        const curatedCount = _el('countCurated');
+        if (curatedCount) curatedCount.textContent = counts.curated;
     }
 
     let _updateMarkersRaf = 0;
@@ -8276,7 +8297,9 @@ if ('serviceWorker' in navigator) {
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) { _removeMarker(ac.hex); return; }
             if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) { _removeMarker(ac.hex); return; }
             // VIPTrack: cache only contains mil/vip, so mil-vip shows all cached aircraft
-            if (settings.filter !== 'mil-vip') {
+            if (settings.filter === 'curated') {
+                if (!isCuratedAircraft(ac)) { _removeMarker(ac.hex); return; }
+            } else if (settings.filter !== 'mil-vip') {
                 if (settings.filter === 'vip') {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
@@ -9216,6 +9239,7 @@ if ('serviceWorker' in navigator) {
         document.getElementById('cesiumPlaybackSpeed')?.addEventListener('change', event => cesium3DManager.setPlaybackSpeed(event.target.value));
         document.getElementById('cesiumPlaybackClear')?.addEventListener('click', () => cesium3DManager.clearPlayback());
         document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); btn.classList.add('active'); document.getElementById('tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active'); }));
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === settings.filter));
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -10334,7 +10358,7 @@ if ('serviceWorker' in navigator) {
             }
             
             // Apply filter from URL (VIPTrack: clamp to valid values)
-            if (filter && ['mil-vip','military','vip'].includes(filter)) {
+            if (filter && ['mil-vip','military','vip','curated'].includes(filter)) {
                 settings.filter = filter;
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
@@ -10382,7 +10406,8 @@ if ('serviceWorker' in navigator) {
                 if (this._suppressPopstate) return;
                 const params = new URLSearchParams(window.location.search);
                 const hex = params.get('hex');
-                const filter = params.get('filter') || 'all';
+                const requestedFilter = params.get('filter');
+                const filter = ['mil-vip','military','vip','curated'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
                 const emergency = params.get('emergency');
                 
                 // Apply filter
@@ -13427,6 +13452,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 if (activeChips.includes('military') && (ct === 'military' || ac.militaryInfo || ac.militaryRangeInfo)) show = true;
                 if (activeChips.includes('government') && ct === 'government') show = true;
                 if (activeChips.includes('vip') && ac.isVIP) show = true;
+                if (activeChips.includes('curated') && isCuratedAircraft(ac)) show = true;
                 marker.setOpacity(show ? 1 : 0.08);
             });
         }

@@ -31,6 +31,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - In-memory session statistics dashboard with messages-seen totals, source usage, latency histogram, refresh outcomes, and rolling military/VIP/PIA counts.
 - Local track-shape heuristics for unverified orbit/tanker-AWACS, sustained traffic hold, and high-altitude transit candidate hints, with PIA-safe suppression and no persistence.
 - Local Squawk 7700 history feed with 24-hour retention, plane-alert-db attribution, PIA-safe display, pinned incident rows, and `?emergency=last24h` filtering.
+- Curated aircraft mode for explicit plane-alert-db Interesting / Notable / Historic membership and Badger's Best entries, with a dedicated count and URL-compatible filter.
 - Opt-in MapLibre vector basemaps for CARTO Voyager and Stadia Alidade Smooth Dark, selectable from Settings or with the `?renderer=webgl&basemap=` URL parameters; Leaflet’s ESRI map remains the default.
 - ServiceWorker cache names now include a SHA-256 asset-manifest hash and schema version; cross-origin API fallbacks expire after 60 seconds and tile storage uses a 1,000-entry last-used LRU.
 - ADSB.fi as a fourth rotating live-data source with health tracking.

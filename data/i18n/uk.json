@@ -45,6 +45,8 @@
     "emergency.unknown": "Без атрибуції",
     "filter.all": "Усі",
     "filter.allTitle": "Усі військові та VIP повітряні судна",
+    "filter.curated": "Добірка",
+    "filter.curatedTitle": "Цікаві, помітні та історичні повітряні судна",
     "filter.mil": "Військ.",
     "filter.military": "Військові",
     "filter.vip": "VIP",

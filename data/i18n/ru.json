@@ -45,6 +45,8 @@
     "emergency.unknown": "Без атрибуции",
     "filter.all": "Все",
     "filter.allTitle": "Все военные и VIP воздушные суда",
+    "filter.curated": "Подборка",
+    "filter.curatedTitle": "Интересные, примечательные и исторические воздушные суда",
     "filter.mil": "Воен.",
     "filter.military": "Военные",
     "filter.vip": "VIP",

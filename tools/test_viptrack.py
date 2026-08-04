@@ -354,6 +354,23 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("ac.ownOp", section)
         self.assertIn("skytrackDB.saveUserData(this.storageKey, data)", section)
 
+    def test_curated_aircraft_mode_uses_catalog_membership_and_excludes_heuristics(self) -> None:
+        for marker in (
+            "function isCuratedAircraft(ac)",
+            "interestingDB.isInteresting(hex)",
+            "civilianDB.isCivilianInteresting(hex)",
+            "data-filter=\"curated\"",
+            "countCurated",
+            "settings.filter === 'curated'",
+            "'curated'].includes(settings.filter)",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("function isCuratedAircraft(ac)")
+        end = self.source.index("function getAirlineCode", start)
+        section = self.source[start:end]
+        self.assertIn("badgersBestDB.isVIP(hex)", section)
+        self.assertNotIn("category_type === 'military'", section)
+
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
             "namedWatchlists: new Map()",

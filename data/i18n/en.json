@@ -45,6 +45,8 @@
     "emergency.unknown": "Unattributed",
     "filter.all": "All",
     "filter.allTitle": "All Military + VIP Aircraft",
+    "filter.curated": "Curated",
+    "filter.curatedTitle": "Interesting, notable, and historic aircraft",
     "filter.mil": "Mil",
     "filter.military": "Military",
     "filter.vip": "VIP",

@@ -59,7 +59,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
-| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 302 UI keys |
+| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 304 UI keys |
 | Type Photos | Local representative aircraft-type images with a silhouette fallback | 522 manifest entries |
 
 ### Aircraft Type Photo Enrichment
@@ -91,6 +91,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Feature | Description |
 |---------|-------------|
 | Filter Modes | All Mil/VIP, Military Only, or VIP Only |
+| Curated Mode | Show only plane-alert-db Interesting / Notable / Historic entries and Badger's Best aircraft; heuristic-only and commercial traffic stay out |
 | Search | Find aircraft by hex, registration, callsign, type, or operator |
 | Search Filters | Filter results by category, altitude range, and more |
 | Search History | Recent searches saved for quick access |
