@@ -243,6 +243,21 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("127.0.0.1", build_gradle)
         self.assertNotIn("debug.keystore", build_gradle)
 
+    def test_release_version_is_synchronized_across_shell_docs_and_twa(self) -> None:
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        build_gradle = (TWA_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
+        twa_manifest = json.loads((TWA_DIR / "twa-manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("<title>VIPTrack v0.1.0", self.source)
+        self.assertIn('class="version">v0.1.0', self.source)
+        self.assertIn("version-0.1.0-blue", readme)
+        self.assertIn("## [v0.1.0] - 2026-08-03", changelog)
+        self.assertIn('versionName "0.1.0"', build_gradle)
+        self.assertIn('versionCode 2', build_gradle)
+        self.assertEqual(twa_manifest["appVersionName"], "0.1.0")
+        self.assertEqual(twa_manifest["appVersion"], "0.1.0")
+        self.assertEqual(twa_manifest["appVersionCode"], 2)
+
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
         workflow = TYPE_PHOTO_WORKFLOW.read_text(encoding="utf-8")

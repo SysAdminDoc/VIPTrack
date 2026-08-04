@@ -4,7 +4,7 @@ All notable changes to VIPTrack will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [v0.1.0] - 2026-08-03
 
 ### Added
 - DOMPurify-backed HTML sink sanitization with a fail-closed escaped fallback and SRI-pinned CDN delivery.
@@ -23,7 +23,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Airframes.io ACARS context link from callsign-bearing aircraft, hidden for PIA aircraft and opened as an external no-referrer pivot.
 - Opt-in OpenAIP Class A–G airspace tile overlay with user-supplied local API key storage, OpenAIP attribution, and an on-map class legend.
 - Manifest-backed plugin/overlay catalog with four explicit-load military pattern presets and same-origin-only hooks for future JavaScript modules.
-- Same-origin i18n catalog loader with 281 shared UI keys, persistent language selection, English fallback, and initial Spanish, French, German, Russian, and Ukrainian catalogs.
+- Same-origin i18n catalog loader with 313 shared UI keys, persistent language selection, English fallback, and initial Spanish, French, German, Russian, and Ukrainian catalogs.
 - Dedicated-worker OPFS cache for the compact registration index, using synchronous access handles on warm HTTP(S) starts with IndexedDB/CSV fallback.
 - Stable same-origin PWA manifest with local icons, Web Share Target routing for ICAO hexes and N-numbers, and an unsigned Bubblewrap TWA Android project targeting GitHub Pages.
 - Deterministic, resumable aircraft type-photo enrichment using the local type database, with 522 manifest-backed assets and silhouette fallback coverage.
