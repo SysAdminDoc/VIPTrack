@@ -23,6 +23,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Airframes.io ACARS context link from callsign-bearing aircraft, hidden for PIA aircraft and opened as an external no-referrer pivot.
 - Opt-in OpenAIP Class A–G airspace tile overlay with user-supplied local API key storage, OpenAIP attribution, and an on-map class legend.
 - Manifest-backed plugin/overlay catalog with four explicit-load military pattern presets and same-origin-only hooks for future JavaScript modules.
+- Same-origin i18n catalog loader with 281 shared UI keys, persistent language selection, English fallback, and initial Spanish, French, German, Russian, and Ukrainian catalogs.
 - ServiceWorker cache names now include a SHA-256 asset-manifest hash and schema version; cross-origin API fallbacks expire after 60 seconds and tile storage uses a 1,000-entry last-used LRU.
 - ADSB.fi as a fourth rotating live-data source with health tracking.
 - Emergency squawk auto-highlight for 7500 (hijack) / 7600 (NORDO) / 7700 (general) with optional audible tone.

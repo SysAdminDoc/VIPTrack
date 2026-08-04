@@ -14,6 +14,7 @@ INDEX = ROOT / "index.html"
 CESIUM_FRAME = ROOT / "cesium-frame.html"
 FAA_DIR = ROOT / "data" / "faa"
 PLUGINS_MANIFEST = ROOT / "plugins" / "manifest.json"
+I18N_DIR = ROOT / "data" / "i18n"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -138,6 +139,32 @@ class VipTrackContracts(unittest.TestCase):
             "pluginManifestManager.init();",
         ):
             self.assertIn(marker, self.source)
+
+    def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
+        for marker in (
+            "const i18nManager =",
+            "data/i18n/",
+            "data-i18n",
+            "languageSelect",
+            "viptrack_language_v1",
+            "credentials: 'same-origin'",
+            "location.protocol === 'file:'",
+            "this.messages.en",
+        ):
+            self.assertIn(marker, self.source)
+        source_keys = set(re.findall(r'data-i18n(?:-[a-z-]+)?="([^"]+)"', self.source))
+        self.assertGreaterEqual(len(source_keys), 120)
+        catalogs = {}
+        for language in ("en", "es", "fr", "de", "ru", "uk"):
+            path = I18N_DIR / f"{language}.json"
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["schemaVersion"], 1)
+            self.assertEqual(payload["language"], language)
+            self.assertIsInstance(payload["messages"], dict)
+            catalogs[language] = set(payload["messages"])
+            self.assertEqual(source_keys, catalogs[language])
+            self.assertGreaterEqual(len(catalogs[language]), 120)
+        self.assertEqual(catalogs["en"], catalogs["es"])
 
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (

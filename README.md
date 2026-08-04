@@ -37,6 +37,8 @@ python -m http.server 8000
 
 Zero-build, dependency-free static web application. The normal Leaflet 2D map works from `index.html`; the optional Cesium globe (`?3d=1`) and MapLibre/deck.gl GPU renderer (`?renderer=webgl`) are lazy-loaded from pinned CDN assets and need HTTP(S) hosting.
 
+The Settings panel includes a language selector. Locale catalogs live in `data/i18n/{lang}.json`, are loaded only from the app's own origin, and fall back to the English catalog (or the embedded English UI defaults when opened directly as `file://`).
+
 ## Features
 
 ### Global Aircraft Loading
@@ -54,6 +56,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | FAA Registry | Privacy-minimized official owner/type lookup for non-PIA N-numbers | 315,211 records in 26 shards |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
+| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 281 UI keys |
 
 ### Aircraft Detail Panel
 
@@ -157,7 +160,7 @@ Static app files (`index.html` + `cesium-frame.html`)
           |-- Aircraft detail sidebar (Overview / Aircraft / Route)
           |-- Search with filters and history
           |-- Watchlist and alert system
-          |-- Settings panel
+          |-- Settings panel and localised catalogs (`data/i18n/`)
 ```
 
 ## Tech Stack

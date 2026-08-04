@@ -1650,46 +1650,46 @@ if ('serviceWorker' in navigator) {
             <span>VIPTrack<span class="version">v0.0.1</span></span>
         </div>
         <div class="spinner"></div>
-        <div class="loading-status" id="loadingStatus">Initializing...</div>
+        <div class="loading-status" id="loadingStatus" data-i18n="loading.initializing">Initializing...</div>
         <div class="loading-progress"><div class="loading-progress-bar" id="loadingProgress"></div></div>
     </div>
     <div id="sidebarWrapper" style="display:none;position:fixed;top:0;left:0;width:360px;height:100vh;z-index:9999;background:#0d0d1a;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.1);box-shadow:4px 0 20px rgba(0,0,0,0.4);"></div>
     <div id="map"></div>
-    <div id="webglMap" aria-label="WebGL aircraft map"></div>
-    <div id="globe3d" aria-label="3D globe view"></div>
+    <div id="webglMap" aria-label="WebGL aircraft map" data-i18n-aria-label="map.webglAria"></div>
+    <div id="globe3d" aria-label="3D globe view" data-i18n-aria-label="map.globeAria"></div>
     <!-- Phase 16: Reliability Indicators -->
     <div class="data-source-indicator" id="dataSourceIndicator">
-        <span class="source-name">Connecting...</span>
+        <span class="source-name" data-i18n="status.connecting">Connecting...</span>
         <span class="source-status unknown">0/4</span>
         <span class="source-latency">--</span>
     </div>
     <!-- X31: tab paused pill -->
     <div id="pausedPill" class="paused-pill" role="status" aria-live="polite">
-        <span class="paused-dot"></span><span>Paused — return to tab to resume</span>
+        <span class="paused-dot"></span><span data-i18n="status.paused">Paused — return to tab to resume</span>
     </div>
     <!-- N6: first-load ethical-use disclaimer -->
-    <div id="ethicsDisclaimer" class="ethics-disclaimer" role="dialog" aria-modal="false" aria-label="VIPTrack ethical-use notice">
+    <div id="ethicsDisclaimer" class="ethics-disclaimer" role="dialog" aria-modal="false" aria-label="VIPTrack ethical-use notice" data-i18n-aria-label="ethics.title">
         <div class="ethics-body">
-            <strong>VIPTrack uses public ADS-B data only.</strong>
+            <strong data-i18n="ethics.publicOnly">VIPTrack uses public ADS-B data only.</strong>
             <span>Many aircraft use the FAA <a href="https://nbaa.org/aircraft-operations/security/privacy/privacy-icao-address-pia/" target="_blank" rel="noopener">Privacy ICAO Address (PIA)</a> or LADD opt-out. VIPTrack honours those programs and is not for operational or harassment use.</span>
         </div>
-        <button id="ethicsDismiss" class="ethics-dismiss" aria-label="Dismiss notice">Got it</button>
+        <button id="ethicsDismiss" class="ethics-dismiss" aria-label="Dismiss notice" data-i18n-aria-label="common.dismiss" data-i18n="common.gotIt">Got it</button>
     </div>
     <div class="circuit-breaker-warning" id="circuitBreakerWarning"></div>
     <div class="sync-indicator" id="syncIndicator">
         <div class="sync-spinner"></div>
-        <span class="sync-text">Syncing...</span>
+        <span class="sync-text" data-i18n="status.syncing">Syncing...</span>
     </div>
     <div class="legend">
-        <div class="legend-title">Altitude</div>
+        <div class="legend-title" data-i18n="legend.altitude">Altitude</div>
         <div class="legend-items">
-            <div class="legend-item"><div class="legend-color" style="background:#9400d3"></div>> 40k ft</div>
-            <div class="legend-item"><div class="legend-color" style="background:#ff0000"></div>30-40k</div>
-            <div class="legend-item"><div class="legend-color" style="background:#ff4500"></div>20-30k</div>
-            <div class="legend-item"><div class="legend-color" style="background:#ffa500"></div>10-20k</div>
-            <div class="legend-item"><div class="legend-color" style="background:#ffff00"></div>5-10k</div>
-            <div class="legend-item"><div class="legend-color" style="background:#7fff00"></div>1-5k</div>
-            <div class="legend-item"><div class="legend-color" style="background:#00ff00"></div>Ground</div>
+            <div class="legend-item"><div class="legend-color" style="background:#9400d3"></div><span data-i18n="legend.above40">&gt; 40k ft</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#ff0000"></div><span data-i18n="legend.range30_40">30-40k</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#ff4500"></div><span data-i18n="legend.range20_30">20-30k</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#ffa500"></div><span data-i18n="legend.range10_20">10-20k</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#ffff00"></div><span data-i18n="legend.range5_10">5-10k</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#7fff00"></div><span data-i18n="legend.range1_5">1-5k</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#00ff00"></div><span data-i18n="legend.ground">Ground</span></div>
         </div>
     </div>
     <header class="header">
@@ -1702,20 +1702,20 @@ if ('serviceWorker' in navigator) {
         
         <!-- Map Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger" aria-label="Map and layers menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span>Map</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <button class="hv2-dropdown-trigger" aria-label="Map and layers menu" data-i18n-aria-label="nav.mapMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span data-i18n="nav.map">Map</span><span class="hv2-dd-badge" style="display:none"></span></button>
             <div class="hv2-panel">
-                <div class="hv2-panel-title">Map & Layers</div>
-                <div class="hv2-item" data-btn="labelBtn"><div class="hv2-item-icon"><button class="header-btn" id="labelBtn" title="Labels" aria-label="Toggle Labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button></div><div class="hv2-item-label">Labels</div><div class="hv2-item-status">OFF</div></div>
+                <div class="hv2-panel-title" data-i18n="nav.mapLayers">Map &amp; Layers</div>
+                <div class="hv2-item" data-btn="labelBtn"><div class="hv2-item-icon"><button class="header-btn" id="labelBtn" title="Labels" aria-label="Toggle Labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button></div><div class="hv2-item-label" data-i18n="nav.labels">Labels</div><div class="hv2-item-status" data-i18n="common.off">OFF</div></div>
             </div>
         </div>
         
         <!-- Tools Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger" aria-label="Tools menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span>Tools</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <button class="hv2-dropdown-trigger" aria-label="Tools menu" data-i18n-aria-label="nav.toolsMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span data-i18n="nav.tools">Tools</span><span class="hv2-dd-badge" style="display:none"></span></button>
             <div class="hv2-panel">
-                <div class="hv2-panel-title">Tools</div>
-                <div class="hv2-item" data-btn="followBtn"><div class="hv2-item-icon"><button class="header-btn" id="followBtn" title="Follow" aria-label="Follow Aircraft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><path d="M12 8v8M8 12h8" stroke-dasharray="2 2"/></svg></button></div><div class="hv2-item-label">Follow Aircraft</div></div>
-                <div class="hv2-item" data-btn="panelsBtn"><div class="hv2-item-icon"><button class="header-btn" id="panelsBtn" title="Saved & Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button></div><div class="hv2-item-label">Saved & Watchlist</div></div>
+                <div class="hv2-panel-title" data-i18n="nav.tools">Tools</div>
+                <div class="hv2-item" data-btn="followBtn"><div class="hv2-item-icon"><button class="header-btn" id="followBtn" title="Follow" aria-label="Follow Aircraft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><path d="M12 8v8M8 12h8" stroke-dasharray="2 2"/></svg></button></div><div class="hv2-item-label" data-i18n="nav.followAircraft">Follow Aircraft</div></div>
+                <div class="hv2-item" data-btn="panelsBtn"><div class="hv2-item-icon"><button class="header-btn" id="panelsBtn" title="Saved & Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button></div><div class="hv2-item-label" data-i18n="nav.savedWatchlist">Saved &amp; Watchlist</div></div>
             </div>
         </div>
         
@@ -1723,55 +1723,55 @@ if ('serviceWorker' in navigator) {
     
     <!-- Filter Chips Bar -->
     <div class="filter-chips-bar" id="filterChipsBar">
-        <button class="filter-chip-btn" data-filter="military">Military</button>
-        <button class="filter-chip-btn" data-filter="vip">VIP</button>
+        <button class="filter-chip-btn" data-filter="military" data-i18n="filter.military">Military</button>
+        <button class="filter-chip-btn" data-filter="vip" data-i18n="filter.vip">VIP</button>
     </div>
     
     <!-- 3D HUD -->
     <div class="hud-3d" id="hud3d">
-        <div class="hud-3d-title" id="hud3dTitle">3D Globe</div>
-        <div class="hud-3d-row" id="cesium3dStatus" role="status" aria-live="polite">Loading renderer...</div>
-        <div class="hud-3d-row"><span class="hud-3d-key">Drag</span> Rotate globe</div>
-        <div class="hud-3d-row"><span class="hud-3d-key">Scroll</span> Zoom in/out</div>
-        <div class="hud-3d-row"><span class="hud-3d-key">R-Drag</span> Tilt camera</div>
-        <div class="hud-3d-row"><span class="hud-3d-key">Click</span> Select aircraft</div>
+        <div class="hud-3d-title" id="hud3dTitle" data-i18n="globe.title">3D Globe</div>
+        <div class="hud-3d-row" id="cesium3dStatus" role="status" aria-live="polite" data-i18n="globe.loadingRenderer">Loading renderer...</div>
+        <div class="hud-3d-row"><span class="hud-3d-key" data-i18n="globe.drag">Drag</span> <span data-i18n="globe.rotate">Rotate globe</span></div>
+        <div class="hud-3d-row"><span class="hud-3d-key" data-i18n="globe.scroll">Scroll</span> <span data-i18n="globe.zoom">Zoom in/out</span></div>
+        <div class="hud-3d-row"><span class="hud-3d-key" data-i18n="globe.rDrag">R-Drag</span> <span data-i18n="globe.tilt">Tilt camera</span></div>
+        <div class="hud-3d-row"><span class="hud-3d-key" data-i18n="globe.click">Click</span> <span data-i18n="globe.select">Select aircraft</span></div>
     </div>
-    <div class="cesium-playback-controls" id="cesiumPlayback" hidden aria-label="Historical Cesium playback controls">
-        <button class="cesium-playback-btn" id="cesiumPlaybackStepBack" type="button" title="Step backward 30 seconds" aria-label="Step backward 30 seconds">◀</button>
-        <button class="cesium-playback-btn play" id="cesiumPlaybackPlay" type="button" title="Play historical trace" aria-label="Play historical trace">▶</button>
-        <button class="cesium-playback-btn" id="cesiumPlaybackStepForward" type="button" title="Step forward 30 seconds" aria-label="Step forward 30 seconds">▶</button>
-        <input class="cesium-playback-slider" id="cesiumPlaybackSlider" type="range" min="0" max="1" step="1" value="0" aria-label="Historical trace time">
-        <span class="cesium-playback-time" id="cesiumPlaybackTime" role="status" aria-live="polite">No historical trace loaded</span>
-        <select class="cesium-playback-speed" id="cesiumPlaybackSpeed" aria-label="Playback speed">
+    <div class="cesium-playback-controls" id="cesiumPlayback" hidden aria-label="Historical Cesium playback controls" data-i18n-aria-label="playback.controls">
+        <button class="cesium-playback-btn" id="cesiumPlaybackStepBack" type="button" title="Step backward 30 seconds" aria-label="Step backward 30 seconds" data-i18n-title="playback.stepBack" data-i18n-aria-label="playback.stepBack">◀</button>
+        <button class="cesium-playback-btn play" id="cesiumPlaybackPlay" type="button" title="Play historical trace" aria-label="Play historical trace" data-i18n-title="playback.play" data-i18n-aria-label="playback.play">▶</button>
+        <button class="cesium-playback-btn" id="cesiumPlaybackStepForward" type="button" title="Step forward 30 seconds" aria-label="Step forward 30 seconds" data-i18n-title="playback.stepForward" data-i18n-aria-label="playback.stepForward">▶</button>
+        <input class="cesium-playback-slider" id="cesiumPlaybackSlider" type="range" min="0" max="1" step="1" value="0" aria-label="Historical trace time" data-i18n-aria-label="playback.traceTime">
+        <span class="cesium-playback-time" id="cesiumPlaybackTime" role="status" aria-live="polite" data-i18n="playback.none">No historical trace loaded</span>
+        <select class="cesium-playback-speed" id="cesiumPlaybackSpeed" aria-label="Playback speed" data-i18n-aria-label="playback.speed">
             <option value="0.25">0.25×</option>
             <option value="0.5">0.5×</option>
             <option value="1" selected>1×</option>
             <option value="2">2×</option>
             <option value="4">4×</option>
         </select>
-        <button class="cesium-playback-btn clear" id="cesiumPlaybackClear" type="button" title="Clear historical trace" aria-label="Clear historical trace">×</button>
+        <button class="cesium-playback-btn clear" id="cesiumPlaybackClear" type="button" title="Clear historical trace" aria-label="Clear historical trace" data-i18n-title="playback.clear" data-i18n-aria-label="playback.clear">×</button>
     </div>
     
     <!-- Onboarding Overlay -->
     <div class="onboard-overlay" id="onboardOverlay">
         <div class="onboard-card">
             <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><polyline points="21 12 17 8 21 12 17 16"/></svg></div>
-            <div class="onboard-title">Welcome to VIPTrack</div>
-            <div class="onboard-desc">Real-time military and VIP aircraft tracking with aviation intelligence.</div>
+            <div class="onboard-title" data-i18n="onboarding.title">Welcome to VIPTrack</div>
+            <div class="onboard-desc" data-i18n="onboarding.description">Real-time military and VIP aircraft tracking with aviation intelligence.</div>
             <div class="onboard-tips">
-                <div class="onboard-tip"><span class="onboard-tip-num">1</span><span>Only military, government, and VIP aircraft are shown</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">2</span><span>Tap any aircraft on the map to see its details, route, and specs</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">3</span><span>Use the search bar to find flights by callsign, registration, or ICAO hex</span></div>
-                <div class="onboard-tip"><span class="onboard-tip-num">4</span><span>Use the filter buttons to narrow by Military, Gov, or VIP</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">1</span><span data-i18n="onboarding.tip1">Only military, government, and VIP aircraft are shown</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">2</span><span data-i18n="onboarding.tip2">Tap any aircraft on the map to see its details, route, and specs</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">3</span><span data-i18n="onboarding.tip3">Use the search bar to find flights by callsign, registration, or ICAO hex</span></div>
+                <div class="onboard-tip"><span class="onboard-tip-num">4</span><span data-i18n="onboarding.tip4">Use the filter buttons to narrow by Military, Gov, or VIP</span></div>
             </div>
-            <button class="onboard-btn" id="onboardDismiss">Start Tracking</button>
+            <button class="onboard-btn" id="onboardDismiss" data-i18n="onboarding.start">Start Tracking</button>
         </div>
     </div>
     
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-pulse"></div>
-        <div class="loading-text" id="loadingText">Scanning for aircraft...</div>
+        <div class="loading-text" id="loadingText" data-i18n="loading.scanning">Scanning for aircraft...</div>
     </div>
     <div class="filter-bar" id="filterBar">
         <div class="logo"><img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png" alt="VIPTrack"><span>VIPTrack</span></div>
@@ -1781,9 +1781,9 @@ if ('serviceWorker' in navigator) {
                 <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
-                <input type="text" class="search-box" id="searchInput" aria-label="Search aircraft" placeholder="Search flights, airports, airlines..." autocomplete="off">
+                <input type="text" class="search-box" id="searchInput" aria-label="Search aircraft" data-i18n-aria-label="search.aircraft" data-i18n-placeholder="search.placeholder" placeholder="Search flights, airports, airlines..." autocomplete="off">
                 <button class="search-clear-btn" id="searchClearBtn" style="display:none;">x</button>
-                <button class="search-filter-btn" id="searchFilterBtn" title="Advanced Filters">
+                <button class="search-filter-btn" id="searchFilterBtn" title="Advanced Filters" data-i18n-title="search.advancedFilters">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
                     </svg>
@@ -1792,97 +1792,97 @@ if ('serviceWorker' in navigator) {
             </div>
             <div class="search-dropdown" id="searchDropdown">
                 <div class="search-tabs">
-                    <button class="search-tab active" data-tab="results">Results</button>
-                    <button class="search-tab" data-tab="filters">Filters</button>
-                    <button class="search-tab" data-tab="history">History</button>
+                    <button class="search-tab active" data-tab="results" data-i18n="search.results">Results</button>
+                    <button class="search-tab" data-tab="filters" data-i18n="search.filters">Filters</button>
+                    <button class="search-tab" data-tab="history" data-i18n="search.history">History</button>
                 </div>
                 <div class="search-content">
                     <div class="search-tab-panel active" id="tabResults">
                         <div class="search-results" id="searchResults">
-                            <div class="search-placeholder">Start typing to search...</div>
+                            <div class="search-placeholder" data-i18n="search.startTyping">Start typing to search...</div>
                         </div>
                     </div>
                     <div class="search-tab-panel" id="tabFilters">
                         <div class="filter-section">
-                            <div class="filter-label">Aircraft Type</div>
+                            <div class="filter-label" data-i18n="search.aircraftType">Aircraft Type</div>
                             <div class="filter-chips" id="filterTypeChips">
-                                <button class="filter-chip" data-type="military">Military</button>
+                                <button class="filter-chip" data-type="military" data-i18n="filter.military">Military</button>
                             </div>
                         </div>
                         <div class="filter-section">
-                            <div class="filter-label">Altitude</div>
+                            <div class="filter-label" data-i18n="search.altitude">Altitude</div>
                             <div class="filter-range">
-                                <input type="number" id="altMin" placeholder="Min ft" class="filter-input">
+                                <input type="number" id="altMin" placeholder="Min ft" data-i18n-placeholder="search.minFt" class="filter-input">
                                 <span class="filter-range-sep">-</span>
-                                <input type="number" id="altMax" placeholder="Max ft" class="filter-input">
+                                <input type="number" id="altMax" placeholder="Max ft" data-i18n-placeholder="search.maxFt" class="filter-input">
                             </div>
                         </div>
                         <div class="filter-section">
-                            <div class="filter-label">Speed</div>
+                            <div class="filter-label" data-i18n="search.speed">Speed</div>
                             <div class="filter-range">
-                                <input type="number" id="speedMin" placeholder="Min kt" class="filter-input">
+                                <input type="number" id="speedMin" placeholder="Min kt" data-i18n-placeholder="search.minKt" class="filter-input">
                                 <span class="filter-range-sep">-</span>
-                                <input type="number" id="speedMax" placeholder="Max kt" class="filter-input">
+                                <input type="number" id="speedMax" placeholder="Max kt" data-i18n-placeholder="search.maxKt" class="filter-input">
                             </div>
                         </div>
                         <div class="filter-section">
-                            <div class="filter-label">Airport (Origin/Destination)</div>
-                            <input type="text" id="filterAirport" placeholder="ICAO or IATA code" class="filter-input-full">
+                            <div class="filter-label" data-i18n="search.airport">Airport (Origin/Destination)</div>
+                            <input type="text" id="filterAirport" placeholder="ICAO or IATA code" data-i18n-placeholder="search.airportCode" class="filter-input-full">
                         </div>
                         <div class="filter-section">
-                            <div class="filter-label">Airline</div>
-                            <input type="text" id="filterAirline" placeholder="Name or ICAO code" class="filter-input-full">
+                            <div class="filter-label" data-i18n="search.airline">Airline</div>
+                            <input type="text" id="filterAirline" placeholder="Name or ICAO code" data-i18n-placeholder="search.airlineCode" class="filter-input-full">
                         </div>
                         <div class="filter-section">
-                            <div class="filter-label">Special</div>
+                            <div class="filter-label" data-i18n="search.special">Special</div>
                             <div class="filter-checkboxes">
                                 <label class="filter-checkbox">
-                                    <input type="checkbox" id="filterEmergency"> Emergency Squawk
+                                    <input type="checkbox" id="filterEmergency"> <span data-i18n="search.emergencySquawk">Emergency Squawk</span>
                                 </label>
                                 <label class="filter-checkbox">
-                                    <input type="checkbox" id="filterInteresting"> Interesting Only
+                                    <input type="checkbox" id="filterInteresting"> <span data-i18n="search.interestingOnly">Interesting Only</span>
                                 </label>
                                 <label class="filter-checkbox">
-                                    <input type="checkbox" id="filterGrounded"> On Ground
+                                    <input type="checkbox" id="filterGrounded"> <span data-i18n="search.onGround">On Ground</span>
                                 </label>
                                 <label class="filter-checkbox">
-                                    <input type="checkbox" id="filterNoCallsign"> No Callsign
+                                    <input type="checkbox" id="filterNoCallsign"> <span data-i18n="search.noCallsign">No Callsign</span>
                                 </label>
                             </div>
                         </div>
                         <div class="filter-section">
-                            <div class="filter-label">Regex Pattern (Advanced)</div>
-                            <input type="text" id="filterRegex" placeholder="e.g., ^UAL\d+ or N\d{3}[A-Z]{2}" class="filter-input-full">
-                            <div class="filter-hint">Matches against callsign and registration</div>
+                            <div class="filter-label" data-i18n="search.regex">Regex Pattern (Advanced)</div>
+                            <input type="text" id="filterRegex" placeholder="e.g., ^UAL\d+ or N\d{3}[A-Z]{2}" data-i18n-placeholder="search.regexPlaceholder" class="filter-input-full">
+                            <div class="filter-hint" data-i18n="search.regexHint">Matches against callsign and registration</div>
                         </div>
                         <div class="filter-actions">
-                            <button class="adv-filter-btn secondary" id="clearFiltersBtn">Clear All</button>
-                            <button class="adv-filter-btn primary" id="applyFiltersBtn">Apply Filters</button>
+                            <button class="adv-filter-btn secondary" id="clearFiltersBtn" data-i18n="common.clearAll">Clear All</button>
+                            <button class="adv-filter-btn primary" id="applyFiltersBtn" data-i18n="search.applyFilters">Apply Filters</button>
                         </div>
                     </div>
                     <div class="search-tab-panel" id="tabHistory">
                         <div class="search-history" id="searchHistory">
-                            <div class="search-placeholder">No recent searches</div>
+                            <div class="search-placeholder" data-i18n="search.noRecent">No recent searches</div>
                         </div>
-                        <button class="adv-filter-btn secondary full-width" id="clearHistoryBtn">Clear History</button>
+                        <button class="adv-filter-btn secondary full-width" id="clearHistoryBtn" data-i18n="search.clearHistory">Clear History</button>
                     </div>
                 </div>
             </div>
         </div>
         <div class="filter-divider"></div>
         <div role="radiogroup" aria-label="Aircraft category filter" style="display:contents">
-        <button class="filter-btn vip-btn active" data-filter="mil-vip" title="All Military + VIP Aircraft">All <span class="count" id="countMilVIP">0</span></button>
-        <button class="filter-btn" data-filter="military">Mil <span class="count" id="countMil">0</span></button>
-        <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft">VIP <span class="count" id="countVIP">0</span></button>
+        <button class="filter-btn vip-btn active" data-filter="mil-vip" title="All Military + VIP Aircraft" data-i18n-title="filter.allTitle"><span data-i18n="filter.all">All</span> <span class="count" id="countMilVIP">0</span></button>
+        <button class="filter-btn" data-filter="military"><span data-i18n="filter.mil">Mil</span> <span class="count" id="countMil">0</span></button>
+        <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
     </div>
-    <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details">
-        <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo">Loading...</div></div>
+    <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
+        <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo" data-i18n="common.loading">Loading...</div></div>
         <div class="airline-banner" id="airlineBanner" style="display:none;"><img src="" alt=""></div>
         <div class="info-quickglance" id="infoQuickGlance">
-            <div class="info-qg-item"><div class="info-qg-val" id="qgCallsign">---</div><div class="info-qg-label">Flight</div></div>
-            <div class="info-qg-item"><div class="info-qg-val" id="qgAlt">---</div><div class="info-qg-label">Altitude</div></div>
-            <div class="info-qg-item"><div class="info-qg-val" id="qgSpeed">---</div><div class="info-qg-label">Speed</div></div>
-            <div class="info-qg-item"><div class="info-qg-val" id="qgDest">---</div><div class="info-qg-label">Dest</div></div>
+            <div class="info-qg-item"><div class="info-qg-val" id="qgCallsign">---</div><div class="info-qg-label" data-i18n="info.flight">Flight</div></div>
+            <div class="info-qg-item"><div class="info-qg-val" id="qgAlt">---</div><div class="info-qg-label" data-i18n="info.altitude">Altitude</div></div>
+            <div class="info-qg-item"><div class="info-qg-val" id="qgSpeed">---</div><div class="info-qg-label" data-i18n="info.speed">Speed</div></div>
+            <div class="info-qg-item"><div class="info-qg-val" id="qgDest">---</div><div class="info-qg-label" data-i18n="info.destinationShort">Dest</div></div>
         </div>
         <div class="info-header">
             <div class="info-header-left">
@@ -1893,109 +1893,109 @@ if ('serviceWorker' in navigator) {
                 <div class="info-hex" id="infoHex">---</div>
             </div>
             <div class="info-header-actions">
-                <button class="watch-btn" id="watchBtn" title="Add to Watchlist">
+                <button class="watch-btn" id="watchBtn" title="Add to Watchlist" data-i18n-title="watch.add">
                     <span class="star">*</span>
-                    <span class="watch-text">Watch</span>
+                    <span class="watch-text" data-i18n="watch.watch">Watch</span>
                 </button>
-                <button class="info-close" id="infoClose" aria-label="Close aircraft details">&times;</button>
+                <button class="info-close" id="infoClose" aria-label="Close aircraft details" data-i18n-aria-label="common.close">&times;</button>
             </div>
         </div>
         <div class="info-tabs">
-            <button class="tab-btn active" data-tab="overview">Overview</button>
-            <button class="tab-btn" data-tab="aircraft">Aircraft</button>
-            <button class="tab-btn" data-tab="route">Route</button>
+            <button class="tab-btn active" data-tab="overview" data-i18n="info.overview">Overview</button>
+            <button class="tab-btn" data-tab="aircraft" data-i18n="info.aircraft">Aircraft</button>
+            <button class="tab-btn" data-tab="route" data-i18n="info.route">Route</button>
         </div>
         <div class="tab-content active" id="tabOverview">
             <div class="info-section interesting-section" id="interestingSection" style="display:none;">
-                <div class="interesting-header" id="interestingHeader"><span class="interesting-icon" id="interestingIcon">*</span><span class="interesting-title" id="interestingTitle">Flagged Aircraft</span></div>
-                <div class="info-row"><span class="info-label">Category</span><span class="info-value" id="interestingCategory">---</span></div>
-                <div class="info-row"><span class="info-label">Tag</span><span class="info-value" id="interestingTag">---</span></div>
-                <div class="info-row"><span class="info-label">Operator</span><span class="info-value" id="interestingOperator">---</span></div>
+            <div class="interesting-header" id="interestingHeader"><span class="interesting-icon" id="interestingIcon">*</span><span class="interesting-title" id="interestingTitle" data-i18n="info.flaggedAircraft">Flagged Aircraft</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.category">Category</span><span class="info-value" id="interestingCategory">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.tag">Tag</span><span class="info-value" id="interestingTag">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.operator">Operator</span><span class="info-value" id="interestingOperator">---</span></div>
                 <div id="categoryBadgeRow" style="margin-top: 8px;"></div>
             </div>
             <div class="info-section pia-rotation-section" id="piaRotationSection" style="display:none;">
-                <div class="interesting-header pia"><span class="interesting-icon">↻</span><span class="interesting-title">PIA rotation timeline</span></div>
-                <div class="pia-rotation-help">Local anonymised profile; public PIA addresses observed within the 20-day rotation window.</div>
+            <div class="interesting-header pia"><span class="interesting-icon">↻</span><span class="interesting-title" data-i18n="info.piaTimeline">PIA rotation timeline</span></div>
+            <div class="pia-rotation-help" data-i18n="info.piaHelp">Local anonymised profile; public PIA addresses observed within the 20-day rotation window.</div>
                 <div class="pia-rotation-list" id="piaRotationList"></div>
             </div>
             <div class="info-section" id="routeSection" style="display:none;">
                 <div class="route-display">
-                    <div class="route-airport"><div class="route-code" id="routeFrom">---</div><div class="route-name" id="routeFromName">Departure</div></div>
+            <div class="route-airport"><div class="route-code" id="routeFrom">---</div><div class="route-name" id="routeFromName" data-i18n="route.departure">Departure</div></div>
                     <div class="route-line"><div class="route-progress" id="routeProgress" style="width:50%"></div><span class="route-plane-icon" style="left:50%">&#9992;</span></div>
-                    <div class="route-airport"><div class="route-code" id="routeTo">---</div><div class="route-name" id="routeToName">Arrival</div></div>
+            <div class="route-airport"><div class="route-code" id="routeTo">---</div><div class="route-name" id="routeToName" data-i18n="route.arrival">Arrival</div></div>
                 </div>
             </div>
             <div class="info-section">
                 <div class="info-grid">
-                    <div class="info-stat"><div class="info-stat-value" id="infoAlt">---</div><div class="info-stat-label">Altitude</div></div>
-                    <div class="info-stat"><div class="info-stat-value" id="infoSpeed">---</div><div class="info-stat-label">Speed</div></div>
-                    <div class="info-stat"><div class="info-stat-value" id="infoTrack">---</div><div class="info-stat-label">Track</div></div>
-                    <div class="info-stat"><div class="info-stat-value" id="infoVRate">---</div><div class="info-stat-label">V/S</div></div>
+            <div class="info-stat"><div class="info-stat-value" id="infoAlt">---</div><div class="info-stat-label" data-i18n="info.altitude">Altitude</div></div>
+            <div class="info-stat"><div class="info-stat-value" id="infoSpeed">---</div><div class="info-stat-label" data-i18n="info.speed">Speed</div></div>
+            <div class="info-stat"><div class="info-stat-value" id="infoTrack">---</div><div class="info-stat-label" data-i18n="info.track">Track</div></div>
+            <div class="info-stat"><div class="info-stat-value" id="infoVRate">---</div><div class="info-stat-label" data-i18n="info.verticalSpeed">V/S</div></div>
                 </div>
             </div>
-            <div class="altitude-chart-container"><div class="altitude-chart-title">Altitude Profile</div><canvas id="altitudeChart"></canvas></div>
+            <div class="altitude-chart-container"><div class="altitude-chart-title" data-i18n="info.altitudeProfile">Altitude Profile</div><canvas id="altitudeChart"></canvas></div>
             <div class="info-section">
-                <div class="info-row"><span class="info-label">Registration</span><span class="info-value" id="infoReg">---</span></div>
-                <div class="info-row"><span class="info-label">Type</span><span class="info-value" id="infoType">---</span></div>
-                <div class="info-row" id="infoDescRow" style="display:none;"><span class="info-label">Aircraft</span><span class="info-value" id="infoDesc">---</span></div>
-                <div class="info-row" id="infoOperatorRow" style="display:none;"><span class="info-label">Operator</span><span class="info-value" id="infoOperator">---</span></div>
-                <div class="info-row" id="infoFaaOwnerRow" style="display:none;"><span class="info-label">FAA owner</span><span class="info-value" id="infoFaaOwner">---</span></div>
-                <div class="info-row" id="infoAirlineRow" style="display:none;"><span class="info-label">Airline</span><span class="info-value" id="infoAirline">---</span></div>
-                <div class="info-row"><span class="info-label">Category</span><span class="info-value" id="infoCat">---</span></div>
-                <div class="info-row"><span class="info-label">Squawk</span><span class="info-value"><span class="squawk-code squawk-normal" id="infoSquawk">----</span></span></div>
-                <div class="trail-status" id="trailStatus">Loading trail...</div>
+            <div class="info-row"><span class="info-label" data-i18n="info.registration">Registration</span><span class="info-value" id="infoReg">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.type">Type</span><span class="info-value" id="infoType">---</span></div>
+            <div class="info-row" id="infoDescRow" style="display:none;"><span class="info-label" data-i18n="info.aircraft">Aircraft</span><span class="info-value" id="infoDesc">---</span></div>
+            <div class="info-row" id="infoOperatorRow" style="display:none;"><span class="info-label" data-i18n="info.operator">Operator</span><span class="info-value" id="infoOperator">---</span></div>
+            <div class="info-row" id="infoFaaOwnerRow" style="display:none;"><span class="info-label" data-i18n="info.faaOwner">FAA owner</span><span class="info-value" id="infoFaaOwner">---</span></div>
+            <div class="info-row" id="infoAirlineRow" style="display:none;"><span class="info-label" data-i18n="info.airline">Airline</span><span class="info-value" id="infoAirline">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.category">Category</span><span class="info-value" id="infoCat">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.squawk">Squawk</span><span class="info-value"><span class="squawk-code squawk-normal" id="infoSquawk">----</span></span></div>
+            <div class="trail-status" id="trailStatus" data-i18n="info.loadingTrail">Loading trail...</div>
             </div>
         </div>
         <div class="tab-content" id="tabAircraft">
             <div class="info-section">
-                <div class="info-row"><span class="info-label">Manufacturer</span><span class="info-value" id="acManufacturer">---</span></div>
-                <div class="info-row"><span class="info-label">Model</span><span class="info-value" id="acModel">---</span></div>
-                <div class="info-row"><span class="info-label">Type Code</span><span class="info-value" id="acTypeCode">---</span></div>
-                <div class="info-row" id="acYearRow" style="display:none;"><span class="info-label">Year Built</span><span class="info-value" id="acYear">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.manufacturer">Manufacturer</span><span class="info-value" id="acManufacturer">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.model">Model</span><span class="info-value" id="acModel">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="info.typeCode">Type Code</span><span class="info-value" id="acTypeCode">---</span></div>
+            <div class="info-row" id="acYearRow" style="display:none;"><span class="info-label" data-i18n="info.yearBuilt">Year Built</span><span class="info-value" id="acYear">---</span></div>
             </div>
             <div class="aircraft-specs">
-                <div class="spec-item"><div class="spec-value" id="specWingspan">---</div><div class="spec-label">Wingspan</div></div>
-                <div class="spec-item"><div class="spec-value" id="specLength">---</div><div class="spec-label">Length</div></div>
-                <div class="spec-item"><div class="spec-value" id="specRange">---</div><div class="spec-label">Range</div></div>
-                <div class="spec-item"><div class="spec-value" id="specSpeed">---</div><div class="spec-label">Cruise</div></div>
-                <div class="spec-item"><div class="spec-value" id="specEngines">---</div><div class="spec-label">Engines</div></div>
-                <div class="spec-item"><div class="spec-value" id="specPax">---</div><div class="spec-label">Capacity</div></div>
+            <div class="spec-item"><div class="spec-value" id="specWingspan">---</div><div class="spec-label" data-i18n="spec.wingspan">Wingspan</div></div>
+            <div class="spec-item"><div class="spec-value" id="specLength">---</div><div class="spec-label" data-i18n="spec.length">Length</div></div>
+            <div class="spec-item"><div class="spec-value" id="specRange">---</div><div class="spec-label" data-i18n="spec.range">Range</div></div>
+            <div class="spec-item"><div class="spec-value" id="specSpeed">---</div><div class="spec-label" data-i18n="spec.cruise">Cruise</div></div>
+            <div class="spec-item"><div class="spec-value" id="specEngines">---</div><div class="spec-label" data-i18n="spec.engines">Engines</div></div>
+            <div class="spec-item"><div class="spec-value" id="specPax">---</div><div class="spec-label" data-i18n="spec.capacity">Capacity</div></div>
             </div>
             <div class="info-section flight-stats-section" id="flightStats" style="display:none;">
-                <div class="info-section-title">Flight Statistics</div>
+            <div class="info-section-title" data-i18n="info.flightStatistics">Flight Statistics</div>
                 <div class="info-row" id="acAgeRow" style="display:none;">
-                    <span class="info-label">Aircraft Age</span>
+                <span class="info-label" data-i18n="info.aircraftAge">Aircraft Age</span>
                     <span class="info-value" id="acAge">---</span>
                 </div>
                 <div class="info-row" id="flightDistRow" style="display:none;">
-                    <span class="info-label">Distance</span>
+                <span class="info-label" data-i18n="info.distance">Distance</span>
                     <span class="info-value" id="flightDist">---</span>
                 </div>
                 <div class="info-row" id="flightTimeRow" style="display:none;">
-                    <span class="info-label">Est. Flight Time</span>
+                <span class="info-label" data-i18n="info.estimatedFlightTime">Est. Flight Time</span>
                     <span class="info-value" id="flightTimeEst">---</span>
                 </div>
                 <div class="info-row" id="fuelEstRow" style="display:none;">
-                    <span class="info-label">Est. Fuel</span>
+                <span class="info-label" data-i18n="info.estimatedFuel">Est. Fuel</span>
                     <span class="info-value" id="fuelEst">---</span>
                 </div>
                 <div class="info-row" id="co2EstRow" style="display:none;">
-                    <span class="info-label">Est. CO2</span>
+                <span class="info-label" data-i18n="info.estimatedCo2">Est. CO2</span>
                     <span class="info-value" id="co2Est">---</span>
                 </div>
             </div>
             <div class="info-section military-section" id="militaryInfoSection" style="display:none;">
-                <div class="info-section-title">Military Information</div>
+            <div class="info-section-title" data-i18n="info.militaryInformation">Military Information</div>
                 <div class="info-row">
-                    <span class="info-label">Branch</span>
+                <span class="info-label" data-i18n="info.branch">Branch</span>
                     <span class="info-value" id="milBranch">---</span>
                 </div>
                 <div class="info-row" id="milOperatorRow" style="display:none;">
-                    <span class="info-label">Operator</span>
+                <span class="info-label" data-i18n="info.operator">Operator</span>
                     <span class="info-value" id="milOperator">---</span>
                 </div>
                 <div class="info-row" id="milDescRow" style="display:none;">
-                    <span class="info-label">Details</span>
+                <span class="info-label" data-i18n="info.details">Details</span>
                     <span class="info-value" id="milDesc">---</span>
                 </div>
             </div>
@@ -2003,35 +2003,35 @@ if ('serviceWorker' in navigator) {
         <div class="tab-content" id="tabRoute">
             <div class="info-section">
                 <div class="route-display" style="margin-bottom:0;">
-                    <div class="route-airport"><div class="route-code" id="routeFromFull">---</div><div class="route-name" id="routeFromNameFull">Departure</div></div>
+            <div class="route-airport"><div class="route-code" id="routeFromFull">---</div><div class="route-name" id="routeFromNameFull" data-i18n="route.departure">Departure</div></div>
                     <div class="route-line"><div class="route-progress" style="width:50%"></div><span class="route-plane-icon" style="left:50%">&#9992;</span></div>
-                    <div class="route-airport"><div class="route-code" id="routeToFull">---</div><div class="route-name" id="routeToNameFull">Arrival</div></div>
+            <div class="route-airport"><div class="route-code" id="routeToFull">---</div><div class="route-name" id="routeToNameFull" data-i18n="route.arrival">Arrival</div></div>
                 </div>
             </div>
             <div class="info-section">
-                <div class="info-row"><span class="info-label">Distance Flown</span><span class="info-value" id="routeDistFlown">---</span></div>
-                <div class="info-row"><span class="info-label">Distance Remaining</span><span class="info-value" id="routeDistRemain">---</span></div>
-                <div class="info-row"><span class="info-label">Flight Time</span><span class="info-value" id="routeFlightTime">---</span></div>
-                <div class="info-row" id="routeDestNote" style="display:none;"><span class="info-label">Possible</span><span class="info-value" id="routeDestNoteValue" style="font-size:10px;color:var(--text-muted);">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="route.distanceFlown">Distance Flown</span><span class="info-value" id="routeDistFlown">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="route.distanceRemaining">Distance Remaining</span><span class="info-value" id="routeDistRemain">---</span></div>
+            <div class="info-row"><span class="info-label" data-i18n="route.flightTime">Flight Time</span><span class="info-value" id="routeFlightTime">---</span></div>
+            <div class="info-row" id="routeDestNote" style="display:none;"><span class="info-label" data-i18n="route.possible">Possible</span><span class="info-value" id="routeDestNoteValue" style="font-size:10px;color:var(--text-muted);">---</span></div>
             </div>
             <div class="info-section eta-section" id="etaSection" style="display:none;">
-                <div class="info-section-title">Estimated Arrival</div>
+            <div class="info-section-title" data-i18n="route.estimatedArrival">Estimated Arrival</div>
                 <div class="eta-display">
                     <div class="eta-main">
                         <div class="eta-time" id="etaTime">--:--</div>
-                        <div class="eta-label">Local Time</div>
+            <div class="eta-label" data-i18n="route.localTime">Local Time</div>
                     </div>
                     <div class="eta-details">
                         <div class="eta-row">
-                            <span>Distance Remaining</span>
+                <span data-i18n="route.distanceRemaining">Distance Remaining</span>
                             <span id="etaDistance">---</span>
                         </div>
                         <div class="eta-row">
-                            <span>Time Remaining</span>
+                <span data-i18n="route.timeRemaining">Time Remaining</span>
                             <span id="etaRemaining">---</span>
                         </div>
                         <div class="eta-row">
-                            <span>Progress</span>
+                <span data-i18n="route.progress">Progress</span>
                             <div class="eta-progress">
                                 <div class="eta-progress-bar" id="etaProgressBar"></div>
                             </div>
@@ -2041,17 +2041,17 @@ if ('serviceWorker' in navigator) {
             </div>
         </div>
         <div class="info-actions">
-            <button class="action-btn prediction" id="showPredictionBtn" title="Show 30-min Flight Prediction (P)"><span>P</span> Predict</button>
-            <button class="action-btn route" id="showRouteBtn" title="Show Route to Destination (R)"><span>R</span> Route</button>
-            <button class="action-btn" id="shareFlightBtn" title="Share aircraft trail PNG (copy link if unsupported)"><span>Share trail</span></button>
+            <button class="action-btn prediction" id="showPredictionBtn" title="Show 30-min Flight Prediction (P)" data-i18n-title="actions.predictTitle"><span>P</span> <span data-i18n="actions.predict">Predict</span></button>
+            <button class="action-btn route" id="showRouteBtn" title="Show Route to Destination (R)" data-i18n-title="actions.routeTitle"><span>R</span> <span data-i18n="actions.route">Route</span></button>
+            <button class="action-btn" id="shareFlightBtn" title="Share aircraft trail PNG (copy link if unsupported)" data-i18n-title="actions.shareTitle"><span data-i18n="actions.shareTrail">Share trail</span></button>
             <!-- X24: Track export -->
-            <button class="action-btn" id="exportKmlBtn" title="Export track as KML (Google Earth)">KML</button>
-            <button class="action-btn" id="exportGpxBtn" title="Export track as GPX">GPX</button>
-            <button class="action-btn" id="exportGeoJsonBtn" title="Export track as GeoJSON">JSON</button>
-            <button class="action-btn" id="exportCsvBtn" title="Export track as CSV">CSV</button>
+            <button class="action-btn" id="exportKmlBtn" title="Export track as KML (Google Earth)" data-i18n-title="actions.kmlTitle">KML</button>
+            <button class="action-btn" id="exportGpxBtn" title="Export track as GPX" data-i18n-title="actions.gpxTitle">GPX</button>
+            <button class="action-btn" id="exportGeoJsonBtn" title="Export track as GeoJSON" data-i18n-title="actions.geojsonTitle">JSON</button>
+            <button class="action-btn" id="exportCsvBtn" title="Export track as CSV" data-i18n-title="actions.csvTitle">CSV</button>
         </div>
         <div class="info-section external-links-section">
-            <div class="info-section-title">Track Elsewhere</div>
+        <div class="info-section-title" data-i18n="actions.trackElsewhere">Track Elsewhere</div>
             <div class="external-links" id="externalLinks">
                 <a class="ext-link" id="linkAirframes" href="https://app.airframes.io/" target="_blank" rel="noopener noreferrer" title="ACARS context on Airframes.io" style="display:none;">
                     <span class="ext-icon airframes">AF</span>
@@ -2075,36 +2075,51 @@ if ('serviceWorker' in navigator) {
         </div>
         <div class="data-source" id="dataSource">Connecting...</div>
     </div>
-    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
-        <div class="settings-title">Settings</div>
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings" data-i18n-aria-label="settings.title">
+        <div class="settings-title" data-i18n="settings.title">Settings</div>
         <div class="settings-section">
-            <div class="settings-section-title">Display Options</div>
-            <div class="setting-row"><span class="setting-label">Show Labels</span><div class="toggle" id="toggleLabels"></div></div>
-            <div class="setting-row"><span class="setting-label">Altitude-Colored Trails</span><div class="toggle on" id="toggleAltColors"></div></div>
-            <div class="setting-row"><span class="setting-label">Wikipedia Info</span><div class="toggle on" id="toggleWiki"></div></div>
-        </div>
-        <div class="settings-section">
-            <div class="settings-section-title">Trail Display</div>
+            <div class="settings-section-title" data-i18n="language.title">Language</div>
             <div class="setting-row">
-                <span class="setting-label">Color By</span>
-                <select id="trailColorBy" class="setting-select">
-                    <option value="altitude">Altitude</option>
-                    <option value="speed">Speed</option>
-                    <option value="time">Time (Old to New)</option>
-                    <option value="solid">Solid Color</option>
+                <span class="setting-label" data-i18n="language.label">Interface language</span>
+                <select id="languageSelect" class="setting-select" aria-label="Interface language" data-i18n-aria-label="language.label">
+                    <option value="en" data-i18n="language.english">English</option>
+                    <option value="es" data-i18n="language.spanish">Español</option>
+                    <option value="fr" data-i18n="language.french">Français</option>
+                    <option value="de" data-i18n="language.german">Deutsch</option>
+                    <option value="ru" data-i18n="language.russian">Русский</option>
+                    <option value="uk" data-i18n="language.ukrainian">Українська</option>
                 </select>
             </div>
-            <div class="setting-row"><span class="setting-label">Show Direction Arrows</span><div class="toggle on" id="toggleTrailArrows"></div></div>
+            <div class="receiver-coverage-help" data-i18n="language.help">Translations are loaded from the local catalog and stored in this browser.</div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Alerts</div>
-            <div class="setting-row"><span class="setting-label">Enable Alerts</span><div class="toggle on" id="toggleAlerts"></div></div>
-            <div class="setting-row"><span class="setting-label">Sound Effects</span><div class="toggle on" id="toggleAlertSounds"></div></div>
-            <div class="setting-row"><span class="setting-label">Browser Notifications</span><div class="toggle" id="toggleNotifications"></div></div>
+            <div class="settings-section-title" data-i18n="settings.displayOptions">Display Options</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.showLabels">Show Labels</span><div class="toggle" id="toggleLabels"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.altitudeTrails">Altitude-Colored Trails</span><div class="toggle on" id="toggleAltColors"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.wikipedia">Wikipedia Info</span><div class="toggle on" id="toggleWiki"></div></div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title" data-i18n="settings.trailDisplay">Trail Display</div>
             <div class="setting-row">
-                <span class="setting-label">Military Alert Radius</span>
+                <span class="setting-label" data-i18n="settings.colorBy">Color By</span>
+                <select id="trailColorBy" class="setting-select">
+                    <option value="altitude" data-i18n="info.altitude">Altitude</option>
+                    <option value="speed" data-i18n="info.speed">Speed</option>
+                    <option value="time" data-i18n="settings.timeOldNew">Time (Old to New)</option>
+                    <option value="solid" data-i18n="settings.solidColor">Solid Color</option>
+                </select>
+            </div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.directionArrows">Show Direction Arrows</span><div class="toggle on" id="toggleTrailArrows"></div></div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title" data-i18n="settings.alerts">Alerts</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.enableAlerts">Enable Alerts</span><div class="toggle on" id="toggleAlerts"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.soundEffects">Sound Effects</span><div class="toggle on" id="toggleAlertSounds"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.browserNotifications">Browser Notifications</span><div class="toggle" id="toggleNotifications"></div></div>
+            <div class="setting-row">
+                <span class="setting-label" data-i18n="settings.alertRadius">Military Alert Radius</span>
                 <select id="militaryAlertRadius" class="setting-select">
-                    <option value="0">Disabled</option>
+                    <option value="0" data-i18n="common.disabled">Disabled</option>
                     <option value="25">25 km</option>
                     <option value="50" selected>50 km</option>
                     <option value="100">100 km</option>
@@ -2113,64 +2128,64 @@ if ('serviceWorker' in navigator) {
             </div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Named Watchlists (X2)</div>
-            <div class="named-watchlist-help">All filled rules must match. Hexes, types, countries, and geofences accept comma-separated values; type values also match their ICAO prefix.</div>
-            <input type="text" id="namedWatchlistName" class="settings-input" placeholder="List name (e.g. Air Force One)" maxlength="80">
+            <div class="settings-section-title" data-i18n="settings.namedWatchlists">Named Watchlists (X2)</div>
+            <div class="named-watchlist-help" data-i18n="settings.namedWatchlistHelp">All filled rules must match. Hexes, types, countries, and geofences accept comma-separated values; type values also match their ICAO prefix.</div>
+            <input type="text" id="namedWatchlistName" class="settings-input" placeholder="List name (e.g. Air Force One)" data-i18n-placeholder="settings.watchlistNamePlaceholder" maxlength="80">
             <div class="named-watchlist-grid">
-                <input type="text" id="namedWatchlistHexes" class="settings-input" placeholder="Hexes: AE1234, 43C001" maxlength="800">
-                <input type="text" id="namedWatchlistTypes" class="settings-input" placeholder="Types: B52, KC46" maxlength="240">
-                <input type="text" id="namedWatchlistRegex" class="settings-input" placeholder="Callsign regex: ^RCH" maxlength="256">
-                <input type="text" id="namedWatchlistCountries" class="settings-input" placeholder="Countries: US, UK" maxlength="160">
-                <input type="number" id="namedWatchlistAltMin" class="settings-input" placeholder="Min altitude (ft)" min="-2000" max="100000" step="100">
-                <input type="number" id="namedWatchlistAltMax" class="settings-input" placeholder="Max altitude (ft)" min="-2000" max="100000" step="100">
+                <input type="text" id="namedWatchlistHexes" class="settings-input" placeholder="Hexes: AE1234, 43C001" data-i18n-placeholder="settings.hexesPlaceholder" maxlength="800">
+                <input type="text" id="namedWatchlistTypes" class="settings-input" placeholder="Types: B52, KC46" data-i18n-placeholder="settings.typesPlaceholder" maxlength="240">
+                <input type="text" id="namedWatchlistRegex" class="settings-input" placeholder="Callsign regex: ^RCH" data-i18n-placeholder="settings.regexPlaceholder" maxlength="256">
+                <input type="text" id="namedWatchlistCountries" class="settings-input" placeholder="Countries: US, UK" data-i18n-placeholder="settings.countriesPlaceholder" maxlength="160">
+                <input type="number" id="namedWatchlistAltMin" class="settings-input" placeholder="Min altitude (ft)" data-i18n-placeholder="settings.minAltitude" min="-2000" max="100000" step="100">
+                <input type="number" id="namedWatchlistAltMax" class="settings-input" placeholder="Max altitude (ft)" data-i18n-placeholder="settings.maxAltitude" min="-2000" max="100000" step="100">
             </div>
-            <input type="text" id="namedWatchlistGeofences" class="settings-input" placeholder="Geofence IDs (optional)" maxlength="240">
-            <button class="settings-btn" id="namedWatchlistAddBtn" type="button">Create named watchlist</button>
-            <div class="named-watchlist-list" id="namedWatchlistList"><div class="watchlist-empty">No named watchlists yet</div></div>
+            <input type="text" id="namedWatchlistGeofences" class="settings-input" placeholder="Geofence IDs (optional)" data-i18n-placeholder="settings.geofencesPlaceholder" maxlength="240">
+            <button class="settings-btn" id="namedWatchlistAddBtn" type="button" data-i18n="settings.createWatchlist">Create named watchlist</button>
+            <div class="named-watchlist-list" id="namedWatchlistList"><div class="watchlist-empty" data-i18n="settings.noNamedWatchlists">No named watchlists yet</div></div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Data Sources (Phase 16)</div>
+            <div class="settings-section-title" data-i18n="settings.dataSources">Data Sources (Phase 16)</div>
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
-            <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;">Check All Sources</button>
-            <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;">Clear Offline Cache</button>
+            <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.checkSources">Check All Sources</button>
+            <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;" data-i18n="settings.clearOffline">Clear Offline Cache</button>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Receiver Coverage (X13)</div>
-            <div class="receiver-coverage-help">Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.</div>
-            <input type="url" id="receiverCoverageUrl" class="settings-input" placeholder="http://receiver.local/tar1090" maxlength="320" autocomplete="off">
+            <div class="settings-section-title" data-i18n="settings.receiverCoverage">Receiver Coverage (X13)</div>
+            <div class="receiver-coverage-help" data-i18n="settings.receiverCoverageHelp">Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.</div>
+            <input type="url" id="receiverCoverageUrl" class="settings-input" placeholder="http://receiver.local/tar1090" data-i18n-placeholder="settings.receiverUrl" maxlength="320" autocomplete="off">
             <div class="receiver-coverage-grid">
-                <input type="number" id="receiverCoverageLat" class="settings-input" placeholder="Latitude fallback" min="-90" max="90" step="0.000001">
-                <input type="number" id="receiverCoverageLon" class="settings-input" placeholder="Longitude fallback" min="-180" max="180" step="0.000001">
+                <input type="number" id="receiverCoverageLat" class="settings-input" placeholder="Latitude fallback" data-i18n-placeholder="settings.latitudeFallback" min="-90" max="90" step="0.000001">
+                <input type="number" id="receiverCoverageLon" class="settings-input" placeholder="Longitude fallback" data-i18n-placeholder="settings.longitudeFallback" min="-180" max="180" step="0.000001">
             </div>
             <div class="receiver-coverage-actions">
-                <button class="btn-secondary" id="receiverCoverageLoadBtn" type="button">Load coverage</button>
-                <button class="btn-secondary" id="receiverCoverageClearBtn" type="button">Clear</button>
+                <button class="btn-secondary" id="receiverCoverageLoadBtn" type="button" data-i18n="common.loadCoverage">Load coverage</button>
+                <button class="btn-secondary" id="receiverCoverageClearBtn" type="button" data-i18n="common.clear">Clear</button>
             </div>
-            <div class="receiver-coverage-status" id="receiverCoverageStatus" role="status" aria-live="polite">No receiver coverage loaded</div>
+            <div class="receiver-coverage-status" id="receiverCoverageStatus" role="status" aria-live="polite" data-i18n="settings.noReceiverCoverage">No receiver coverage loaded</div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">OpenSky Historical Replay (X20)</div>
-            <div class="receiver-coverage-help">Manual historical track lookup only; this never participates in the live refresh loop. Supply an OpenSky OAuth2 API client. Credentials stay in this tab and the secret is sent only to OpenSky’s token endpoint.</div>
-            <input type="text" id="openSkyClientId" class="settings-input" placeholder="OpenSky OAuth2 client ID" maxlength="180" autocomplete="off">
-            <input type="password" id="openSkyClientSecret" class="settings-input" placeholder="OpenSky OAuth2 client secret" maxlength="240" autocomplete="new-password">
+            <div class="settings-section-title" data-i18n="settings.openSkyTitle">OpenSky Historical Replay (X20)</div>
+            <div class="receiver-coverage-help" data-i18n="settings.openSkyHelp">Manual historical track lookup only; this never participates in the live refresh loop. Supply an OpenSky OAuth2 API client. Credentials stay in this tab and the secret is sent only to OpenSky’s token endpoint.</div>
+            <input type="text" id="openSkyClientId" class="settings-input" placeholder="OpenSky OAuth2 client ID" data-i18n-placeholder="settings.openSkyClientId" maxlength="180" autocomplete="off">
+            <input type="password" id="openSkyClientSecret" class="settings-input" placeholder="OpenSky OAuth2 client secret" data-i18n-placeholder="settings.openSkyClientSecret" maxlength="240" autocomplete="new-password">
             <div class="receiver-coverage-grid">
-                <input type="text" id="openSkyHex" class="settings-input" placeholder="ICAO hex (or selected aircraft)" maxlength="6" autocomplete="off">
+                <input type="text" id="openSkyHex" class="settings-input" placeholder="ICAO hex (or selected aircraft)" data-i18n-placeholder="settings.icaoHex" maxlength="6" autocomplete="off">
                 <input type="date" id="openSkyDate" class="settings-input">
             </div>
             <input type="time" id="openSkyTime" class="settings-input" value="12:00">
             <div class="receiver-coverage-actions">
-                <button class="btn-secondary" id="openSkyLoadBtn" type="button">Load historical track</button>
-                <button class="btn-secondary" id="openSkyClearBtn" type="button">Clear</button>
+                <button class="btn-secondary" id="openSkyLoadBtn" type="button" data-i18n="settings.loadHistorical">Load historical track</button>
+                <button class="btn-secondary" id="openSkyClearBtn" type="button" data-i18n="common.clear">Clear</button>
             </div>
-            <div class="receiver-coverage-status" id="openSkyStatus" role="status" aria-live="polite">No historical track loaded</div>
+            <div class="receiver-coverage-status" id="openSkyStatus" role="status" aria-live="polite" data-i18n="settings.noHistoricalTrack">No historical track loaded</div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Map &amp; Tools</div>
-            <div class="setting-row"><span class="setting-label">Direction-of-flight line (X8)</span><div class="toggle" id="toggleHeadingProj"></div></div>
-            <div class="setting-row"><span class="setting-label">NEXRAD radar (US)</span><div class="toggle" id="toggleNexrad"></div></div>
-            <div class="setting-row"><span class="setting-label">FAA TFR polygons</span><div class="toggle" id="toggleTFR"></div></div>
-            <div class="setting-row"><span class="setting-label">Heatmap (from trail history)</span><div class="toggle" id="toggleHeatmap"></div></div>
-            <div class="setting-row"><span class="setting-label">Heading lookahead</span>
+            <div class="settings-section-title" data-i18n="settings.mapTools">Map &amp; Tools</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLine">Direction-of-flight line (X8)</span><div class="toggle" id="toggleHeadingProj"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.nexrad">NEXRAD radar (US)</span><div class="toggle" id="toggleNexrad"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.tfr">FAA TFR polygons</span><div class="toggle" id="toggleTFR"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.heatmap">Heatmap (from trail history)</span><div class="toggle" id="toggleHeatmap"></div></div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLookahead">Heading lookahead</span>
                 <select id="headingLookahead" class="setting-select">
                     <option value="60">1 min</option>
                     <option value="180">3 min</option>
@@ -2178,123 +2193,123 @@ if ('serviceWorker' in navigator) {
                     <option value="600">10 min</option>
                 </select>
             </div>
-            <button class="btn-secondary" id="rulerBtn" style="width: 100%; margin-top: 8px;">Ruler / distance tool (R)</button>
-            <button class="btn-secondary" id="helpBtn" style="width: 100%; margin-top: 6px;">Keyboard shortcuts (?)</button>
+            <button class="btn-secondary" id="rulerBtn" style="width: 100%; margin-top: 8px;" data-i18n="settings.ruler">Ruler / distance tool (R)</button>
+            <button class="btn-secondary" id="helpBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.shortcuts">Keyboard shortcuts (?)</button>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">FAA Special-Use Airspace (X23)</div>
-            <div class="receiver-coverage-help">Manual, opt-in FAA NASR/ADDS polygons for restricted, prohibited, MOA, and warning areas. The source is refreshed on a 28-day cycle; expired cached data is never shown. Informational only — not for navigation or operational decisions.</div>
-            <div class="setting-row"><span class="setting-label">Show FAA SUA polygons</span><div class="toggle" id="toggleFAASUA"></div></div>
+            <div class="settings-section-title" data-i18n="settings.faaSuaTitle">FAA Special-Use Airspace (X23)</div>
+            <div class="receiver-coverage-help" data-i18n="settings.faaSuaHelp">Manual, opt-in FAA NASR/ADDS polygons for restricted, prohibited, MOA, and warning areas. The source is refreshed on a 28-day cycle; expired cached data is never shown. Informational only — not for navigation or operational decisions.</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.showFaaSua">Show FAA SUA polygons</span><div class="toggle" id="toggleFAASUA"></div></div>
             <div class="receiver-coverage-actions">
-                <button class="btn-secondary" id="faaSuaRefreshBtn" type="button">Load / refresh</button>
-                <button class="btn-secondary" id="faaSuaClearBtn" type="button">Clear</button>
+                <button class="btn-secondary" id="faaSuaRefreshBtn" type="button" data-i18n="common.loadRefresh">Load / refresh</button>
+                <button class="btn-secondary" id="faaSuaClearBtn" type="button" data-i18n="common.clear">Clear</button>
             </div>
-            <div class="receiver-coverage-status" id="faaSuaStatus" role="status" aria-live="polite">FAA SUA off · manual 28-day refresh</div>
+            <div class="receiver-coverage-status" id="faaSuaStatus" role="status" aria-live="polite" data-i18n="settings.faaSuaOff">FAA SUA off · manual 28-day refresh</div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">OpenAIP Airspace (L6)</div>
-            <div class="receiver-coverage-help">Opt-in Class A–G airspace tiles from OpenAIP. Your API key stays in this browser and is sent only to OpenAIP tile requests. Informational only — not for navigation or operational decisions.</div>
-            <input type="password" id="openAipApiKey" class="settings-input" placeholder="OpenAIP API key" maxlength="256" autocomplete="new-password">
+            <div class="settings-section-title" data-i18n="settings.openAipTitle">OpenAIP Airspace (L6)</div>
+            <div class="receiver-coverage-help" data-i18n="settings.openAipHelp">Opt-in Class A–G airspace tiles from OpenAIP. Your API key stays in this browser and is sent only to OpenAIP tile requests. Informational only — not for navigation or operational decisions.</div>
+            <input type="password" id="openAipApiKey" class="settings-input" placeholder="OpenAIP API key" data-i18n-placeholder="settings.openAipKey" maxlength="256" autocomplete="new-password">
             <div class="receiver-coverage-actions">
-                <button class="btn-secondary" id="openAipSaveKeyBtn" type="button">Save key</button>
-                <button class="btn-secondary" id="openAipClearKeyBtn" type="button">Clear key</button>
+                <button class="btn-secondary" id="openAipSaveKeyBtn" type="button" data-i18n="settings.saveKey">Save key</button>
+                <button class="btn-secondary" id="openAipClearKeyBtn" type="button" data-i18n="settings.clearKey">Clear key</button>
             </div>
-            <div class="setting-row"><span class="setting-label">Show Class A–G</span><div class="toggle" id="toggleOpenAIP"></div></div>
-            <div class="receiver-coverage-status" id="openAipStatus" role="status" aria-live="polite">OpenAIP off · API key required</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.showClass">Show Class A–G</span><div class="toggle" id="toggleOpenAIP"></div></div>
+            <div class="receiver-coverage-status" id="openAipStatus" role="status" aria-live="polite" data-i18n="settings.openAipOff">OpenAIP off · API key required</div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Geofences (X5)</div>
-            <div class="geofence-help">Name an area, then click Draw circle or Draw polygon. Circle uses two clicks; polygon uses three or more clicks followed by Finish.</div>
-            <input type="text" id="geofenceName" class="settings-input" placeholder="Area name (e.g. Ramstein buffer)" maxlength="80">
+            <div class="settings-section-title" data-i18n="settings.geofences">Geofences (X5)</div>
+            <div class="geofence-help" data-i18n="settings.geofenceHelp">Name an area, then click Draw circle or Draw polygon. Circle uses two clicks; polygon uses three or more clicks followed by Finish.</div>
+            <input type="text" id="geofenceName" class="settings-input" placeholder="Area name (e.g. Ramstein buffer)" data-i18n-placeholder="settings.geofenceName" maxlength="80">
             <div class="geofence-actions">
-                <button class="settings-btn" id="geofenceCircleBtn" type="button">Draw circle</button>
-                <button class="settings-btn" id="geofencePolygonBtn" type="button">Draw polygon</button>
-                <button class="settings-btn secondary" id="geofenceFinishBtn" type="button">Finish polygon</button>
-                <button class="settings-btn secondary" id="geofenceCancelBtn" type="button">Cancel drawing</button>
+                <button class="settings-btn" id="geofenceCircleBtn" type="button" data-i18n="settings.drawCircle">Draw circle</button>
+                <button class="settings-btn" id="geofencePolygonBtn" type="button" data-i18n="settings.drawPolygon">Draw polygon</button>
+                <button class="settings-btn secondary" id="geofenceFinishBtn" type="button" data-i18n="settings.finishPolygon">Finish polygon</button>
+                <button class="settings-btn secondary" id="geofenceCancelBtn" type="button" data-i18n="settings.cancelDrawing">Cancel drawing</button>
             </div>
-            <div class="geofence-list" id="geofenceList"><div class="watchlist-empty">No geofences yet</div></div>
+            <div class="geofence-list" id="geofenceList"><div class="watchlist-empty" data-i18n="settings.noGeofences">No geofences yet</div></div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Overlays (X10)</div>
+            <div class="settings-section-title" data-i18n="settings.overlays">Overlays (X10)</div>
             <input type="file" id="overlayFileInput" accept=".geojson,.json" style="display:none;">
-            <button class="btn-secondary" id="overlayLoadFileBtn" style="width: 100%; margin-bottom: 6px;">Load GeoJSON file…</button>
+            <button class="btn-secondary" id="overlayLoadFileBtn" style="width: 100%; margin-bottom: 6px;" data-i18n="settings.loadGeojson">Load GeoJSON file…</button>
             <div style="display:flex;gap:4px;margin-bottom:6px;">
-                <input type="text" id="overlayUrlInput" placeholder="https://… (raw .geojson URL)" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
-                <button class="btn-secondary" id="overlayLoadUrlBtn" style="padding:6px 10px;">Load</button>
+                <input type="text" id="overlayUrlInput" placeholder="https://… (raw .geojson URL)" data-i18n-placeholder="settings.geojsonUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
+                <button class="btn-secondary" id="overlayLoadUrlBtn" style="padding:6px 10px;" data-i18n="common.load">Load</button>
             </div>
-            <button class="btn-secondary" id="overlayClearBtn" style="width: 100%;">Clear all overlays</button>
+            <button class="btn-secondary" id="overlayClearBtn" style="width: 100%;" data-i18n="settings.clearOverlays">Clear all overlays</button>
             <div id="overlaysList" style="margin-top:8px;"></div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Plugin / Overlay Catalog (L7)</div>
-            <div class="curated-overlay-help">Manifest-backed optional overlays. Every entry requires an explicit Load click; future JavaScript modules are restricted to same-origin URLs.</div>
-            <div class="receiver-coverage-status" id="pluginManifestStatus" role="status" aria-live="polite">Loading plugin manifest…</div>
-            <div class="plugin-manifest-list" id="pluginManifestList"><div class="watchlist-empty">Loading plugins…</div></div>
+            <div class="settings-section-title" data-i18n="settings.pluginCatalog">Plugin / Overlay Catalog (L7)</div>
+            <div class="curated-overlay-help" data-i18n="settings.pluginCatalogHelp">Manifest-backed optional overlays. Every entry requires an explicit Load click; future JavaScript modules are restricted to same-origin URLs.</div>
+            <div class="receiver-coverage-status" id="pluginManifestStatus" role="status" aria-live="polite" data-i18n="settings.loadingPluginManifest">Loading plugin manifest…</div>
+            <div class="plugin-manifest-list" id="pluginManifestList"><div class="watchlist-empty" data-i18n="settings.loadingPlugins">Loading plugins…</div></div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Curated Pattern Templates (X12)</div>
-            <div class="curated-overlay-help">Opt-in illustrative geometry for analyst annotation only. These templates are not live tasking, NOTAM boundaries, or authoritative airspace data.</div>
-            <div class="curated-overlay-list" id="curatedOverlayList"><div class="watchlist-empty">Loading templates…</div></div>
+            <div class="settings-section-title" data-i18n="settings.curatedTemplates">Curated Pattern Templates (X12)</div>
+            <div class="curated-overlay-help" data-i18n="settings.curatedTemplatesHelp">Opt-in illustrative geometry for analyst annotation only. These templates are not live tasking, NOTAM boundaries, or authoritative airspace data.</div>
+            <div class="curated-overlay-list" id="curatedOverlayList"><div class="watchlist-empty" data-i18n="settings.loadingTemplates">Loading templates…</div></div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Alert Webhook (X4)</div>
+            <div class="settings-section-title" data-i18n="settings.webhook">Alert Webhook (X4)</div>
             <div style="display:flex;gap:4px;margin-bottom:6px;">
                 <select id="webhookKind" class="setting-select" style="width:90px;">
-                    <option value="generic">Generic JSON</option>
-                    <option value="discord">Discord</option>
-                    <option value="ntfy">ntfy.sh</option>
+                    <option value="generic" data-i18n="settings.genericJson">Generic JSON</option>
+                    <option value="discord" data-i18n="settings.discord">Discord</option>
+                    <option value="ntfy" data-i18n="settings.ntfy">ntfy.sh</option>
                 </select>
-                <input type="text" id="webhookUrl" placeholder="https://…" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
+                <input type="text" id="webhookUrl" placeholder="https://…" data-i18n-placeholder="settings.webhookUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
             </div>
-            <button class="btn-secondary" id="webhookSaveBtn" style="width:100%;margin-bottom:6px;">Save webhook</button>
-            <button class="btn-secondary" id="webhookTestBtn" style="width:100%;">Send test alert</button>
+            <button class="btn-secondary" id="webhookSaveBtn" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveWebhook">Save webhook</button>
+            <button class="btn-secondary" id="webhookTestBtn" style="width:100%;" data-i18n="settings.testAlert">Send test alert</button>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Analyst (X6 / OSINT)</div>
-            <div class="setting-row"><span class="setting-label">Coincidence detector</span><div class="toggle" id="toggleCoincidence"></div></div>
-            <button class="btn-secondary" id="osintReportBtn" style="width: 100%; margin-top: 6px;">Copy OSINT report (selected)</button>
-            <button class="btn-secondary" id="viewportCsvBtn" style="width: 100%; margin-top: 6px;">Export viewport as CSV</button>
+            <div class="settings-section-title" data-i18n="settings.analyst">Analyst (X6 / OSINT)</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.coincidence">Coincidence detector</span><div class="toggle" id="toggleCoincidence"></div></div>
+            <button class="btn-secondary" id="osintReportBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.copyReport">Copy OSINT report (selected)</button>
+            <button class="btn-secondary" id="viewportCsvBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.exportViewport">Export viewport as CSV</button>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title">Storage</div>
-            <div class="setting-row"><span class="setting-label">Trail history retention</span>
+            <div class="settings-section-title" data-i18n="settings.storage">Storage</div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.trailRetention">Trail history retention</span>
                 <select id="trailRetention" class="setting-select">
-                    <option value="1">24 hours</option>
-                    <option value="7" selected>7 days</option>
-                    <option value="14">14 days</option>
-                    <option value="30">30 days</option>
+                    <option value="1" data-i18n="time.hours24">24 hours</option>
+                    <option value="7" selected data-i18n="time.days7">7 days</option>
+                    <option value="14" data-i18n="time.days14">14 days</option>
+                    <option value="30" data-i18n="time.days30">30 days</option>
                 </select>
             </div>
-            <button class="btn-secondary" id="trailRetentionApply" style="width: 100%; margin-top: 8px;">Apply &amp; clean now</button>
+            <button class="btn-secondary" id="trailRetentionApply" style="width: 100%; margin-top: 8px;" data-i18n="settings.applyClean">Apply &amp; clean now</button>
         </div>
     </div>
     <div class="bottom-panels">
         <div class="bookmarks-panel">
-            <div class="bookmarks-header"><span class="bookmarks-title">Saved Locations</span><button class="bookmark-add-btn" id="addBookmarkBtn" title="Save current view">+</button></div>
-            <div class="bookmarks-list" id="bookmarksList"><div class="bookmarks-empty">No saved locations</div></div>
+            <div class="bookmarks-header"><span class="bookmarks-title" data-i18n="bookmarks.savedLocations">Saved Locations</span><button class="bookmark-add-btn" id="addBookmarkBtn" title="Save current view" data-i18n-title="bookmarks.saveView">+</button></div>
+            <div class="bookmarks-list" id="bookmarksList"><div class="bookmarks-empty" data-i18n="bookmarks.none">No saved locations</div></div>
         </div>
         <div class="watchlist-panel">
             <div class="watchlist-header">
-                <span class="watchlist-title">Watchlist</span>
+                <span class="watchlist-title" data-i18n="watch.watchlist">Watchlist</span>
                 <span class="watchlist-count" id="watchlistCount">0</span>
             </div>
             <div class="watchlist-items" id="watchlistItems">
-                <div class="watchlist-empty">No aircraft watched<br><span>Click star on any aircraft to add</span></div>
+                <div class="watchlist-empty"><span data-i18n="watch.none">No aircraft watched</span><br><span data-i18n="watch.addHint">Click star on any aircraft to add</span></div>
             </div>
         </div>
     </div>
     <div class="modal-overlay" id="bookmarkModal">
         <div class="modal">
-            <div class="modal-title">Save Location</div>
-            <input type="text" class="modal-input" id="bookmarkNameInput" placeholder="Enter location name...">
-            <div class="modal-btns"><button class="modal-btn secondary" id="bookmarkCancelBtn">Cancel</button><button class="modal-btn primary" id="bookmarkSaveBtn">Save</button></div>
+            <div class="modal-title" data-i18n="bookmarks.saveLocation">Save Location</div>
+            <input type="text" class="modal-input" id="bookmarkNameInput" placeholder="Enter location name..." data-i18n-placeholder="bookmarks.namePlaceholder">
+            <div class="modal-btns"><button class="modal-btn secondary" id="bookmarkCancelBtn" data-i18n="common.cancel">Cancel</button><button class="modal-btn primary" id="bookmarkSaveBtn" data-i18n="common.save">Save</button></div>
         </div>
     </div>
     <div class="install-prompt" id="installPrompt">
         <div class="install-content">
             <span class="install-icon">+</span>
-            <span class="install-text">Install VIPTrack for offline access</span>
-            <button class="install-btn" id="installBtn">Install</button>
+            <span class="install-text" data-i18n="install.prompt">Install VIPTrack for offline access</span>
+            <button class="install-btn" id="installBtn" data-i18n="install.install">Install</button>
             <button class="install-dismiss" id="installDismiss">x</button>
         </div>
     </div>
@@ -2303,6 +2318,112 @@ if ('serviceWorker' in navigator) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js" integrity="sha512-YlctBG9PGZIhh9keoqI3eZkQM9T8QUbiBi7qNYAO/TUEo8jqWX5pLp5+x1cKRQDRzJ/lyGyJ9WUVNIRduxIIFw==" crossorigin="anonymous"></script>
     <script>
+    // ============ L8: LOCALIZED UI CATALOG ============
+    // Locale files are same-origin, schema-versioned, and never evaluated as code.
+    const i18nManager = {
+        schemaVersion: 1,
+        supported: ['en', 'es', 'fr', 'de', 'ru', 'uk'],
+        current: 'en',
+        messages: { en: {} },
+        storageKey: 'viptrack_language_v1',
+        catalogPath: 'data/i18n/',
+        _defaultDataKey(attribute) {
+            if (attribute === 'aria-label') return 'i18nDefaultAriaLabel';
+            return 'i18nDefault' + attribute.charAt(0).toUpperCase() + attribute.slice(1);
+        },
+        _rememberDefaults() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                if (!element.dataset.i18nDefault) element.dataset.i18nDefault = element.textContent;
+            });
+            document.querySelectorAll('[data-i18n-placeholder], [data-i18n-title], [data-i18n-aria-label]').forEach(element => {
+                for (const attribute of ['placeholder', 'title', 'aria-label']) {
+                    const marker = 'data-i18n-' + attribute;
+                    const defaultKey = this._defaultDataKey(attribute);
+                    if (element.hasAttribute(marker) && !element.dataset[defaultKey]) {
+                        element.dataset[defaultKey] = element.getAttribute(attribute) || '';
+                    }
+                }
+            });
+        },
+        _isUsableCatalog(payload) {
+            return payload && payload.schemaVersion === this.schemaVersion &&
+                this.supported.includes(payload.language) && payload.messages &&
+                typeof payload.messages === 'object' && !Array.isArray(payload.messages);
+        },
+        async _load(locale) {
+            if (location.protocol === 'file:') return null;
+            try {
+                const url = new URL(this.catalogPath + locale + '.json', document.baseURI);
+                if (url.origin !== location.origin) throw new Error('Locale catalog must be same-origin');
+                const response = await fetch(url.href, { cache: 'no-store', credentials: 'same-origin' });
+                if (!response.ok) throw new Error('Locale catalog HTTP ' + response.status);
+                const payload = await response.json();
+                return this._isUsableCatalog(payload) ? payload.messages : null;
+            } catch (error) {
+                console.warn('Locale catalog unavailable for ' + locale, error);
+                return null;
+            }
+        },
+        t(key, fallback = '') {
+            return this.messages[this.current]?.[key] || this.messages.en?.[key] || fallback || key;
+        },
+        _translateAttribute(element, attribute, marker) {
+            if (!element.hasAttribute(marker)) return;
+            const key = element.getAttribute(marker);
+            const fallback = element.dataset[this._defaultDataKey(attribute)] || element.getAttribute(attribute) || '';
+            element.setAttribute(attribute, this.t(key, fallback));
+        },
+        apply() {
+            this._rememberDefaults();
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const fallback = element.dataset.i18nDefault || element.textContent || '';
+                element.textContent = this.t(element.getAttribute('data-i18n'), fallback);
+            });
+            document.querySelectorAll('[data-i18n-placeholder], [data-i18n-title], [data-i18n-aria-label]').forEach(element => {
+                this._translateAttribute(element, 'placeholder', 'data-i18n-placeholder');
+                this._translateAttribute(element, 'title', 'data-i18n-title');
+                this._translateAttribute(element, 'aria-label', 'data-i18n-aria-label');
+            });
+            document.documentElement.lang = this.current;
+            const selector = document.getElementById('languageSelect');
+            if (selector) selector.value = this.current;
+        },
+        async setLanguage(locale) {
+            const next = String(locale || '').toLowerCase();
+            if (!this.supported.includes(next)) return false;
+            if (!this.messages[next]) {
+                const messages = await this._load(next);
+                if (!messages) return false;
+                this.messages[next] = messages;
+            }
+            this.current = next;
+            try { localStorage.setItem(this.storageKey, next); } catch (error) { /* private mode */ }
+            this.apply();
+            return true;
+        },
+        async init() {
+            this._rememberDefaults();
+            const english = await this._load('en');
+            if (english) this.messages.en = english;
+            let requested = 'en';
+            try { requested = localStorage.getItem(this.storageKey) || 'en'; } catch (error) { /* private mode */ }
+            if (!this.supported.includes(requested)) requested = 'en';
+            if (requested !== 'en') {
+                const messages = await this._load(requested);
+                if (messages) {
+                    this.messages[requested] = messages;
+                    this.current = requested;
+                }
+            }
+            const selector = document.getElementById('languageSelect');
+            selector?.addEventListener('change', async event => {
+                const changed = await this.setLanguage(event.target.value);
+                if (!changed) event.target.value = this.current;
+            });
+            this.apply();
+        }
+    };
+
     // ============================================================
     // SKYTRACK v4.2 - Full Featured Aviation Intelligence Platform
     // ============================================================
@@ -6954,6 +7075,8 @@ if ('serviceWorker' in navigator) {
         // X26: embed mode (?embed=1) strips chrome
         const urlParams = new URLSearchParams(location.search);
         if (urlParams.get('embed') === '1') document.body.classList.add('embed');
+
+        await i18nManager.init();
 
         // Initialize IndexedDB first
         try {
