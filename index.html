@@ -2207,6 +2207,15 @@ if ('serviceWorker' in navigator) {
             <div class="setting-row"><span class="setting-label" data-i18n="settings.showLabels">Show Labels</span><div class="toggle" id="toggleLabels"></div></div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.altitudeTrails">Altitude-Colored Trails</span><div class="toggle on" id="toggleAltColors"></div></div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.wikipedia">Wikipedia Info</span><div class="toggle on" id="toggleWiki"></div></div>
+            <div class="setting-row">
+                <span class="setting-label" data-i18n="settings.basemap">Basemap</span>
+                <select id="basemapStyle" class="setting-select">
+                    <option value="esri-gray" data-i18n="settings.basemapEsri">ESRI Dark Gray (Leaflet)</option>
+                    <option value="carto-voyager" data-i18n="settings.basemapCarto">CARTO Voyager (MapLibre vector)</option>
+                    <option value="stadia-alidade-smooth-dark" data-i18n="settings.basemapStadia">Stadia Alidade Smooth Dark (MapLibre vector)</option>
+                </select>
+            </div>
+            <div class="receiver-coverage-help" data-i18n="settings.basemapHelp">CARTO and Stadia are optional MapLibre vector styles. Use ?renderer=webgl to enable them; attribution remains visible in the map.</div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.trailDisplay">Trail Display</div>
@@ -7287,14 +7296,24 @@ if ('serviceWorker' in navigator) {
     const WEBGL_MAP_STYLE = {
         version: 8,
         sources: {
-            osm: {
+            esri: {
                 type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'],
                 tileSize: 256,
-                attribution: '© OpenStreetMap contributors'
+                attribution: '© Esri'
             }
         },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+        layers: [{ id: 'esri', type: 'raster', source: 'esri' }]
+    };
+    const MAPLIBRE_VECTOR_STYLES = {
+        'carto-voyager': {
+            label: 'CARTO Voyager',
+            url: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+        },
+        'stadia-alidade-smooth-dark': {
+            label: 'Stadia Alidade Smooth Dark',
+            url: 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json'
+        }
     };
     const webglMapManager = {
         requested: false,
@@ -7337,6 +7356,36 @@ if ('serviceWorker' in navigator) {
         setStatus(text) {
             const status = _el('cesium3dStatus');
             if (status) status.textContent = text;
+        },
+
+        supportsBasemap(key) {
+            return key === 'esri-gray' || Object.prototype.hasOwnProperty.call(MAPLIBRE_VECTOR_STYLES, key);
+        },
+
+        styleFor(key = settings.mapStyle) {
+            return MAPLIBRE_VECTOR_STYLES[key]?.url || WEBGL_MAP_STYLE;
+        },
+
+        async setBasemap(key, announce = true) {
+            if (!this.supportsBasemap(key)) return false;
+            settings.mapStyle = key;
+            saveSettings();
+            if (!this.renderer) {
+                if (announce && key !== 'esri-gray') toast('Vector basemap saved; reload with ?renderer=webgl&basemap=' + encodeURIComponent(key));
+                return false;
+            }
+            const style = this.styleFor(key);
+            this.setStatus('Loading ' + (MAPLIBRE_VECTOR_STYLES[key]?.label || 'ESRI Dark Gray') + '...');
+            if (this.overlay) this.overlay.setProps({ layers: [] });
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('MapLibre basemap style load timed out')), 15000);
+                this.renderer.once('style.load', () => { clearTimeout(timeout); resolve(); });
+                this.renderer.setStyle(style);
+            });
+            this.setStatus(Object.keys(aircraftCache).length.toLocaleString() + ' aircraft');
+            this.sync();
+            if (announce) toast('Basemap: ' + (MAPLIBRE_VECTOR_STYLES[key]?.label || 'ESRI Dark Gray'));
+            return true;
         },
 
         loadStylesheet() {
@@ -7391,7 +7440,7 @@ if ('serviceWorker' in navigator) {
             const { maplibregl, deck } = await this.loadLibrary();
             const renderer = new maplibregl.Map({
                 container: _el('webglMap'),
-                style: WEBGL_MAP_STYLE,
+                style: this.styleFor(),
                 center: [CONFIG.center[1], CONFIG.center[0]],
                 zoom: CONFIG.zoom,
                 maxPitch: 70,
@@ -7551,7 +7600,10 @@ if ('serviceWorker' in navigator) {
             console.warn('IndexedDB not available, using localStorage fallback');
         }
 
-        loadSettings(); loadBookmarks();
+        loadSettings();
+        const requestedBasemap = urlParams.get('basemap');
+        if (requestedBasemap && webglMapManager.supportsBasemap(requestedBasemap)) settings.mapStyle = requestedBasemap;
+        loadBookmarks();
         statsDashboard.init();
         const hadCache = loadAircraftCache();
         await getInitialLocation();
@@ -8959,6 +9011,30 @@ if ('serviceWorker' in navigator) {
         document.getElementById('toggleLabels').classList.toggle('on', settings.showLabels); document.getElementById('toggleLabels').addEventListener('click', function() { settings.showLabels = !settings.showLabels; this.classList.toggle('on', settings.showLabels); document.getElementById('labelBtn').classList.toggle('active', settings.showLabels); saveSettings(); updateMarkers(); });
         document.getElementById('toggleAltColors').classList.toggle('on', settings.altitudeColors); document.getElementById('toggleAltColors').addEventListener('click', function() { settings.altitudeColors = !settings.altitudeColors; this.classList.toggle('on', settings.altitudeColors); saveSettings(); if (selectedHex) loadTrail(selectedHex); });
         document.getElementById('toggleWiki').classList.toggle('on', settings.showWiki); document.getElementById('toggleWiki').addEventListener('click', function() { settings.showWiki = !settings.showWiki; this.classList.toggle('on', settings.showWiki); saveSettings(); });
+        const basemapStyle = document.getElementById('basemapStyle');
+        if (basemapStyle) {
+            if (!webglMapManager.supportsBasemap(settings.mapStyle)) settings.mapStyle = 'esri-gray';
+            basemapStyle.value = settings.mapStyle;
+            basemapStyle.addEventListener('change', async event => {
+                const next = event.target.value;
+                const previous = settings.mapStyle;
+                if (webglMapManager.renderer) {
+                    try { await webglMapManager.setBasemap(next); }
+                    catch (error) {
+                        settings.mapStyle = previous;
+                        saveSettings();
+                        basemapStyle.value = previous;
+                        webglMapManager.setStatus(Object.keys(aircraftCache).length.toLocaleString() + ' aircraft');
+                        toast('Basemap unavailable; keeping the previous style');
+                        _dbg('MapLibre basemap switch failed:', error.message);
+                    }
+                } else {
+                    settings.mapStyle = next;
+                    saveSettings();
+                    if (next !== 'esri-gray') toast('Vector basemap saved; reload with ?renderer=webgl&basemap=' + encodeURIComponent(next));
+                }
+            });
+        }
         document.getElementById('addBookmarkBtn').addEventListener('click', () => { document.getElementById('bookmarkModal').classList.add('show'); document.getElementById('bookmarkNameInput').value = ''; document.getElementById('bookmarkNameInput').focus(); });
         document.getElementById('bookmarkCancelBtn').addEventListener('click', () => document.getElementById('bookmarkModal').classList.remove('show'));
         document.getElementById('bookmarkSaveBtn').addEventListener('click', () => { const name = document.getElementById('bookmarkNameInput').value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } else toast('Enter name'); });

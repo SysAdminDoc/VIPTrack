@@ -35,7 +35,7 @@ python -m http.server 8000
 # Or use the opt-in GPU renderer: http://127.0.0.1:8000/index.html?renderer=webgl
 ```
 
-Zero-build, dependency-free static web application. The normal Leaflet 2D map works from `index.html`; the optional Cesium globe (`?3d=1`) and MapLibre/deck.gl GPU renderer (`?renderer=webgl`) are lazy-loaded from pinned CDN assets and need HTTP(S) hosting.
+Zero-build, dependency-free static web application. The normal Leaflet 2D map works from `index.html`; the optional Cesium globe (`?3d=1`) and MapLibre/deck.gl GPU renderer (`?renderer=webgl`) are lazy-loaded from pinned CDN assets and need HTTP(S) hosting. The WebGL lane accepts `?renderer=webgl&basemap=carto-voyager` or `?renderer=webgl&basemap=stadia-alidade-smooth-dark` for opt-in vector basemaps.
 
 The Settings panel includes a language selector. Locale catalogs live in `data/i18n/{lang}.json`, are loaded only from the app's own origin, and fall back to the English catalog (or the embedded English UI defaults when opened directly as `file://`).
 
@@ -59,7 +59,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
-| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 297 UI keys |
+| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 302 UI keys |
 | Type Photos | Local representative aircraft-type images with a silhouette fallback | 522 manifest entries |
 
 ### Aircraft Type Photo Enrichment
@@ -114,7 +114,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Sprite Icons | Type-accurate aircraft silhouettes from a sprite sheet (90+ types) |
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
 | 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the live feed and selected historical traces get a Cesium clock scrubber |
-| WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers and `TripsLayer` history trails while Leaflet remains the default |
+| WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers, `TripsLayer` history trails, and opt-in CARTO Voyager or Stadia Alidade Smooth Dark vector basemaps while Leaflet remains the default |
 | Share Flight | Generate shareable links for specific aircraft |
 | Web Share Target | Accepts shared ICAO hexes or N-numbers and centers the map on a matching aircraft |
 | Background Refresh | Installed Chromium PWAs may refresh public military, VIP, and PIA reference caches every 12 hours through Periodic Background Sync; no watchlist identifiers are transmitted |
@@ -174,7 +174,7 @@ Static app files (`index.html` + `cesium-frame.html`)
     |     |-- Altitude-colored history trails
     |     |-- Optional Cesium 1.143 globe (`?3d=1`, lazy-loaded, no ion token)
     |     |     |-- `globe.airplanes.live` trace samples become a Cesium clock + scrubber
-    |     |-- Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 (`?renderer=webgl`)
+    |     |-- Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 (`?renderer=webgl`, CARTO/Stadia vector styles)
     |
     |-- UI
           |-- Aircraft detail sidebar (Overview / Aircraft / Route)
@@ -194,7 +194,7 @@ Everything runs client-side in the static app files; `index.html` owns the appli
 
 - **Leaflet 1.9.4** — 2D map rendering and markers
 - **CesiumJS 1.143** — optional 3D globe renderer loaded only with `?3d=1`
-- **MapLibre GL JS 5.24.0 + deck.gl 9.2.1** — optional GPU map, `IconLayer` aircraft, and `TripsLayer` history loaded only with `?renderer=webgl`
+- **MapLibre GL JS 5.24.0 + deck.gl 9.2.1** — optional GPU map, `IconLayer` aircraft, `TripsLayer` trails, and CARTO Voyager/Stadia Alidade Smooth Dark vector styles loaded only with `?renderer=webgl`
 - **ServiceWorker** — Offline caching of assets
 - **OPFS** — Dedicated-worker sync-handle cache for the compact registration index; unsupported or unavailable browsers fall back to IndexedDB and the source CSV
 - **localStorage** — Settings, map position, aircraft cache persistence

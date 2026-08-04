@@ -613,6 +613,29 @@ class VipTrackContracts(unittest.TestCase):
             flags=re.IGNORECASE,
         ).group(1))
 
+    def test_maplibre_vector_basemap_option_is_opt_in_and_attributed(self) -> None:
+        for marker in (
+            "const MAPLIBRE_VECTOR_STYLES =",
+            "'carto-voyager'",
+            "'stadia-alidade-smooth-dark'",
+            "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+            "https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json",
+            "supportsBasemap(key)",
+            "styleFor(key = settings.mapStyle)",
+            "async setBasemap(key, announce = true)",
+            "renderer.once('style.load'",
+            "id=\"basemapStyle\"",
+            "?renderer=webgl&basemap=",
+            "attribution remains visible",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const MAPLIBRE_VECTOR_STYLES =")
+        end = self.source.index("async function fetchWithProxy", start)
+        section = self.source[start:end]
+        self.assertNotIn("api_key", section)
+        self.assertIn("this.renderer.setStyle(style)", section)
+        self.assertIn("saveSettings()", section)
+
     def test_cesium_playback_uses_trace_samples_and_scrubber(self) -> None:
         for marker in (
             "id=\"cesiumPlayback\"",
