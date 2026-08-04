@@ -601,6 +601,24 @@
         .alert-message { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
         .alert-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 0 4px; opacity: 0.6; }
         .alert-close:hover { opacity: 1; color: var(--text); }
+        /* L17: persisted Squawk-7700 event feed */
+        .emergency-feed { position: fixed; left: 12px; bottom: 14px; z-index: 1800; display: none; width: min(320px, calc(100vw - 24px)); overflow: hidden; background: rgba(13, 13, 26, 0.94); border: 1px solid rgba(239, 68, 68, 0.55); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.38); backdrop-filter: blur(12px); }
+        .emergency-feed.show { display: block; }
+        .emergency-feed-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--border); }
+        .emergency-feed-title { color: #fca5a5; font-size: 11px; font-weight: 700; letter-spacing: 0.35px; text-transform: uppercase; }
+        .emergency-feed-mode { border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 5px; padding: 4px 6px; background: rgba(239, 68, 68, 0.12); color: #fecaca; cursor: pointer; font-size: 10px; }
+        .emergency-feed-mode:hover { background: rgba(239, 68, 68, 0.22); }
+        .emergency-feed-status { padding: 7px 11px 4px; color: var(--text-muted); font-size: 10px; }
+        .emergency-feed-list { max-height: 210px; overflow-y: auto; }
+        .emergency-feed-item { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 8px; width: 100%; padding: 8px 11px; border: 0; border-top: 1px solid rgba(128,128,128,0.16); background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+        .emergency-feed-item:hover { background: rgba(239, 68, 68, 0.1); }
+        .emergency-feed-pin { grid-row: span 2; align-self: center; color: #f87171; font: 700 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+        .emergency-feed-label { min-width: 0; overflow: hidden; color: var(--text); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+        .emergency-feed-time { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+        .emergency-feed-attribution { grid-column: 2 / 4; min-width: 0; overflow: hidden; color: var(--text-dim); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+        body.emergency-history-mode .emergency-feed { border-color: #ef4444; }
+        body.embed .emergency-feed { display: none !important; }
+        @media (max-width: 768px) { .emergency-feed { left: 8px; bottom: 72px; width: calc(100vw - 16px); } }
         /* Watchlist Panel */
         .watchlist-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; min-width: 220px; max-width: 280px; overflow: hidden; backdrop-filter: blur(12px); }
         .watchlist-header { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
@@ -1872,6 +1890,21 @@ if ('serviceWorker' in navigator) {
         <div class="loading-pulse"></div>
         <div class="loading-text" id="loadingText" data-i18n="loading.scanning">Scanning for aircraft...</div>
     </div>
+    <aside class="emergency-feed" id="emergencyFeed" aria-label="Squawk 7700 history" data-i18n-aria-label="emergency.feedTitle">
+        <div class="emergency-feed-header">
+            <span class="emergency-feed-title" data-i18n="emergency.feedTitle">Squawk 7700 history</span>
+            <button class="emergency-feed-mode" id="emergencyFeedModeBtn" type="button" data-i18n="emergency.last24h">Last 24h view</button>
+        </div>
+        <div class="emergency-feed-status" id="emergencyFeedStatus" role="status" aria-live="polite" data-i18n="emergency.none">No Squawk 7700 events observed</div>
+        <div class="emergency-feed-list" id="emergencyFeedList"></div>
+        <span hidden data-i18n="emergency.events">{count} Squawk 7700 event(s) in last 24 hours</span>
+        <span hidden data-i18n="emergency.exit">Exit 24h view</span>
+        <span hidden data-i18n="emergency.last24h">Last 24h view</span>
+        <span hidden data-i18n="emergency.notCurrent">Event is not in the current live feed</span>
+        <span hidden data-i18n="emergency.pia">PIA</span>
+        <span hidden data-i18n="emergency.privacy">Privacy address</span>
+        <span hidden data-i18n="emergency.unknown">Unattributed</span>
+    </aside>
     <div class="filter-bar" id="filterBar">
         <div class="logo"><img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png" alt="VIPTrack"><span>VIPTrack</span></div>
         <div class="connectivity-indicator" id="connectivityIndicator" title="Online"><div class="connectivity-dot online"></div></div>
@@ -5819,6 +5852,197 @@ if ('serviceWorker' in navigator) {
         }
     };
 
+    // L17: retain a privacy-safe, local feed of Squawk 7700 observations.
+    // Events are merged for 15 minutes so a live refresh loop produces one
+    // pinned incident rather than a new row on every poll.
+    const emergencyHistoryManager = {
+        storageKey: 'emergency_squawk_history_v1',
+        fallbackKey: 'viptrack_emergency_history_v1',
+        windowMs: 24 * 60 * 60 * 1000,
+        mergeWindowMs: 15 * 60 * 1000,
+        maxEvents: 256,
+        events: [],
+        last24hOnly: false,
+        saveTimer: null,
+
+        _normalise(item) {
+            const hex = String(item?.hex || '').trim().toUpperCase();
+            const lastSeen = Number(item?.lastSeen);
+            if (!/^[0-9A-F]{6}$/.test(hex) || !Number.isFinite(lastSeen)) return null;
+            const firstSeen = Number(item?.firstSeen);
+            const lat = Number(item?.lat), lon = Number(item?.lon), altFeet = Number(item?.altFeet);
+            return {
+                id: String(item?.id || ('7700_' + hex + '_' + lastSeen)).slice(0, 120),
+                hex,
+                callsign: String(item?.callsign || hex).trim().slice(0, 32),
+                squawk: '7700',
+                firstSeen: Number.isFinite(firstSeen) ? firstSeen : lastSeen,
+                lastSeen,
+                lat: Number.isFinite(lat) && lat >= -90 && lat <= 90 ? lat : null,
+                lon: Number.isFinite(lon) && lon >= -180 && lon <= 180 ? lon : null,
+                altFeet: Number.isFinite(altFeet) && altFeet >= 0 ? Math.round(altFeet) : null,
+                category: String(item?.category || '').trim().slice(0, 64),
+                tag: String(item?.tag || '').trim().slice(0, 96),
+                operator: String(item?.operator || '').trim().slice(0, 96),
+                isPIA: item?.isPIA === true
+            };
+        },
+
+        async init() {
+            let saved = null;
+            try { saved = await skytrackDB.loadUserData(this.storageKey); } catch (e) {}
+            if (!Array.isArray(saved)) {
+                try { saved = JSON.parse(localStorage.getItem(this.fallbackKey) || 'null'); } catch (e) { saved = null; }
+            }
+            this.events = (Array.isArray(saved) ? saved : []).map(item => this._normalise(item)).filter(Boolean);
+            this.prune(Date.now(), false);
+            this.render();
+        },
+
+        _attribution(ac) {
+            if (isPrivacyProtectedAircraft(ac)) {
+                return { category: 'PIA', tag: 'Privacy ICAO Address', operator: 'Operator anonymised' };
+            }
+            const info = ac?.interesting || ac?.militaryInfo || ac?.civilianInteresting || militaryDB.getByHex(ac?.hex);
+            return {
+                category: String(info?.category || ac?.category_type || 'Unknown').trim().slice(0, 64),
+                tag: String(info?.tag || info?.type || '').trim().slice(0, 96),
+                operator: String(info?.operator || '').trim().slice(0, 96)
+            };
+        },
+
+        prune(now = Date.now(), schedule = true) {
+            const cutoff = now - this.windowMs;
+            const before = this.events.length;
+            this.events = this.events.filter(item => item.lastSeen >= cutoff).sort((a, b) => b.lastSeen - a.lastSeen).slice(0, this.maxEvents);
+            if (schedule && this.events.length !== before) this.scheduleSave();
+            return this.events.length !== before;
+        },
+
+        scheduleSave() {
+            clearTimeout(this.saveTimer);
+            this.saveTimer = setTimeout(() => this.save(), 500);
+        },
+
+        async save() {
+            const data = this.events.map(item => ({ ...item }));
+            try {
+                await skytrackDB.saveUserData(this.storageKey, data);
+            } catch (e) {
+                try { localStorage.setItem(this.fallbackKey, JSON.stringify(data)); } catch (e2) {}
+            }
+        },
+
+        observe(ac, now = Date.now()) {
+            if (!ac || String(ac.squawk || '') !== '7700') {
+                this.prune(now);
+                return null;
+            }
+            const hex = String(ac.hex || '').trim().toUpperCase();
+            if (!/^[0-9A-F]{6}$/.test(hex)) return null;
+            this.prune(now);
+            const attribution = this._attribution(ac);
+            const isPIA = isPrivacyProtectedAircraft(ac);
+            const callsign = isPIA ? 'PIA' : String(ac.flight || '').trim().slice(0, 32) || hex;
+            const lat = Number(ac.lat), lon = Number(ac.lon), altFeet = Number(ac.alt_baro);
+            let event = this.events.find(item => item.hex === hex && now - item.lastSeen <= this.mergeWindowMs);
+            if (!event) {
+                event = {
+                    id: '7700_' + hex + '_' + now,
+                    hex,
+                    callsign,
+                    squawk: '7700',
+                    firstSeen: now,
+                    lastSeen: now,
+                    lat: Number.isFinite(lat) && lat >= -90 && lat <= 90 ? lat : null,
+                    lon: Number.isFinite(lon) && lon >= -180 && lon <= 180 ? lon : null,
+                    altFeet: Number.isFinite(altFeet) && altFeet >= 0 ? Math.round(altFeet) : null,
+                    category: attribution.category,
+                    tag: attribution.tag,
+                    operator: attribution.operator,
+                    isPIA
+                };
+                this.events.unshift(event);
+            } else {
+                event.lastSeen = now;
+                if (!isPIA && callsign) event.callsign = callsign;
+                if (Number.isFinite(lat) && lat >= -90 && lat <= 90) event.lat = lat;
+                if (Number.isFinite(lon) && lon >= -180 && lon <= 180) event.lon = lon;
+                if (Number.isFinite(altFeet) && altFeet >= 0) event.altFeet = Math.round(altFeet);
+                event.category = attribution.category || event.category;
+                event.tag = attribution.tag || event.tag;
+                event.operator = attribution.operator || event.operator;
+            }
+            this.events = this.events.slice(0, this.maxEvents);
+            this.scheduleSave();
+            this.render();
+            return event;
+        },
+
+        isVisible(ac) {
+            if (!this.last24hOnly) return true;
+            const cutoff = Date.now() - this.windowMs;
+            const hex = String(ac?.hex || '').toUpperCase();
+            return /^[0-9A-F]{6}$/.test(hex) && this.events.some(item => item.hex === hex && item.lastSeen >= cutoff);
+        },
+
+        formatTime(timestamp) {
+            const date = new Date(Number(timestamp));
+            return Number.isNaN(date.getTime()) ? '—' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        },
+
+        enableLast24h(updateUrl = true) {
+            this.last24hOnly = true;
+            document.body.classList.add('emergency-history-mode');
+            this.render();
+            if (typeof updateMarkers === 'function') updateMarkers();
+            if (updateUrl && typeof shareManager !== 'undefined') shareManager.updateUrl();
+        },
+
+        disableLast24h(updateUrl = true) {
+            this.last24hOnly = false;
+            document.body.classList.remove('emergency-history-mode');
+            this.render();
+            if (typeof updateMarkers === 'function') updateMarkers();
+            if (updateUrl && typeof shareManager !== 'undefined') shareManager.updateUrl();
+        },
+
+        applyUrlMode(value) {
+            if (value === 'last24h') this.enableLast24h(false);
+            else this.disableLast24h(false);
+        },
+
+        render() {
+            const panel = document.getElementById('emergencyFeed');
+            const list = document.getElementById('emergencyFeedList');
+            const status = document.getElementById('emergencyFeedStatus');
+            const modeButton = document.getElementById('emergencyFeedModeBtn');
+            if (!panel || !list || !status || !modeButton) return;
+            this.prune(Date.now(), false);
+            const events = [...this.events].sort((a, b) => b.lastSeen - a.lastSeen);
+            panel.classList.toggle('show', this.last24hOnly || events.length > 0);
+            panel.setAttribute('aria-hidden', this.last24hOnly || events.length ? 'false' : 'true');
+            modeButton.textContent = i18nManager.t(this.last24hOnly ? 'emergency.exit' : 'emergency.last24h', this.last24hOnly ? 'Exit 24h view' : 'Last 24h view');
+            status.textContent = events.length
+                ? i18nManager.t('emergency.events', '{count} Squawk 7700 event(s) in last 24 hours').replace('{count}', String(events.length))
+                : i18nManager.t('emergency.none', 'No Squawk 7700 events observed');
+            if (!events.length) { list.innerHTML = safeHTML(''); return; }
+            list.innerHTML = safeHTML(events.map(event => {
+                const label = event.isPIA ? i18nManager.t('emergency.pia', 'PIA') : (event.callsign || event.hex);
+                const secondary = event.isPIA ? i18nManager.t('emergency.privacy', 'Privacy address') : event.hex;
+                const attribution = [event.category, event.tag, event.operator].filter(Boolean).join(' · ') || i18nManager.t('emergency.unknown', 'Unattributed');
+                return '<button class="emergency-feed-item" type="button" data-emergency-id="' + escapeHTML(event.id) + '"><span class="emergency-feed-pin">7700</span><span class="emergency-feed-label">' + escapeHTML(label) + ' · ' + escapeHTML(secondary) + '</span><span class="emergency-feed-time">' + escapeHTML(this.formatTime(event.lastSeen)) + '</span><span class="emergency-feed-attribution">' + escapeHTML(attribution) + '</span></button>';
+            }).join(''));
+            list.querySelectorAll('[data-emergency-id]').forEach(button => button.addEventListener('click', () => {
+                const event = this.events.find(item => item.id === button.dataset.emergencyId);
+                if (!event) return;
+                if (aircraftCache[event.hex]) { selectAircraft(event.hex); return; }
+                if (map && Number.isFinite(event.lat) && Number.isFinite(event.lon)) map.setView([event.lat, event.lon], Math.max(map.getZoom(), 8));
+                toast(i18nManager.t('emergency.notCurrent', 'Event is not in the current live feed'));
+            }));
+        }
+    };
+
     // ============ AIRPORT FREQUENCIES DATABASE ============
     const frequencyDB = {
         frequencies: new Map(),
@@ -7205,6 +7429,7 @@ if ('serviceWorker' in navigator) {
 
         isVisible(ac) {
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) return false;
+            if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) return false;
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
@@ -7472,6 +7697,7 @@ if ('serviceWorker' in navigator) {
 
         isVisible(ac) {
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) return false;
+            if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) return false;
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
@@ -7599,6 +7825,8 @@ if ('serviceWorker' in navigator) {
         } catch (e) {
             console.warn('IndexedDB not available, using localStorage fallback');
         }
+
+        await emergencyHistoryManager.init();
 
         loadSettings();
         const requestedBasemap = urlParams.get('basemap');
@@ -7961,6 +8189,7 @@ if ('serviceWorker' in navigator) {
                 // Re-classify (depends on mutable fields like altitude, squawk)
                 existing.category_type = classifyAircraft(existing);
                 piaRotationTimeline.record(existing);
+                emergencyHistoryManager.observe(existing, now);
                 alertSystem.checkAircraft(existing);
                 trackHeuristicManager.update(existing);
             } else {
@@ -7979,6 +8208,7 @@ if ('serviceWorker' in navigator) {
                 if (!isMil && !isVip && !isPia) return; // VIPTrack: skip non-military/VIP/PIA aircraft entirely
                 aircraftCache[hex] = cached;
                 piaRotationTimeline.record(cached);
+                emergencyHistoryManager.observe(cached, now);
                 trackHeuristicManager.update(cached);
             }
             } catch(e) { _dbg('Error processing aircraft', ac?.hex, e); }
@@ -8044,6 +8274,7 @@ if ('serviceWorker' in navigator) {
             if (ac.lat === undefined || ac.lon === undefined) return;
             // Search filters
             if (typeof searchSystem !== 'undefined' && !searchSystem.passesFilters(ac)) { _removeMarker(ac.hex); return; }
+            if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) { _removeMarker(ac.hex); return; }
             // VIPTrack: cache only contains mil/vip, so mil-vip shows all cached aircraft
             if (settings.filter !== 'mil-vip') {
                 if (settings.filter === 'vip') {
@@ -9040,6 +9271,10 @@ if ('serviceWorker' in navigator) {
         document.getElementById('bookmarkSaveBtn').addEventListener('click', () => { const name = document.getElementById('bookmarkNameInput').value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } else toast('Enter name'); });
         document.getElementById('bookmarkNameInput').addEventListener('keypress', e => { if (e.key === 'Enter') { const name = e.target.value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } } });
         document.getElementById('bookmarkModal').addEventListener('click', e => { if (e.target.id === 'bookmarkModal') document.getElementById('bookmarkModal').classList.remove('show'); });
+        document.getElementById('emergencyFeedModeBtn')?.addEventListener('click', () => {
+            if (emergencyHistoryManager.last24hOnly) emergencyHistoryManager.disableLast24h();
+            else emergencyHistoryManager.enableLast24h();
+        });
         document.getElementById('panelsBtn')?.addEventListener('click', () => { const bp = document.querySelector('.bottom-panels'); bp.classList.toggle('visible'); const btn = document.getElementById('panelsBtn'); if (bp.classList.contains('visible')) { btn.classList.add('active'); } else { btn.classList.remove('active'); } });
         
         // Initialize enhanced search system
@@ -9908,9 +10143,11 @@ if ('serviceWorker' in navigator) {
             const params = new URLSearchParams();
             const hex = overrides.hex !== undefined ? overrides.hex : selectedHex;
             const filter = overrides.filter !== undefined ? overrides.filter : settings.filter;
+            const emergency = overrides.emergency !== undefined ? overrides.emergency : (typeof emergencyHistoryManager !== 'undefined' && emergencyHistoryManager.last24hOnly ? 'last24h' : null);
             
             if (hex) params.set('hex', hex);
             if (filter && filter !== 'all') params.set('filter', filter);
+            if (emergency === 'last24h') params.set('emergency', emergency);
             
             // Include map position for shared links
             if (overrides.includeMap) {
@@ -10090,6 +10327,7 @@ if ('serviceWorker' in navigator) {
             const lon = params.get('lon');
             const zoom = params.get('zoom');
             const filter = params.get('filter');
+            const emergency = params.get('emergency');
             
             if (lat && lon) {
                 map.setView([parseFloat(lat), parseFloat(lon)], parseInt(zoom) || 10);
@@ -10103,6 +10341,7 @@ if ('serviceWorker' in navigator) {
                 });
                 updateMarkers();
             }
+            if (typeof emergencyHistoryManager !== 'undefined') emergencyHistoryManager.applyUrlMode(emergency);
             
             if (hex) {
                 let attempts = 0;
@@ -10144,6 +10383,7 @@ if ('serviceWorker' in navigator) {
                 const params = new URLSearchParams(window.location.search);
                 const hex = params.get('hex');
                 const filter = params.get('filter') || 'all';
+                const emergency = params.get('emergency');
                 
                 // Apply filter
                 if (filter !== settings.filter) {
@@ -10152,6 +10392,7 @@ if ('serviceWorker' in navigator) {
                         b.classList.toggle('active', b.dataset.filter === filter);
                     });
                 }
+                if (typeof emergencyHistoryManager !== 'undefined') emergencyHistoryManager.applyUrlMode(emergency);
                 
                 // Apply selection
                 if (hex && hex !== selectedHex) {

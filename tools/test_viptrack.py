@@ -320,7 +320,7 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
         start = self.source.index("const trackHeuristicManager =")
-        end = self.source.index("// ============ AIRPORT FREQUENCIES DATABASE", start)
+        end = self.source.index("// L17: retain a privacy-safe", start)
         section = self.source[start:end]
         self.assertNotIn("fetch(", section)
         self.assertNotIn("localStorage", section)
@@ -328,6 +328,31 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("ac.ownOp", section)
         self.assertIn("trackHeuristics = { tags: [], metrics: null", section)
         self.assertNotIn("trackHeuristics: a.trackHeuristics", self.source)
+
+    def test_squawk_7700_history_is_persisted_attributed_and_url_filterable(self) -> None:
+        for marker in (
+            "const emergencyHistoryManager =",
+            "emergency_squawk_history_v1",
+            "mergeWindowMs: 15 * 60 * 1000",
+            "windowMs: 24 * 60 * 60 * 1000",
+            "militaryDB.getByHex(ac?.hex)",
+            "emergencyHistoryManager.observe(existing, now)",
+            "emergencyHistoryManager.observe(cached, now)",
+            "params.set('emergency', emergency)",
+            "emergencyHistoryManager.applyUrlMode(emergency)",
+            'id="emergencyFeed"',
+            'id="emergencyFeedModeBtn"',
+            'id="emergencyFeedList"',
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const emergencyHistoryManager =")
+        end = self.source.index("// ============ AIRPORT FREQUENCIES DATABASE", start)
+        section = self.source[start:end]
+        self.assertIn("isPrivacyProtectedAircraft(ac)", section)
+        self.assertIn("Operator anonymised", section)
+        self.assertNotIn("ac.r", section)
+        self.assertNotIn("ac.ownOp", section)
+        self.assertIn("skytrackDB.saveUserData(this.storageKey, data)", section)
 
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
