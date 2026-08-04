@@ -275,6 +275,30 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
+    def test_session_stats_dashboard_tracks_privacy_safe_feed_health(self) -> None:
+        for marker in (
+            "const statsDashboard =",
+            "maxSamples: 24",
+            "messagesSeen = 0",
+            "latencySamples = []",
+            "sourceUse = new Map()",
+            "statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt)",
+            "statsDashboard.recordFailure()",
+            "id=\"statsLatencyHistogram\"",
+            "id=\"statsRollingCounts\"",
+            "id=\"statsSourceUsage\"",
+            "id=\"statsResetBtn\"",
+            "No aircraft identifiers,",
+            "tracks, or source payloads are persisted",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("const statsDashboard =")
+        end = self.source.index("// ============ PHASE 16: AUTO-RETRY SYSTEM", start)
+        section = self.source[start:end]
+        self.assertNotIn("localStorage", section)
+        self.assertIn("this.rolling.slice(-12)", section)
+        self.assertIn("this.latencySamples", section)
+
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
             "namedWatchlists: new Map()",

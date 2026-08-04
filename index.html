@@ -481,6 +481,31 @@
         .session-stats { background: var(--bg-darker); border-radius: 8px; padding: 10px; }
         .session-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
         .session-row span:first-child { color: var(--text-muted); }
+        .stats-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-bottom: 9px; }
+        .stats-card { background: rgba(255,255,255,0.035); border: 1px solid var(--border); border-radius: 5px; padding: 6px 7px; min-width: 0; }
+        .stats-card-label { color: var(--text-muted); display: block; font-size: 9px; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .stats-card-value { color: var(--text); display: block; font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 700; }
+        .stats-chart-title { color: var(--text-dim); font-size: 9px; font-weight: 700; letter-spacing: 0.35px; margin: 8px 0 4px; text-transform: uppercase; }
+        .stats-histogram { align-items: flex-end; display: flex; gap: 4px; height: 58px; }
+        .stats-histogram-item { align-items: center; display: flex; flex: 1; flex-direction: column; height: 100%; justify-content: flex-end; min-width: 0; }
+        .stats-histogram-bar { background: linear-gradient(180deg, var(--accent), #2b7a58); border-radius: 3px 3px 1px 1px; min-height: 2px; width: 100%; }
+        .stats-histogram-label { color: var(--text-muted); font-size: 8px; margin-top: 3px; white-space: nowrap; }
+        .stats-rolling { display: grid; gap: 3px; }
+        .stats-rolling-row { align-items: center; display: grid; gap: 5px; grid-template-columns: 33px 1fr; }
+        .stats-rolling-time { color: var(--text-muted); font-size: 8px; font-variant-numeric: tabular-nums; }
+        .stats-rolling-track { background: rgba(255,255,255,0.06); border-radius: 3px; display: flex; height: 7px; overflow: hidden; }
+        .stats-rolling-segment { min-width: 1px; }
+        .stats-rolling-segment.military { background: var(--military); }
+        .stats-rolling-segment.vip { background: var(--vip); }
+        .stats-rolling-segment.pia { background: var(--pia); }
+        .stats-source-list { display: grid; gap: 3px; }
+        .stats-source-row { align-items: center; display: flex; font-size: 9px; justify-content: space-between; }
+        .stats-source-row span:first-child { color: var(--text-dim); }
+        .stats-source-row span:last-child { color: var(--accent); font-variant-numeric: tabular-nums; }
+        .stats-empty, .stats-status { color: var(--text-muted); font-size: 9px; line-height: 1.35; }
+        .stats-status { margin-top: 7px; }
+        .stats-actions { display: flex; justify-content: flex-end; margin-top: 6px; }
+        .stats-actions button { font-size: 9px; padding: 3px 7px; }
         .bottom-panels { position: fixed; bottom: 10px; right: 10px; z-index: 500; display: none; flex-direction: column; gap: 8px; align-items: flex-end; }
         .bottom-panels.visible { display: flex; }
         .legend { position: fixed; right: 15px; top: 50%; transform: translateY(-50%); z-index: 500; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 10px; }
@@ -2215,6 +2240,25 @@ if ('serviceWorker' in navigator) {
             <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;" data-i18n="settings.clearOffline">Clear Offline Cache</button>
         </div>
         <div class="settings-section">
+            <div class="settings-section-title" data-i18n="settings.statsDashboard">Session Statistics (L14)</div>
+            <div class="session-stats" id="sessionStats" aria-live="polite">
+                <div class="stats-summary-grid">
+                    <div class="stats-card"><span class="stats-card-label" data-i18n="stats.messagesSeen">Messages seen</span><strong class="stats-card-value" id="statsMessagesSeen">0</strong></div>
+                    <div class="stats-card"><span class="stats-card-label" data-i18n="stats.refreshes">Refreshes</span><strong class="stats-card-value" id="statsRefreshes">0</strong></div>
+                    <div class="stats-card"><span class="stats-card-label" data-i18n="stats.sourcesUsed">Sources used</span><strong class="stats-card-value" id="statsSourcesUsed">0/4</strong></div>
+                    <div class="stats-card"><span class="stats-card-label" data-i18n="stats.latestLatency">Latest latency</span><strong class="stats-card-value" id="statsLatestLatency">--</strong></div>
+                </div>
+                <div class="stats-chart-title" data-i18n="stats.latencyHistogram">Latency histogram</div>
+                <div class="stats-histogram" id="statsLatencyHistogram"><div class="stats-empty" data-i18n="stats.noneYet">No refresh data yet</div></div>
+                <div class="stats-chart-title" data-i18n="stats.rollingCounts">Rolling category counts</div>
+                <div class="stats-rolling" id="statsRollingCounts"><div class="stats-empty" data-i18n="stats.noneYet">No refresh data yet</div></div>
+                <div class="stats-chart-title" data-i18n="stats.sourceUsage">Source usage</div>
+                <div class="stats-source-list" id="statsSourceUsage"><div class="stats-empty" data-i18n="stats.noneYet">No refresh data yet</div></div>
+                <div class="stats-status" id="statsStatus" data-i18n="stats.noneYet">No refresh data yet</div>
+                <div class="stats-actions"><button class="btn-secondary" id="statsResetBtn" type="button" data-i18n="stats.reset">Reset</button></div>
+            </div>
+        </div>
+        <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.receiverCoverage">Receiver Coverage (X13)</div>
             <div class="receiver-coverage-help" data-i18n="settings.receiverCoverageHelp">Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.</div>
             <input type="url" id="receiverCoverageUrl" class="settings-input" placeholder="http://receiver.local/tar1090" data-i18n-placeholder="settings.receiverUrl" maxlength="320" autocomplete="off">
@@ -3230,6 +3274,131 @@ if ('serviceWorker' in navigator) {
                 errorCount: s.errorCount,
                 lastSuccess: s.lastSuccess ? new Date(s.lastSuccess).toISOString() : 'never'
             }));
+        }
+    };
+
+    // ============ L14: SESSION STATISTICS DASHBOARD ============
+    // Metrics stay in memory for the current tab only. No aircraft identifiers,
+    // tracks, or source payloads are persisted by this dashboard.
+    const statsDashboard = {
+        maxSamples: 24,
+        maxLatencySamples: 120,
+        initialized: false,
+        reset(showToast = false) {
+            this.startedAt = Date.now();
+            this.messagesSeen = 0;
+            this.refreshes = 0;
+            this.successes = 0;
+            this.failures = 0;
+            this.lastLatency = null;
+            this.lastStatus = 'idle';
+            this.sourceUse = new Map();
+            this.latencySamples = [];
+            this.rolling = [];
+            this.render();
+            if (showToast) toast('Session statistics reset');
+        },
+        init() {
+            if (this.initialized) return;
+            this.initialized = true;
+            document.getElementById('statsResetBtn')?.addEventListener('click', () => this.reset(true));
+            this.reset();
+        },
+        _categoryCounts() {
+            const counts = { military: 0, vip: 0, pia: 0 };
+            if (typeof aircraftCache === 'undefined') return counts;
+            Object.values(aircraftCache || {}).forEach(ac => {
+                if (ac?.piaInfo || (typeof piaDB !== 'undefined' && piaDB.loaded && piaDB.isPIA(ac?.hex))) counts.pia++;
+                else if (ac?.isVIP || (typeof badgersBestDB !== 'undefined' && badgersBestDB.isVIP(ac?.hex))) counts.vip++;
+                else counts.military++;
+            });
+            return counts;
+        },
+        recordSuccess(source, messageCount, latencyMs) {
+            this.refreshes++;
+            this.successes++;
+            this.messagesSeen += Math.max(0, Number(messageCount) || 0);
+            this.lastLatency = Math.max(0, Number(latencyMs) || 0);
+            this.lastStatus = 'success';
+            const sourceKey = source?.key || source?.name || 'unknown';
+            const current = this.sourceUse.get(sourceKey) || { name: source?.name || sourceKey, count: 0 };
+            current.count++;
+            this.sourceUse.set(sourceKey, current);
+            this.latencySamples.push(this.lastLatency);
+            if (this.latencySamples.length > this.maxLatencySamples) this.latencySamples.shift();
+            this.rolling.push({ ts: Date.now(), ...this._categoryCounts() });
+            if (this.rolling.length > this.maxSamples) this.rolling.shift();
+            this.render();
+        },
+        recordFailure() {
+            this.refreshes++;
+            this.failures++;
+            this.lastLatency = null;
+            this.lastStatus = 'failure';
+            this.render();
+        },
+        _text(key, fallback) {
+            return typeof i18nManager !== 'undefined' ? i18nManager.t(key, fallback) : fallback;
+        },
+        _histogramMarkup() {
+            const buckets = [
+                { label: '0–100', max: 100 },
+                { label: '100–250', max: 250 },
+                { label: '250–500', max: 500 },
+                { label: '500–1000', max: 1000 },
+                { label: '1000+', max: Infinity }
+            ];
+            if (!this.latencySamples.length) return '<div class="stats-empty">' + escapeHTML(this._text('stats.noneYet', 'No refresh data yet')) + '</div>';
+            const counts = buckets.map(() => 0);
+            this.latencySamples.forEach(latency => {
+                const index = latency < 100 ? 0 : latency < 250 ? 1 : latency < 500 ? 2 : latency < 1000 ? 3 : 4;
+                counts[index]++;
+            });
+            const max = Math.max(...counts, 1);
+            return buckets.map((bucket, index) => '<div class="stats-histogram-item" title="' + counts[index] + ' samples">' +
+                '<span class="stats-histogram-bar" style="height:' + Math.max(4, Math.round((counts[index] / max) * 100)) + '%"></span>' +
+                '<span class="stats-histogram-label">' + bucket.label + '</span></div>').join('');
+        },
+        _rollingMarkup() {
+            if (!this.rolling.length) return '<div class="stats-empty">' + escapeHTML(this._text('stats.noneYet', 'No refresh data yet')) + '</div>';
+            const max = Math.max(...this.rolling.flatMap(sample => [sample.military, sample.vip, sample.pia]), 1);
+            return this.rolling.slice(-12).map(sample => {
+                const time = new Date(sample.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return '<div class="stats-rolling-row" title="' + sample.military + ' military · ' + sample.vip + ' VIP · ' + sample.pia + ' PIA">' +
+                    '<span class="stats-rolling-time">' + escapeHTML(time) + '</span><span class="stats-rolling-track">' +
+                    '<span class="stats-rolling-segment military" style="width:' + Math.round((sample.military / max) * 100) + '%"></span>' +
+                    '<span class="stats-rolling-segment vip" style="width:' + Math.round((sample.vip / max) * 100) + '%"></span>' +
+                    '<span class="stats-rolling-segment pia" style="width:' + Math.round((sample.pia / max) * 100) + '%"></span>' +
+                    '</span></div>';
+            }).join('');
+        },
+        _sourceMarkup() {
+            if (!this.sourceUse.size) return '<div class="stats-empty">' + escapeHTML(this._text('stats.noneYet', 'No refresh data yet')) + '</div>';
+            return Array.from(this.sourceUse.values()).sort((a, b) => b.count - a.count).map(source =>
+                '<div class="stats-source-row"><span>' + escapeHTML(source.name) + '</span><span>' + source.count + '</span></div>'
+            ).join('');
+        },
+        render() {
+            const panel = document.getElementById('sessionStats');
+            if (!panel) return;
+            const messages = document.getElementById('statsMessagesSeen');
+            const refreshes = document.getElementById('statsRefreshes');
+            const sources = document.getElementById('statsSourcesUsed');
+            const latency = document.getElementById('statsLatestLatency');
+            if (messages) messages.textContent = this.messagesSeen.toLocaleString();
+            if (refreshes) refreshes.textContent = this.refreshes.toLocaleString();
+            if (sources) sources.textContent = this.sourceUse.size + '/' + (dataSourceManager?.sources?.length || 0);
+            if (latency) latency.textContent = this.lastLatency === null ? '--' : Math.round(this.lastLatency) + ' ms';
+            const histogram = document.getElementById('statsLatencyHistogram');
+            if (histogram) histogram.innerHTML = safeHTML(this._histogramMarkup());
+            const rolling = document.getElementById('statsRollingCounts');
+            if (rolling) rolling.innerHTML = safeHTML(this._rollingMarkup());
+            const sourceList = document.getElementById('statsSourceUsage');
+            if (sourceList) sourceList.innerHTML = safeHTML(this._sourceMarkup());
+            const status = document.getElementById('statsStatus');
+            if (status) {
+                status.textContent = this.refreshes ? this.successes + ' successful · ' + this.failures + ' failed' : this._text('stats.noneYet', 'No refresh data yet');
+            }
         }
     };
 
@@ -7234,6 +7403,7 @@ if ('serviceWorker' in navigator) {
         }
 
         loadSettings(); loadBookmarks();
+        statsDashboard.init();
         const hadCache = loadAircraftCache();
         await getInitialLocation();
         
@@ -7426,10 +7596,11 @@ if ('serviceWorker' in navigator) {
         if(gridFetch.inProgress)return;
         if(Date.now()-lastFetchTime<2000)return;
         if(!offlineManager.isOnline){offlineManager.showCachedPositions();return;}
+        const statsStartedAt = Date.now();
         gridFetch.inProgress=true;fetchInProgress=true;
         try{
             const allSrc=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
-            if(!allSrc.length){_el('dataSource').textContent='No sources';return;}
+            if(!allSrc.length){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();return;}
             let success=false;
             // Try each source until one succeeds - fetch mil + pia in parallel
             const _fetch = (url, cors) => (cors && !CONFIG.isLocalFile) ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url);
@@ -7447,12 +7618,13 @@ if ('serviceWorker' in navigator) {
                         const n=Object.keys(markers).length;
                         _el('dataSource').textContent=src.name+' - '+n+' aircraft';
                         lastSuccessfulSource=src.key;success=true;
+                        statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt);
                         connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src);offlineManager.cachePositions();
                         break;
                     }
                 }catch(e){dataSourceManager.recordFailure(src);}
             }
-            if(!success){_el('dataSource').textContent='No sources';connectionMonitor.recordFailure();}
+            if(!success){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();connectionMonitor.recordFailure();}
         }finally{
             lastFetchTime=Date.now();gridFetch.inProgress=false;fetchInProgress=false;
         }

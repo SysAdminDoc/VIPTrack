@@ -101,6 +101,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Watchlist | Track specific hex codes or registrations with real-time alerts |
 | Military Alerts | Configurable radius-based alerts for nearby military activity |
 | Notification Center | Alert history with sound and desktop notification support |
+| Session Statistics | In-memory graphs1090-style feed health: messages seen, refresh latency histogram, source usage, and rolling mil/VIP/PIA counts |
 
 ### Map and Visualization
 
