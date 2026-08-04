@@ -15,6 +15,7 @@ CESIUM_FRAME = ROOT / "cesium-frame.html"
 FAA_DIR = ROOT / "data" / "faa"
 PLUGINS_MANIFEST = ROOT / "plugins" / "manifest.json"
 I18N_DIR = ROOT / "data" / "i18n"
+OPFS_WORKER = ROOT / "workers" / "registration-opfs-worker.js"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -165,6 +166,35 @@ class VipTrackContracts(unittest.TestCase):
             self.assertEqual(source_keys, catalogs[language])
             self.assertGreaterEqual(len(catalogs[language]), 120)
         self.assertEqual(catalogs["en"], catalogs["es"])
+
+    def test_opfs_registration_worker_uses_sync_handles_with_fallback_contract(self) -> None:
+        worker = OPFS_WORKER.read_text(encoding="utf-8")
+        for marker in (
+            "const OPFS_SCHEMA_VERSION = 1",
+            "const OPFS_FILE_NAME = 'viptrack-registrations-v1.json'",
+            "navigator.storage.getDirectory",
+            "createSyncAccessHandle()",
+            "accessHandle.read(bytes, { at: 0 })",
+            "accessHandle.write(bytes, { at: 0 })",
+            "accessHandle.flush()",
+            "self.onmessage = async event",
+            "type: 'loaded'",
+            "code: error?.message === 'OPFS unavailable' ? 'unsupported' : 'load-failed'",
+        ):
+            self.assertIn(marker, worker)
+        for marker in (
+            "const registrationOPFSManager =",
+            "workers/registration-opfs-worker.js",
+            "new Worker(workerUrl.href",
+            "DATA_URLS.registrations.compact",
+            "Loaded', this.aircraft.size, 'registrations from OPFS",
+            "navigator.storage?.getDirectory",
+            "this.worker?.terminate()",
+            "'data/aircraft/registrations.json'",
+            "'workers/registration-opfs-worker.js'",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertNotIn("createSyncAccessHandle()", self.source)
 
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (

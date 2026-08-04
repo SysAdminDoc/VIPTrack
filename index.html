@@ -1439,7 +1439,9 @@ const SW_STATIC_ASSETS = [
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-16x16.png',
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png',
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-48x48.png',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png'
+    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png',
+    'data/aircraft/registrations.json',
+    'workers/registration-opfs-worker.js'
 ];
 async function getServiceWorkerManifestHash(manifestText) {
     try {
@@ -2473,6 +2475,7 @@ if ('serviceWorker' in navigator) {
     const DATA_URLS = {
         // Aircraft Registration (tar1090-db)
         registrations: {
+            compact: 'data/aircraft/registrations.json',
             primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/registrations.csv',
             fallback: null
         },
@@ -4681,10 +4684,86 @@ if ('serviceWorker' in navigator) {
         findInBounds(bounds) { const results = [], sw = bounds.getSouthWest(), ne = bounds.getNorthEast(); this.airports.forEach(apt => { if (apt.lat >= sw.lat && apt.lat <= ne.lat && apt.lon >= sw.lng && apt.lon <= ne.lng) results.push(apt); }); return results; }
     };
 
+    // ============ L9: OPFS REGISTRATION CACHE ============
+    // The sync handle stays inside the dedicated worker; the UI only receives
+    // the compact registration map and can fall back to IndexedDB/CSV safely.
+    const registrationOPFSManager = {
+        worker: null,
+        nextId: 0,
+        pending: new Map(),
+        timeoutMs: 12000,
+        _sameOrigin(url) {
+            return url.protocol === location.protocol && url.origin === location.origin;
+        },
+        init() {
+            if (this.worker || CONFIG.isLocalFile || typeof Worker !== 'function' ||
+                typeof navigator.storage?.getDirectory !== 'function') return !!this.worker;
+            try {
+                const workerUrl = new URL('workers/registration-opfs-worker.js', document.baseURI);
+                if (!this._sameOrigin(workerUrl)) return false;
+                this.worker = new Worker(workerUrl.href, { name: 'viptrack-registration-opfs' });
+                this.worker.addEventListener('message', event => {
+                    const message = event.data || {};
+                    const request = this.pending.get(message.id);
+                    if (!request) return;
+                    clearTimeout(request.timer);
+                    this.pending.delete(message.id);
+                    request.resolve(message.type === 'loaded' ? message : null);
+                });
+                this.worker.addEventListener('error', error => {
+                    console.warn('OPFS registration worker unavailable', error);
+                    for (const request of this.pending.values()) {
+                        clearTimeout(request.timer);
+                        request.resolve(null);
+                    }
+                    this.pending.clear();
+                    this.worker?.terminate();
+                    this.worker = null;
+                });
+                return true;
+            } catch (error) {
+                console.warn('OPFS registration worker could not start', error);
+                this.worker = null;
+                return false;
+            }
+        },
+        load(compactPath, maxAgeMs = 86400000) {
+            if (!this.init() || !this.worker) return Promise.resolve(null);
+            try {
+                const compactUrl = new URL(compactPath, document.baseURI);
+                if (!this._sameOrigin(compactUrl)) return Promise.resolve(null);
+                const id = 'registration_' + (++this.nextId);
+                return new Promise(resolve => {
+                    const timer = setTimeout(() => {
+                        this.pending.delete(id);
+                        resolve(null);
+                    }, this.timeoutMs);
+                    this.pending.set(id, { resolve, timer });
+                    try {
+                        this.worker.postMessage({ type: 'load', id, compactUrl: compactUrl.href, maxAgeMs });
+                    } catch (error) {
+                        clearTimeout(timer);
+                        this.pending.delete(id);
+                        resolve(null);
+                    }
+                });
+            } catch (error) {
+                return Promise.resolve(null);
+            }
+        }
+    };
+
     // ============ AIRCRAFT REGISTRATION DATABASE ============
     const registrationDB = {
         aircraft: new Map(), loaded: false, loading: false,
         async init() {
+            const opfs = await registrationOPFSManager.load(DATA_URLS.registrations.compact);
+            if (opfs?.records) {
+                this.loadFromData(opfs.records);
+                _dbg('Loaded', this.aircraft.size, 'registrations from OPFS', opfs.warm ? '(warm)' : '(cold)');
+                return true;
+            }
+
             // Try IndexedDB first (can store larger data)
             try {
                 const cached = await skytrackDB.loadDatabase('registrations');

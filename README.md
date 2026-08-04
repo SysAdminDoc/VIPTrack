@@ -54,6 +54,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | Interesting | Chase planes, test aircraft, and other flagged aircraft | 4,530+ aircraft |
 | Civilian Intel | Categorized civilian fleet with type/operator data | Self-hosted DB |
 | FAA Registry | Privacy-minimized official owner/type lookup for non-PIA N-numbers | 315,211 records in 26 shards |
+| OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
 | Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 281 UI keys |
@@ -142,6 +143,7 @@ Static app files (`index.html` + `cesium-frame.html`)
     |     |-- VIP DB (Badger's Best)
     |     |-- PIA DB, Interesting DB, Civilian DB
     |     |-- FAA Releasable Aircraft registry (26 lazy FNV shards; no addresses)
+    |     |-- OPFS registration cache (dedicated worker; compact index, IndexedDB/CSV fallback)
     |     |-- Optional OpenAIP Class A–G airspace tiles (user-keyed, no aircraft telemetry)
     |     |-- Plugin catalog (`plugins/manifest.json`, same-origin opt-in)
     |     |-- Airline DB (5,800+), Callsign Prefixes (5,774)
@@ -171,6 +173,7 @@ Everything runs client-side in the static app files; `index.html` owns the appli
 - **CesiumJS 1.143** — optional 3D globe renderer loaded only with `?3d=1`
 - **MapLibre GL JS 5.24.0 + deck.gl 9.2.1** — optional GPU map, `IconLayer` aircraft, and `TripsLayer` history loaded only with `?renderer=webgl`
 - **ServiceWorker** — Offline caching of assets
+- **OPFS** — Dedicated-worker sync-handle cache for the compact registration index; unsupported or unavailable browsers fall back to IndexedDB and the source CSV
 - **localStorage** — Settings, map position, aircraft cache persistence
 - **IndexedDB** — Airport and registration database caching
 - **FAA Releasable Aircraft Registry** — official 26-shard owner/type metadata; addresses and additional registrants are omitted, and PIA aircraft are excluded at lookup time
