@@ -19,6 +19,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Opt-in CesiumJS 1.143 3D globe via `?3d=1`, with a same-origin child CSP, SRI-pinned lazy loading, OpenStreetMap imagery, current aircraft entities, and click-through selection.
 - Cesium historical playback for selected `globe.airplanes.live` traces, with sampled-position paths, a clamped Cesium clock, accessible play/pause/step/speed controls, and a range scrubber.
 - Opt-in MapLibre GL JS 5.24.0 + deck.gl 9.2.1 WebGL renderer via `?renderer=webgl`, with GPU `IconLayer` aircraft and `TripsLayer` history while Leaflet remains the default.
+- Official FAA Releasable Aircraft Registry ingest: 315,211 privacy-minimized N-number records in 26 lazy FNV shards, with FAA owner display for non-PIA registrations and no addresses or additional registrants shipped.
 - ServiceWorker cache names now include a SHA-256 asset-manifest hash and schema version; cross-origin API fallbacks expire after 60 seconds and tile storage uses a 1,000-entry last-used LRU.
 - ADSB.fi as a fourth rotating live-data source with health tracking.
 - Emergency squawk auto-highlight for 7500 (hijack) / 7600 (NORDO) / 7700 (general) with optional audible tone.

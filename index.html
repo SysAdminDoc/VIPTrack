@@ -1926,6 +1926,7 @@ if ('serviceWorker' in navigator) {
                 <div class="info-row"><span class="info-label">Type</span><span class="info-value" id="infoType">---</span></div>
                 <div class="info-row" id="infoDescRow" style="display:none;"><span class="info-label">Aircraft</span><span class="info-value" id="infoDesc">---</span></div>
                 <div class="info-row" id="infoOperatorRow" style="display:none;"><span class="info-label">Operator</span><span class="info-value" id="infoOperator">---</span></div>
+                <div class="info-row" id="infoFaaOwnerRow" style="display:none;"><span class="info-label">FAA owner</span><span class="info-value" id="infoFaaOwner">---</span></div>
                 <div class="info-row" id="infoAirlineRow" style="display:none;"><span class="info-label">Airline</span><span class="info-value" id="infoAirline">---</span></div>
                 <div class="info-row"><span class="info-label">Category</span><span class="info-value" id="infoCat">---</span></div>
                 <div class="info-row"><span class="info-label">Squawk</span><span class="info-value"><span class="squawk-code squawk-normal" id="infoSquawk">----</span></span></div>
@@ -5029,6 +5030,69 @@ if ('serviceWorker' in navigator) {
         return isPrivacyProtectedAircraft(ac) ? 'PIA — operator anonymised' : (ac?.r || 'N/A');
     }
 
+    // L4: Lazy FAA Releasable Aircraft Registry lookup.  The generated shards
+    // intentionally contain owner and aircraft metadata only; addresses and
+    // additional registrants never enter the web app.
+    const faaRegistryManager = {
+        shards: new Map(),
+        requests: new Map(),
+
+        normalise(value) {
+            let n = String(value || '').trim().toUpperCase();
+            if (!n) return null;
+            if (!n.startsWith('N')) n = 'N' + n;
+            return /^N[0-9]{1,5}[A-Z]{0,2}$/.test(n) && n.length <= 6 ? n : null;
+        },
+
+        shardFor(nNumber) {
+            let hash = 2166136261;
+            for (const char of nNumber) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+            return String.fromCharCode(65 + ((hash >>> 0) % 26));
+        },
+
+        async loadShard(letter) {
+            if (this.shards.has(letter)) return this.shards.get(letter);
+            if (this.requests.has(letter)) return this.requests.get(letter);
+            if (CONFIG.isLocalFile) return null;
+            const request = (async () => {
+                const url = new URL('data/faa/master-' + letter + '.json', document.baseURI).href;
+                const response = await fetchWithTimeout(url, { cache: 'force-cache' }, 15000);
+                if (!response.ok) throw new Error('FAA shard HTTP ' + response.status);
+                const data = await response.json();
+                if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('FAA shard has an invalid schema');
+                this.shards.set(letter, data);
+                _dbg('Loaded FAA shard', letter, Object.keys(data).length, 'records');
+                return data;
+            })().catch(error => {
+                _dbg('FAA shard unavailable:', error.message);
+                return null;
+            }).finally(() => this.requests.delete(letter));
+            this.requests.set(letter, request);
+            return request;
+        },
+
+        async lookup(registration) {
+            const nNumber = this.normalise(registration);
+            if (!nNumber) return null;
+            const shard = await this.loadShard(this.shardFor(nNumber));
+            return shard?.[nNumber] || null;
+        },
+
+        async enrich(ac) {
+            if (!ac || isPrivacyProtectedAircraft(ac)) return null;
+            if (ac.faaRegistryChecked) return ac.faaRegistry || null;
+            const nNumber = this.normalise(ac.r);
+            if (!nNumber) { ac.faaRegistryChecked = true; return null; }
+            const record = await this.lookup(nNumber);
+            if (!record || isPrivacyProtectedAircraft(ac)) return null;
+            ac.faaRegistryChecked = true;
+            ac.faaRegistry = record;
+            if (record.owner) ac.faaOwner = record.owner;
+            if (!ac.year && record.year) ac.year = record.year;
+            return record;
+        }
+    };
+
     // ============ X7: PRIVACY-SAFE PIA ROTATION TIMELINE ============
     // Correlation is deliberately limited to an opaque local fingerprint of callsign + type.
     // Registration and operator fields are never read, stored, or displayed here.
@@ -7941,11 +8005,17 @@ if ('serviceWorker' in navigator) {
         _selectLock = Date.now();
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
         selectedHex = hex; const ac = aircraftCache[hex]; if (!ac) return;
+        faaRegistryManager.enrich(ac).then(() => {
+            if (selectedHex !== hex || !ac.faaOwner || isPrivacyProtectedAircraft(ac)) return;
+            const ownerRow = document.getElementById('infoFaaOwnerRow');
+            if (ownerRow) { document.getElementById('infoFaaOwner').textContent = ac.faaOwner; ownerRow.style.display = 'flex'; }
+        });
         piaRotationTimeline.render(ac);
         document.getElementById('infoCallsign').textContent = ac.flight || 'N/A'; document.getElementById('infoHex').textContent = ac.hex; document.getElementById('infoReg').textContent = getDisplayRegistration(ac);
         const typeDesc = aircraftTypeDB.getDescription(ac.t); document.getElementById('infoType').textContent = typeDesc || ac.t || 'N/A';
         const descRow = document.getElementById('infoDescRow'); if (ac.desc) { document.getElementById('infoDesc').textContent = ac.desc; descRow.style.display = 'flex'; } else descRow.style.display = 'none';
         const opRow = document.getElementById('infoOperatorRow'); if (ac.ownOp) { document.getElementById('infoOperator').textContent = ac.ownOp; opRow.style.display = 'flex'; } else opRow.style.display = 'none';
+        const ownerRow = document.getElementById('infoFaaOwnerRow'); if (ac.faaOwner && !isPrivacyProtectedAircraft(ac)) { document.getElementById('infoFaaOwner').textContent = ac.faaOwner; ownerRow.style.display = 'flex'; } else ownerRow.style.display = 'none';
         
         // Airline with alliance badge
         const airlineRow = document.getElementById('infoAirlineRow');

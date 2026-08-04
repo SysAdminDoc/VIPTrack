@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
 CESIUM_FRAME = ROOT / "cesium-frame.html"
+FAA_DIR = ROOT / "data" / "faa"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -50,6 +51,37 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("registrationDB.loaded && !cached.piaInfo", self.source)
         self.assertIn("PIA — operator anonymised", self.source)
         self.assertIn("cacheKey: 'viptrack_pia_v1'", self.source)
+
+    def test_faa_registry_shards_are_lazy_compact_and_pia_safe(self) -> None:
+        for marker in (
+            "const faaRegistryManager =",
+            "data/faa/master-' + letter + '.json",
+            "shardFor(nNumber)",
+            "if (CONFIG.isLocalFile) return null",
+            "if (!ac || isPrivacyProtectedAircraft(ac)) return null",
+            "id=\"infoFaaOwnerRow\"",
+            "faaRegistryManager.enrich(ac).then",
+        ):
+            self.assertIn(marker, self.source)
+        manifest = json.loads((FAA_DIR / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["schemaVersion"], 1)
+        self.assertEqual(manifest["shardAlgorithm"], "fnv1a-mod-26")
+        self.assertGreaterEqual(manifest["recordCount"], 300_000)
+        total = 0
+        owners = 0
+        forbidden = {"street", "street2", "zip", "address", "otherNames"}
+        for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            shard_meta = manifest["shards"][letter]
+            self.assertEqual(shard_meta["file"], f"master-{letter}.json")
+            shard = json.loads((FAA_DIR / shard_meta["file"]).read_text(encoding="utf-8"))
+            self.assertEqual(len(shard), shard_meta["records"])
+            for n_number, record in shard.items():
+                self.assertRegex(n_number, r"^N[0-9]{1,5}[A-Z]{0,2}$")
+                self.assertTrue(forbidden.isdisjoint(record))
+                owners += bool(record.get("owner"))
+            total += len(shard)
+        self.assertEqual(total, manifest["recordCount"])
+        self.assertEqual(owners, manifest["ownerCount"])
 
     def test_csp_covers_tfr_mirror(self) -> None:
         self.assertIn("https://tfr2go.com", self.source)
