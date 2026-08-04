@@ -86,6 +86,16 @@ class VipTrackContracts(unittest.TestCase):
     def test_csp_covers_tfr_mirror(self) -> None:
         self.assertIn("https://tfr2go.com", self.source)
 
+    def test_airframes_acars_link_is_callsign_based_and_pia_safe(self) -> None:
+        for marker in (
+            'id="linkAirframes"',
+            "https://app.airframes.io/flights/${encodeURIComponent(flight)}",
+            "const available = Boolean(flight) && !isPrivacyProtectedAircraft(ac)",
+            "linkAirframes.style.display = available ? 'inline-flex' : 'none'",
+            "rel=\"noopener noreferrer\"",
+        ):
+            self.assertIn(marker, self.source)
+
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
             "namedWatchlists: new Map()",

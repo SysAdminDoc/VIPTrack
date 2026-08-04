@@ -679,6 +679,7 @@
         .ext-icon.adsbx { background: linear-gradient(135deg, #00a86b, #007a4d); }
         .ext-icon.ps { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .ext-icon.jp { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .ext-icon.airframes { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
         .ext-icon.wiki { background: linear-gradient(135deg, #666, #444); }
         
         /* Phase 11: NOTAMs Display */
@@ -2040,6 +2041,9 @@ if ('serviceWorker' in navigator) {
         <div class="info-section external-links-section">
             <div class="info-section-title">Track Elsewhere</div>
             <div class="external-links" id="externalLinks">
+                <a class="ext-link" id="linkAirframes" href="https://app.airframes.io/" target="_blank" rel="noopener noreferrer" title="ACARS context on Airframes.io" style="display:none;">
+                    <span class="ext-icon airframes">AF</span>
+                </a>
                 <a class="ext-link" id="linkFA" href="#" target="_blank" title="FlightAware">
                     <span class="ext-icon fa">FA</span>
                 </a>
@@ -9626,6 +9630,17 @@ if ('serviceWorker' in navigator) {
         const reg = isPrivacyProtectedAircraft(ac) ? '' : (ac.r || '').replace('-', '');
         const flight = (ac.flight || '').trim();
         const type = ac.t || '';
+
+        // ACARS context (Airframes.io).  Do not offer a callsign pivot for PIA aircraft.
+        const linkAirframes = document.getElementById('linkAirframes');
+        if (linkAirframes) {
+            const available = Boolean(flight) && !isPrivacyProtectedAircraft(ac);
+            linkAirframes.href = available
+                ? `https://app.airframes.io/flights/${encodeURIComponent(flight)}`
+                : 'https://app.airframes.io/';
+            linkAirframes.style.display = available ? 'inline-flex' : 'none';
+            linkAirframes.setAttribute('aria-hidden', available ? 'false' : 'true');
+        }
         
         // FlightAware
         const linkFA = document.getElementById('linkFA');

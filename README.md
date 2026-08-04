@@ -64,7 +64,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | Airline Banners | Airline branding displayed for identified carriers |
 | Altitude Chart | Live altitude profile showing climb/descent phases |
 | History Trail | Altitude-colored flight path rendered on the map |
-| External Links | Quick links to FlightAware, FlightRadar24, ADS-B Exchange, Planespotters |
+| External Links | Quick links to Airframes.io ACARS context, FlightAware, FlightRadar24, ADS-B Exchange, Planespotters |
 
 ### Search and Filtering
 
