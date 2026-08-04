@@ -2589,7 +2589,8 @@ if ('serviceWorker' in navigator) {
         
         // Images (self-hosted)
         aircraftPhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/aircraft_photos/',
-        typePhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/type_photos/',
+        typePhotos: 'assets/type_photos/',
+        typePhotosFallback: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/type_photos/',
         airlineLogos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
         silhouettes: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
         flags: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/flags/'
@@ -8092,8 +8093,12 @@ if ('serviceWorker' in navigator) {
         // PRIORITY 3: Self-hosted type photos (one photo per aircraft type)
         const typeCode = (ac.t || '').toUpperCase();
         if (typeCode) {
-            const typePhotoUrl = DATA_URLS.typePhotos + typeCode + '.jpg';
-            if (await testImage(typePhotoUrl)) { cacheAndShow(hex, typePhotoUrl, 'type-photo'); return; }
+            const typePhotoUrls = [DATA_URLS.typePhotos, DATA_URLS.typePhotosFallback]
+                .filter(Boolean)
+                .map(base => base + typeCode + '.jpg');
+            for (const typePhotoUrl of typePhotoUrls) {
+                if (await testImage(typePhotoUrl)) { cacheAndShow(hex, typePhotoUrl, 'type-photo'); return; }
+            }
         }
 
         // PRIORITY 4: Planespotters API by hex (live API)

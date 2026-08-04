@@ -18,33 +18,29 @@ Usage:
   python download-type-photos.py --types-only # Only use types.json (no live feed needed)
 """
 
-import json, os, sys, time, csv, io, re, hashlib
+import argparse
+import io
+import json
+import re
+import sys
+import time
 from pathlib import Path
 from urllib.parse import quote
 
-def _bootstrap():
-    """Auto-install dependencies."""
-    required = ['requests', 'Pillow']
-    import importlib, subprocess
-    for pkg in required:
-        mod = pkg.lower().replace('-', '_')
-        if mod == 'pillow': mod = 'PIL'
-        try:
-            importlib.import_module(mod)
-        except ImportError:
-            print(f'Installing {pkg}...')
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg, '-q',
-                                   '--break-system-packages'], stderr=subprocess.DEVNULL)
-
-_bootstrap()
-
-import requests
-from PIL import Image
+try:
+    import requests
+    from PIL import Image
+except ImportError as exc:
+    raise SystemExit(
+        'Photo enrichment needs the existing requests and Pillow packages. '
+        'Install them in the active environment with: python -m pip install requests Pillow'
+    ) from exc
 
 # ============ CONFIG ============
 SCRIPT_DIR = Path(__file__).parent
 OUTPUT_DIR = SCRIPT_DIR / 'assets' / 'type_photos'
 MANIFEST_PATH = OUTPUT_DIR / 'manifest.json'
+LOCAL_TYPES_JSON = SCRIPT_DIR / 'data' / 'aircraft' / 'types.json'
 
 TYPES_JSON_URL = 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/types.json'
 MIL_FEEDS = [
@@ -70,7 +66,8 @@ TARGET_WIDTH = 800          # Resize to this width for consistency
 JPEG_QUALITY = 85           # JPEG compression quality
 REQUEST_DELAY = 0.5         # Seconds between API requests
 PLANESPOTTERS_DELAY = 1.0   # Extra delay for planespotters (strict rate limiting)
-REQUEST_TIMEOUT = 15
+REQUEST_TIMEOUT = 10
+REQUEST_RETRIES = 2
 
 SESSION = requests.Session()
 SESSION.headers.update({
@@ -82,34 +79,33 @@ SESSION.headers.update({
 # ============ HELPERS ============
 def log(msg, level='info'):
     icons = {'info': '[*]', 'ok': '[+]', 'warn': '[!]', 'err': '[-]', 'skip': '[~]'}
-    print(f"{icons.get(level, '[*]')} {msg}")
+    print(f"{icons.get(level, '[*]')} {msg}", flush=True)
 
 
 def safe_get(url, timeout=REQUEST_TIMEOUT, **kwargs):
     """GET with error handling and rate limit retry."""
-    for attempt in range(3):
+    for attempt in range(REQUEST_RETRIES):
         try:
             resp = SESSION.get(url, timeout=timeout, **kwargs)
             if resp.status_code == 429:
-                wait = (attempt + 1) * 3
-                log(f"Rate limited on {url[:60]}... waiting {wait}s", 'warn')
-                time.sleep(wait)
-                continue
+                log(f"Rate limited on {url[:60]}... moving to the next source", 'warn')
+                return resp
             return resp
-        except (requests.RequestException, Exception) as e:
-            if attempt == 2:
+        except requests.RequestException as e:
+            if attempt == REQUEST_RETRIES - 1:
+                log(f"Request failed: {url[:60]}... ({e})", 'warn')
                 return None
-            time.sleep(1)
+            time.sleep(attempt + 1)
     return None
 
 
-def download_image(url):
+def download_image(url, minimum_size=MIN_IMAGE_SIZE):
     """Download an image URL and return bytes, or None on failure."""
     resp = safe_get(url)
     if not resp or resp.status_code != 200:
         return None
     data = resp.content
-    if len(data) < MIN_IMAGE_SIZE:
+    if len(data) < minimum_size:
         return None
     # Validate it's actually an image
     try:
@@ -247,7 +243,9 @@ def try_silhouette(type_code):
     """Try silhouette images as last resort."""
     for base_url in SILHOUETTE_URLS:
         url = f"{base_url}{type_code.upper()}.png"
-        img_data = download_image(url)
+        # Silhouette PNGs are intentionally tiny but still valid, useful
+        # placeholders when no photographic source has a type entry.
+        img_data = download_image(url, minimum_size=1)
         if img_data:
             return img_data
         time.sleep(0.2)
@@ -257,12 +255,24 @@ def try_silhouette(type_code):
 # ============ DATA LOADING ============
 def load_types_db():
     """Load the ICAO types database."""
-    log("Loading ICAO types database...")
-    resp = safe_get(TYPES_JSON_URL)
-    if not resp or resp.status_code != 200:
-        log("Failed to load types database!", 'err')
-        return {}
-    data = resp.json()
+    if LOCAL_TYPES_JSON.exists():
+        log(f"Loading local ICAO types database: {LOCAL_TYPES_JSON}")
+        try:
+            data = json.loads(LOCAL_TYPES_JSON.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            log(f"Failed to load local types database: {exc}", 'err')
+            return {}
+    else:
+        log("Loading remote ICAO types database...")
+        resp = safe_get(TYPES_JSON_URL)
+        if not resp or resp.status_code != 200:
+            log("Failed to load types database!", 'err')
+            return {}
+        try:
+            data = resp.json()
+        except ValueError:
+            log("Types database returned invalid JSON!", 'err')
+            return {}
     types = {}
     for code, info in data.items():
         code = code.upper()
@@ -274,6 +284,26 @@ def load_types_db():
             types[code] = code
     log(f"Loaded {len(types)} aircraft type designators", 'ok')
     return types
+
+
+def load_manifest():
+    """Load successful downloads without making a partial manifest visible."""
+    if not MANIFEST_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(MANIFEST_PATH.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as exc:
+        log(f"Ignoring invalid photo manifest: {exc}", 'warn')
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def write_manifest(manifest):
+    """Atomically replace the manifest after a successful or skipped batch."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    temp_path = MANIFEST_PATH.with_name(MANIFEST_PATH.name + '.tmp')
+    temp_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    temp_path.replace(MANIFEST_PATH)
 
 
 def load_live_aircraft():
@@ -365,19 +395,30 @@ def download_photo_for_type(type_code, type_name, samples=None):
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description='VIPTrack Type Photo Downloader')
+    parser = argparse.ArgumentParser(
+        description='VIPTrack Type Photo Downloader',
+        epilog=(
+            'Recommended workflow: run tools/run_type_photo_enrichment.ps1, or run '
+            'python download-type-photos.py --types-only --limit 500 --resume. '
+            'The local type database is preferred, the run is resumable, and the '
+            'manifest is replaced atomically after each successful download.'
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument('--resume', action='store_true', help='Skip types that already have photos')
     parser.add_argument('--types-only', action='store_true', help='Only use types.json (no live feed)')
-    parser.add_argument('--limit', type=int, default=0, help='Limit number of types to download')
+    parser.add_argument('--limit', type=int, default=500, help='Target number of types to process (default: 500)')
+    parser.add_argument('--all-types', action='store_true', help='Process every type in the merged database')
+    parser.add_argument('--dry-run', action='store_true', help='Print the deterministic work list without downloading')
     args = parser.parse_args()
+
+    if args.limit < 1 and not args.all_types:
+        parser.error('--limit must be at least 1 unless --all-types is used')
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Load manifest if resuming
-    manifest = {}
-    if args.resume and MANIFEST_PATH.exists():
-        manifest = json.loads(MANIFEST_PATH.read_text())
+    manifest = load_manifest()
+    if args.resume:
         log(f"Resuming: {len(manifest)} types already downloaded", 'info')
 
     # Load data
@@ -403,44 +444,58 @@ def main():
     work_list = sorted(all_types.items(),
                        key=lambda x: (-len(x[1]['samples']), x[0]))
 
-    if args.limit:
+    if args.all_types:
+        limit_label = 'all'
+    else:
         work_list = work_list[:args.limit]
+        limit_label = str(args.limit)
 
     log(f"\n{'='*60}")
-    log(f"Total types to process: {len(work_list)}")
+    log(f"Target: {limit_label} types; work list: {len(work_list)}")
     log(f"Types with live samples: {sum(1 for _, v in work_list if v['samples'])}")
     log(f"Output directory: {OUTPUT_DIR}")
     log(f"{'='*60}\n")
 
     stats = {'downloaded': 0, 'skipped': 0, 'failed': 0, 'sources': {}}
+    if args.dry_run:
+        for i, (type_code, info) in enumerate(work_list, 1):
+            print(f"{i:04d} {type_code} {info['name']}")
+        return 0
 
     # Ground/surface codes that are not aircraft types
     NON_AIRCRAFT = {'TWR', 'GND', 'GRND', 'VEH', 'OBST', 'BALL', 'SHIP', 'PARA'}
 
-    for i, (type_code, info) in enumerate(work_list):
-        # Skip non-aircraft type codes
-        if type_code in NON_AIRCRAFT:
-            log(f"[{i+1}/{len(work_list)}] {type_code} - skipping (non-aircraft code)", 'skip')
-            stats['skipped'] += 1
-            continue
-
-        # Skip if already done
-        if args.resume:
-            photo_path = OUTPUT_DIR / f"{type_code}.jpg"
-            if photo_path.exists() and type_code in manifest:
+    try:
+        for i, (type_code, info) in enumerate(work_list):
+            type_code = type_code.upper().strip()
+            if type_code in NON_AIRCRAFT or not re.fullmatch(r'[A-Z0-9]{2,8}', type_code):
+                log(f"[{i+1}/{len(work_list)}] {type_code} - skipping (non-aircraft code)", 'skip')
                 stats['skipped'] += 1
                 continue
 
-        progress = f"[{i+1}/{len(work_list)}]"
-        type_name = info['name']
-        samples = info['samples']
+            # Existing files are the source of truth for --resume. Rebuild a
+            # missing manifest entry instead of downloading the same asset again.
+            photo_path = OUTPUT_DIR / f"{type_code}.jpg"
+            if args.resume and photo_path.exists():
+                if type_code not in manifest:
+                    manifest[type_code] = {
+                        'name': info['name'],
+                        'source': 'existing',
+                        'file': photo_path.name,
+                        'ts': int(photo_path.stat().st_mtime),
+                    }
+                    write_manifest(manifest)
+                stats['skipped'] += 1
+                log(f"[{i+1}/{len(work_list)}] {type_code} - already present", 'skip')
+                continue
 
-        log(f"{progress} {type_code} ({type_name}) - {len(samples)} samples...")
+            progress = f"[{i+1}/{len(work_list)}]"
+            type_name = info['name']
+            samples = info['samples']
+            log(f"{progress} {type_code} ({type_name}) - {len(samples)} samples...")
+            source, img_data = download_photo_for_type(type_code, type_name, samples)
 
-        source, img_data = download_photo_for_type(type_code, type_name, samples)
-
-        if source and img_data:
-            if save_photo(type_code, img_data, source):
+            if source and img_data and save_photo(type_code, img_data, source):
                 stats['downloaded'] += 1
                 stats['sources'][source] = stats['sources'].get(source, 0) + 1
                 manifest[type_code] = {
@@ -449,20 +504,17 @@ def main():
                     'file': f"{type_code}.jpg",
                     'ts': int(time.time())
                 }
+                write_manifest(manifest)
                 log(f"  -> Saved from {source}", 'ok')
-
-                # Save manifest periodically
-                if stats['downloaded'] % 25 == 0:
-                    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2))
             else:
                 stats['failed'] += 1
-                log(f"  -> Image processing failed", 'err')
-        else:
-            stats['failed'] += 1
-            log(f"  -> No photo found", 'err')
+                log("  -> No usable photo found", 'err')
+    except KeyboardInterrupt:
+        write_manifest(manifest)
+        log('Interrupted; completed files and manifest were preserved for --resume.', 'warn')
+        return 130
 
-    # Final manifest save
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2))
+    write_manifest(manifest)
 
     # Summary
     print(f"\n{'='*60}")
@@ -476,13 +528,14 @@ def main():
     for src, count in sorted(stats['sources'].items(), key=lambda x: -x[1]):
         print(f"    {src}: {count}")
     print(f"\n  Output: {OUTPUT_DIR}")
-    print(f"  Manifest: {MANIFEST_PATH}")
+    print(f"  Manifest: {MANIFEST_PATH} ({len(manifest)} entries)")
     print(f"\n  Next steps:")
     print(f"    1. Review photos in {OUTPUT_DIR}")
     print(f"    2. Replace any low-quality images manually")
-    print(f"    3. Commit and push to SkyTrack repo")
+    print(f"    3. Commit and push the generated assets to VIPTrack")
     print(f"    4. VIPTrack will auto-detect type photos as fallback")
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

@@ -60,6 +60,17 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
 | Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 281 UI keys |
+| Type Photos | Local representative aircraft-type images with a silhouette fallback | 522 manifest entries |
+
+### Aircraft Type Photo Enrichment
+
+The local type-photo catalog is generated from `data/aircraft/types.json` and served before the remote fallback. Run the documented PowerShell workflow from the repository root:
+
+```powershell
+pwsh -File tools/run_type_photo_enrichment.ps1
+```
+
+The default run processes the first 500 types, resumes existing JPGs and manifest entries, and writes the manifest after each successful download. Use `-AllTypes` to process the full local catalog or `-DryRun` to inspect the deterministic work list without network calls. The downloader tries public photo sources first and creates a small aircraft silhouette when no usable photo is available; review or replace generated images in `assets/type_photos/` before committing.
 
 ### Aircraft Detail Panel
 

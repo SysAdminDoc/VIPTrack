@@ -18,6 +18,8 @@ I18N_DIR = ROOT / "data" / "i18n"
 OPFS_WORKER = ROOT / "workers" / "registration-opfs-worker.js"
 WEB_MANIFEST = ROOT / "manifest.json"
 TWA_DIR = ROOT / "android"
+TYPE_PHOTO_DOWNLOADER = ROOT / "download-type-photos.py"
+TYPE_PHOTO_WORKFLOW = ROOT / "tools" / "run_type_photo_enrichment.ps1"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -240,6 +242,38 @@ class VipTrackContracts(unittest.TestCase):
             self.assertIn(marker, build_gradle)
         self.assertNotIn("127.0.0.1", build_gradle)
         self.assertNotIn("debug.keystore", build_gradle)
+
+    def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
+        downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
+        workflow = TYPE_PHOTO_WORKFLOW.read_text(encoding="utf-8")
+        manifest_path = ROOT / "assets" / "type_photos" / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(manifest), 500)
+        for type_code, entry in manifest.items():
+            self.assertRegex(type_code, r"^[A-Z0-9]{2,8}$")
+            self.assertEqual(entry["file"], f"{type_code}.jpg")
+            self.assertTrue((manifest_path.parent / entry["file"]).is_file(), type_code)
+            self.assertIn(entry["source"], {"planespotters-hex", "planespotters-reg", "airport-data", "wikipedia", "wikipedia-short", "wikipedia-raw", "silhouette", "existing"})
+        for marker in (
+            "LOCAL_TYPES_JSON",
+            "REQUEST_RETRIES = 2",
+            "--limit",
+            "default=500",
+            "--all-types",
+            "--dry-run",
+            "load_manifest()",
+            "write_manifest(manifest)",
+            "preserved for --resume",
+        ):
+            self.assertIn(marker, downloader)
+        for marker in ("--types-only", "--resume", "--limit", "--all-types", "--dry-run"):
+            self.assertIn(marker, workflow)
+        for marker in (
+            "typePhotos: 'assets/type_photos/'",
+            "typePhotosFallback:",
+            "const typePhotoUrls =",
+        ):
+            self.assertIn(marker, self.source)
 
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
