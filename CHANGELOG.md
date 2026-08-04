@@ -25,6 +25,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Manifest-backed plugin/overlay catalog with four explicit-load military pattern presets and same-origin-only hooks for future JavaScript modules.
 - Same-origin i18n catalog loader with 281 shared UI keys, persistent language selection, English fallback, and initial Spanish, French, German, Russian, and Ukrainian catalogs.
 - Dedicated-worker OPFS cache for the compact registration index, using synchronous access handles on warm HTTP(S) starts with IndexedDB/CSV fallback.
+- Stable same-origin PWA manifest with local icons, Web Share Target routing for ICAO hexes and N-numbers, and an unsigned Bubblewrap TWA Android project targeting GitHub Pages.
 - ServiceWorker cache names now include a SHA-256 asset-manifest hash and schema version; cross-origin API fallbacks expire after 60 seconds and tile storage uses a 1,000-entry last-used LRU.
 - ADSB.fi as a fourth rotating live-data source with health tracking.
 - Emergency squawk auto-highlight for 7500 (hijack) / 7600 (NORDO) / 7700 (general) with optional audible tone.

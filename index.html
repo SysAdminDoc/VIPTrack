@@ -18,7 +18,7 @@
         base-uri 'self';
     ">
     <title>VIPTrack v0.0.1 - Military & VIP Flight Tracker</title>
-    <script>if(location.protocol!=='file:')document.write('<link rel="manifest" href="manifest.json">');</script>
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1388,49 +1388,67 @@
         }
     </style>
 <script>
-// Inline PWA manifest for single-file deployment
+// Inline PWA manifest for direct file:// deployment. HTTP(S) uses the stable
+// manifest.json so installed PWAs and Trusted Web Activity tooling can inspect it.
 const manifest = {
     name: 'VIPTrack - Military & VIP Flight Tracker',
     short_name: 'VIPTrack',
+    id: './',
+    scope: './',
     description: 'Real-time military and VIP aircraft tracking with alerts',
     start_url: window.location.href.split('?')[0],
     display: 'standalone',
+    display_override: ['window-controls-overlay', 'standalone'],
     orientation: 'any',
     background_color: '#1a1a2e',
     theme_color: '#1a1a2e',
+    categories: ['news', 'productivity', 'utilities'],
     icons: [
         {
-            src: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-16x16.png',
+            src: 'assets/logo/SkyTrack_Logo-16x16.png',
             sizes: '16x16',
             type: 'image/png'
         },
         {
-            src: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-32x32.png',
+            src: 'assets/logo/SkyTrack_Logo-32x32.png',
             sizes: '32x32',
             type: 'image/png'
         },
         {
-            src: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-48x48.png',
+            src: 'assets/logo/SkyTrack_Logo-48x48.png',
             sizes: '48x48',
             type: 'image/png'
         },
         {
-            src: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png',
+            src: 'assets/logo/SkyTrack_Logo-128x128.png',
             sizes: '128x128',
             type: 'image/png',
             purpose: 'any maskable'
         }
-    ]
+    ],
+    share_target: {
+        action: './index.html',
+        method: 'GET',
+        enctype: 'application/x-www-form-urlencoded',
+        params: { title: 'title', text: 'text', url: 'url' }
+    }
 };
-const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-const manifestUrl = URL.createObjectURL(manifestBlob);
-document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestUrl);
-URL.revokeObjectURL(manifestUrl);
+if (location.protocol === 'file:') {
+    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const manifestUrl = URL.createObjectURL(manifestBlob);
+    document.querySelector('link[rel="manifest"]')?.setAttribute('href', manifestUrl);
+    URL.revokeObjectURL(manifestUrl);
+}
 </script>
 <script>
 // Service Worker Registration
 const SW_CACHE_SCHEMA = '4.16';
 const SW_STATIC_ASSETS = [
+    'manifest.json',
+    'assets/logo/SkyTrack_Logo-16x16.png',
+    'assets/logo/SkyTrack_Logo-32x32.png',
+    'assets/logo/SkyTrack_Logo-48x48.png',
+    'assets/logo/SkyTrack_Logo-128x128.png',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
@@ -9453,6 +9471,17 @@ if ('serviceWorker' in navigator) {
             const qs = params.toString();
             return window.location.pathname + (qs ? '?' + qs : '');
         },
+
+        _extractSharedValue(params) {
+            const values = [params.get('text'), params.get('url'), params.get('title')].filter(Boolean);
+            for (const value of values) {
+                const hex = value.match(/(?:^|[^0-9a-f])([0-9a-f]{6})(?:$|[^0-9a-f])/i);
+                if (hex) return { kind: 'hex', value: hex[1].toLowerCase() };
+                const registration = value.match(/\bN[0-9]{1,5}[A-Z]{0,2}\b/i);
+                if (registration) return { kind: 'registration', value: registration[0].toUpperCase() };
+            }
+            return null;
+        },
         
         // Update browser URL without reload
         updateUrl() {
@@ -9602,7 +9631,9 @@ if ('serviceWorker' in navigator) {
         
         checkUrlParams() {
             const params = new URLSearchParams(window.location.search);
-            const hex = params.get('hex');
+            const shared = this._extractSharedValue(params);
+            const hex = params.get('hex') || (shared?.kind === 'hex' ? shared.value : null);
+            const sharedRegistration = !params.get('hex') && shared?.kind === 'registration' ? shared.value : null;
             const lat = params.get('lat');
             const lon = params.get('lon');
             const zoom = params.get('zoom');
@@ -9625,6 +9656,11 @@ if ('serviceWorker' in navigator) {
                 let attempts = 0;
                 const checkAndSelect = () => {
                     if (aircraftCache[hex]) {
+                        if (shared?.kind === 'hex' && !lat && !lon) {
+                            const ac = aircraftCache[hex];
+                            const sharedLat = Number(ac.lat), sharedLon = Number(ac.lon);
+                            if (Number.isFinite(sharedLat) && Number.isFinite(sharedLon)) map.setView([sharedLat, sharedLon], 10);
+                        }
                         selectAircraft(hex);
                     } else if (attempts < 30) {
                         attempts++;
@@ -9635,6 +9671,18 @@ if ('serviceWorker' in navigator) {
                 };
                 setTimeout(checkAndSelect, 2000);
                 toast('Looking for aircraft ' + hex + '...');
+            }
+            if (sharedRegistration) {
+                setTimeout(() => {
+                    const input = document.getElementById('searchInput');
+                    if (!input || typeof searchSystem?.executeSearch !== 'function') return;
+                    input.value = sharedRegistration;
+                    searchSystem.executeSearch(sharedRegistration);
+                    const match = Object.values(aircraftCache).find(ac => ac.r?.toUpperCase() === sharedRegistration);
+                    const sharedLat = Number(match?.lat), sharedLon = Number(match?.lon);
+                    if (Number.isFinite(sharedLat) && Number.isFinite(sharedLon)) map.setView([sharedLat, sharedLon], 10);
+                }, 2000);
+                toast('Searching for aircraft ' + sharedRegistration + '...');
             }
         },
         

@@ -16,6 +16,8 @@ FAA_DIR = ROOT / "data" / "faa"
 PLUGINS_MANIFEST = ROOT / "plugins" / "manifest.json"
 I18N_DIR = ROOT / "data" / "i18n"
 OPFS_WORKER = ROOT / "workers" / "registration-opfs-worker.js"
+WEB_MANIFEST = ROOT / "manifest.json"
+TWA_DIR = ROOT / "android"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -195,6 +197,49 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
         self.assertNotIn("createSyncAccessHandle()", self.source)
+
+    def test_static_manifest_supports_pwa_twa_and_share_target(self) -> None:
+        manifest = json.loads(WEB_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["id"], "./")
+        self.assertEqual(manifest["scope"], "./")
+        self.assertEqual(manifest["start_url"], "./index.html")
+        self.assertEqual(manifest["display"], "standalone")
+        self.assertIn("standalone", manifest["display_override"])
+        self.assertEqual(manifest["share_target"]["method"], "GET")
+        self.assertEqual(manifest["share_target"]["params"], {"title": "title", "text": "text", "url": "url"})
+        for icon in manifest["icons"]:
+            self.assertTrue((ROOT / icon["src"]).is_file(), icon["src"])
+        for marker in (
+            '<link rel="manifest" href="manifest.json">',
+            "location.protocol === 'file:'",
+            "display_override: ['window-controls-overlay', 'standalone']",
+            "share_target:",
+            "_extractSharedValue(params)",
+            "sharedRegistration",
+            "searchSystem?.executeSearch",
+        ):
+            self.assertIn(marker, self.source)
+
+    def test_twa_project_is_production_scoped_and_unsigned_by_default(self) -> None:
+        twa_manifest = json.loads((TWA_DIR / "twa-manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(twa_manifest["packageId"], "com.sysadmindoc.viptrack")
+        self.assertEqual(twa_manifest["host"], "sysadmindoc.github.io")
+        self.assertEqual(twa_manifest["startUrl"], "/VIPTrack/index.html")
+        self.assertEqual(twa_manifest["webManifestUrl"], "https://sysadmindoc.github.io/VIPTrack/manifest.json")
+        self.assertEqual(twa_manifest["fullScopeUrl"], "https://sysadmindoc.github.io/VIPTrack/")
+        self.assertEqual(twa_manifest["signingKey"], {"path": "", "alias": ""})
+        self.assertEqual(twa_manifest["shareTarget"]["action"], "https://sysadmindoc.github.io/VIPTrack/index.html")
+        self.assertTrue((TWA_DIR / "gradlew.bat").is_file())
+        build_gradle = (TWA_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
+        for marker in (
+            "hostName: 'sysadmindoc.github.io'",
+            "launchUrl: '/VIPTrack/index.html'",
+            "https://sysadmindoc.github.io/VIPTrack/manifest.json",
+            "https://sysadmindoc.github.io/VIPTrack/index.html",
+        ):
+            self.assertIn(marker, build_gradle)
+        self.assertNotIn("127.0.0.1", build_gradle)
+        self.assertNotIn("debug.keystore", build_gradle)
 
     def test_named_watchlists_cover_rule_dimensions_and_persistence(self) -> None:
         for marker in (
