@@ -17,6 +17,7 @@ PLUGINS_MANIFEST = ROOT / "plugins" / "manifest.json"
 I18N_DIR = ROOT / "data" / "i18n"
 OPFS_WORKER = ROOT / "workers" / "registration-opfs-worker.js"
 WEB_MANIFEST = ROOT / "manifest.json"
+SERVICE_WORKER = ROOT / "sw.js"
 TWA_DIR = ROOT / "android"
 TYPE_PHOTO_DOWNLOADER = ROOT / "download-type-photos.py"
 TYPE_PHOTO_WORKFLOW = ROOT / "tools" / "run_type_photo_enrichment.ps1"
@@ -607,30 +608,38 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("map.setView([b.lat, b.lng], b.zoom)", self.source)
 
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
+        worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const SW_CACHE_SCHEMA = '4.17'",
-            "crypto.subtle.digest('SHA-256'",
-            "const swManifestHash = await getServiceWorkerManifestHash",
-            "'viptrack-' + SW_CACHE_SCHEMA + '-' + swManifestHash.slice(0, 16)",
+            "const CACHE_SCHEMA_VERSION = '4.18'",
+            "const MANIFEST_HASH = fnv1a(JSON.stringify",
+            "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
             "X-VIPTrack-Cached-At",
             "const TILE_CACHE_LIMIT = 1000",
             "X-VIPTrack-Tile-Last-Used",
             "entries.sort((a, b) => a.lastUsed - b.lastUsed)",
+            "self.addEventListener('install'",
+            "self.addEventListener('activate'",
+            "self.addEventListener('fetch'",
+            "self.skipWaiting()",
+            "self.clients.claim()",
         ):
-            self.assertIn(marker, self.source)
-        start = self.source.index("// Service Worker Registration")
-        end = self.source.index("</script>", start)
-        section = self.source[start:end]
-        self.assertNotIn("keys.length > 600", section)
-        self.assertNotIn("keys.length - 500", section)
+            self.assertIn(marker, worker)
+        self.assertIn("new URL('sw.js', document.baseURI)", self.source)
+        self.assertIn("updateViaCache: 'none'", self.source)
+        self.assertIn("location.protocol !== 'file:'", self.source)
+        self.assertNotIn("getRegistrations()", self.source)
+        self.assertNotIn("unregister()", self.source)
+        self.assertNotIn("new Blob([swCode]", self.source)
+        self.assertNotIn("Blob([swCode]", worker)
+        self.assertNotIn("keys.length > 600", worker)
+        self.assertNotIn("keys.length - 500", worker)
 
     def test_periodic_background_sync_refreshes_public_reference_data_only(self) -> None:
+        worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
             "const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh'",
             "const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000",
-            "const SW_PERIODIC_REFRESH_ASSETS = [",
-            "periodicAssets: SW_PERIODIC_REFRESH_ASSETS",
             "registration.periodicSync",
             "periodicSync.register",
             "const PERIODIC_SYNC_TAG =",
@@ -641,20 +650,17 @@ class VipTrackContracts(unittest.TestCase):
             "credentials: 'omit'",
             "cache.put(request, response.clone())",
         ):
-            self.assertIn(marker, self.source)
+            self.assertIn(marker, self.source + worker)
         for filename in (
             "plane-alert-mil.csv",
             "plane-alert-gov.csv",
             "plane-alert-pol.csv",
             "plane-alert-pia.csv",
         ):
-            self.assertGreaterEqual(self.source.count(filename), 2)
-        start = self.source.index("// Service Worker Registration")
-        end = self.source.index("</script>", start)
-        section = self.source[start:end]
-        self.assertNotIn("fetchWithProxy", section)
-        self.assertNotIn("localStorage", section)
-        self.assertNotIn("navigator.geolocation", section)
+            self.assertGreaterEqual(worker.count(filename), 2)
+        self.assertNotIn("fetchWithProxy", worker)
+        self.assertNotIn("localStorage", worker)
+        self.assertNotIn("navigator.geolocation", worker)
 
     def test_cesium_globe_is_opt_in_lazy_loaded_and_synced(self) -> None:
         frame_source = CESIUM_FRAME.read_text(encoding="utf-8")
