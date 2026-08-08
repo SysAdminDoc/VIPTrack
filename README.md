@@ -134,6 +134,8 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 
 VIPTrack uses dedicated military and PIA API endpoints that return all matching aircraft globally in a single request. Sources are tried in priority order with automatic failover. Data refreshes every 6 seconds.
 
+Each selected aircraft shows the supplying feed, fetch time, position/message age, response latency, fallback chain, bounded quality/integrity metadata, rate budget, and source coverage limitations. Settings > Data Sources shows the same source health and budget information; “Copy source diagnostics” exports only source-level metadata and never aircraft records, registrations, operators, or tracks. Route predictions and track-shape hints remain explicitly inferred.
+
 ## Settings
 
 Access via the gear icon. All settings persist in localStorage.

@@ -176,6 +176,11 @@
         .source-status.degraded { background: rgba(251,191,36,0.2); color: #fbbf24; }
         .source-status.unhealthy { background: rgba(239,68,68,0.2); color: var(--danger); }
         .source-latency { color: var(--text-muted); }
+        .provenance-section { border-left: 2px solid var(--accent); }
+        .provenance-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: 7px; }
+        .provenance-value { max-width: 68%; text-align: right; }
+        .source-diagnostics-status { color: var(--text-muted); font-size: 10px; min-height: 16px; margin-top: 5px; }
+        .source-card-note { color: var(--text-muted); display: block; font-size: 9px; line-height: 1.35; margin-top: 2px; }
         .circuit-breaker-warning { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(239,68,68,0.95); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 3000; display: none; animation: pulse 2s infinite; }
         /* X31: tab paused pill */
         .paused-pill { display: none; position: fixed; top: 60px; right: 12px; align-items: center; gap: 8px; background: rgba(26,26,46,0.92); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 600; z-index: 2500; backdrop-filter: blur(10px); }
@@ -1858,6 +1863,21 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="info-row"><span class="info-label" data-i18n="info.squawk">Squawk</span><span class="info-value"><span class="squawk-code squawk-normal" id="infoSquawk">----</span></span></div>
             <div class="trail-status" id="trailStatus" data-i18n="info.loadingTrail">Loading trail...</div>
             </div>
+            <div class="info-section provenance-section" id="sourceEvidenceSection">
+                <div class="info-section-title" data-i18n="info.sourceEvidence">Source evidence</div>
+                <div class="info-row"><span class="info-label" data-i18n="info.source">Source</span><span class="info-value provenance-value" id="infoSource">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.fetchTime">Fetched</span><span class="info-value provenance-value" id="infoFetchTime">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.positionAge">Position age</span><span class="info-value provenance-value" id="infoPositionAge">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.messageAge">Message age</span><span class="info-value provenance-value" id="infoMessageAge">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.quality">Quality</span><span class="info-value provenance-value" id="infoQuality">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.fallbackChain">Fallback chain</span><span class="info-value provenance-value" id="infoFallbackChain">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.responseLatency">Response latency</span><span class="info-value provenance-value" id="infoResponseLatency">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.rateBudget">Rate budget</span><span class="info-value provenance-value" id="infoRateBudget">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.integrity">Integrity</span><span class="info-value provenance-value" id="infoIntegrity">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.coverage">Coverage</span><span class="info-value provenance-value" id="infoCoverage">---</span></div>
+                <div class="info-row"><span class="info-label" data-i18n="info.limitations">Limitations</span><span class="info-value provenance-value" id="infoLimitations">---</span></div>
+                <div class="provenance-help" data-i18n="info.provenanceHelp">Feed metadata is evidence, not a guarantee. Route predictions and track-shape hints are inferred locally.</div>
+            </div>
         </div>
         <div class="tab-content" id="tabAircraft">
             <div class="info-section">
@@ -2069,6 +2089,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="settings-section-title" data-i18n="settings.dataSources">Data Sources (Phase 16)</div>
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
             <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.checkSources">Check All Sources</button>
+            <button class="btn-secondary" id="copySourceDiagnosticsBtn" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.copySourceDiagnostics">Copy source diagnostics</button>
+            <div class="source-diagnostics-status" id="sourceDiagnosticsStatus" role="status" aria-live="polite"></div>
             <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;" data-i18n="settings.clearOffline">Clear Offline Cache</button>
         </div>
         <div class="settings-section">
@@ -2738,6 +2760,20 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const host = new URL(url, location.href).host;
                 await this.take(host);
             } catch(e) {}
+        },
+        describe(url) {
+            try {
+                const host = new URL(url, location.href).host;
+                const bucket = this.buckets.get(host);
+                if (!bucket) return null;
+                this._refill(bucket);
+                return {
+                    host,
+                    capacity: bucket.capacity,
+                    refillPerSec: bucket.refillPerSec,
+                    available: Math.max(0, Math.floor(bucket.tokens))
+                };
+            } catch (e) { return null; }
         }
     };
     // Per-source budgets (conservative; documented limits)
@@ -2997,10 +3033,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
-            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: true },
-            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false },
-            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false },
-            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: 'https://opendata.adsb.fi/api/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 4, cors: true }
+            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: true, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
+            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
+            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: 'https://opendata.adsb.fi/api/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 4, cors: true, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
         ],
         
         currentSource: null,
@@ -3073,10 +3109,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             });
         },
         
-        recordSuccess(source) {
+        recordSuccess(source, latencyMs = null, fallbackChain = []) {
             source.status = 'healthy';
             source.lastSuccess = Date.now();
             source.errorCount = 0;
+            if (Number.isFinite(Number(latencyMs))) {
+                source.latency = Math.max(0, Number(latencyMs));
+                source.lastFetchLatency = source.latency;
+            }
+            source.lastFetchAt = Date.now();
+            source.lastFallbackChain = Array.isArray(fallbackChain) ? fallbackChain.slice(0, 4) : [];
             this.currentSource = source;
             this.updateUI();
         },
@@ -3102,16 +3144,32 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             indicator.innerHTML = safeHTML('<span class="source-name">' + best.name + '</span>' +
                 '<span class="source-status ' + best.status + '">' + healthy + '/' + this.sources.length + '</span>' +
                 '<span class="source-latency">' + (best.latency < 9999 ? best.latency + 'ms' : '--') + '</span>');
+            indicator.title = best.coverage + ' ' + best.limitations;
         },
         
         getStats() {
             return this.sources.map(s => ({
+                key: s.key,
                 name: s.name,
                 status: s.status,
                 latency: s.latency,
                 errorCount: s.errorCount,
-                lastSuccess: s.lastSuccess ? new Date(s.lastSuccess).toISOString() : 'never'
+                lastSuccess: s.lastSuccess ? new Date(s.lastSuccess).toISOString() : 'never',
+                lastFetch: s.lastFetchAt ? new Date(s.lastFetchAt).toISOString() : 'never',
+                lastFetchLatency: Number.isFinite(s.lastFetchLatency) ? s.lastFetchLatency : null,
+                fallbackChain: Array.isArray(s.lastFallbackChain) ? s.lastFallbackChain.slice(0, 4) : [],
+                rateBudget: s.rateBudget ? { ...s.rateBudget } : null,
+                coverage: s.coverage,
+                limitations: s.limitations
             }));
+        },
+        getDiagnostics() {
+            return {
+                schemaVersion: 1,
+                generatedAt: new Date().toISOString(),
+                currentSource: this.currentSource?.key || null,
+                sources: this.getStats()
+            };
         }
     };
 
@@ -3152,15 +3210,19 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             });
             return counts;
         },
-        recordSuccess(source, messageCount, latencyMs) {
+        recordSuccess(source, messageCount, latencyMs, provenance = null) {
             this.refreshes++;
             this.successes++;
             this.messagesSeen += Math.max(0, Number(messageCount) || 0);
             this.lastLatency = Math.max(0, Number(latencyMs) || 0);
             this.lastStatus = 'success';
             const sourceKey = source?.key || source?.name || 'unknown';
-            const current = this.sourceUse.get(sourceKey) || { name: source?.name || sourceKey, count: 0 };
+            const current = this.sourceUse.get(sourceKey) || { name: source?.name || sourceKey, count: 0, lastLatency: null, fallbacks: 0, quality: {} };
             current.count++;
+            current.lastLatency = Number.isFinite(Number(provenance?.sourceLatencyMs)) ? Number(provenance.sourceLatencyMs) : this.lastLatency;
+            if ((provenance?.fallbackChain?.length || 0) > 1) current.fallbacks++;
+            const quality = provenance?.quality || 'unverified';
+            current.quality[quality] = (current.quality[quality] || 0) + 1;
             this.sourceUse.set(sourceKey, current);
             this.latencySamples.push(this.lastLatency);
             if (this.latencySamples.length > this.maxLatencySamples) this.latencySamples.shift();
@@ -3213,7 +3275,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         _sourceMarkup() {
             if (!this.sourceUse.size) return '<div class="stats-empty">' + escapeHTML(this._text('stats.noneYet', 'No refresh data yet')) + '</div>';
             return Array.from(this.sourceUse.values()).sort((a, b) => b.count - a.count).map(source =>
-                '<div class="stats-source-row"><span>' + escapeHTML(source.name) + '</span><span>' + source.count + '</span></div>'
+                '<div class="stats-source-row"><span>' + escapeHTML(source.name) + '</span><span>' + source.count + ' · ' + (source.lastLatency === null ? '--' : Math.round(source.lastLatency) + 'ms') + (source.fallbacks ? ' · fallback ' + source.fallbacks : '') + '</span></div>'
             ).join('');
         },
         render() {
@@ -5345,7 +5407,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // allowlist. PIA/LADD records retain only the fields needed to understand
     // the live observation; registrations, operators, enrichment objects, and
     // identifying history are never copied across this boundary.
-    const AIRCRAFT_CACHE_SCHEMA = 2;
+    const AIRCRAFT_CACHE_SCHEMA = 3;
     function _privacySafeText(value, maxLength = 128) {
         return String(value ?? '').trim().slice(0, maxLength);
     }
@@ -5365,6 +5427,92 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             return [lat, lon, Number.isFinite(altitude) ? altitude : 0, Number.isFinite(timestamp) ? timestamp : undefined];
         }).filter(Boolean);
     }
+    function _boundedNonNegative(value, maximum = 86400) {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 && number <= maximum ? number : null;
+    }
+    function _boundedInteger(value, minimum, maximum) {
+        const number = Number(value);
+        return Number.isInteger(number) && number >= minimum && number <= maximum ? number : null;
+    }
+    function _normaliseAircraftProvenance(ac, context) {
+        if (!ac || !context?.source) return null;
+        const source = context.source;
+        const hasPosition = _privacySafeCoordinate(ac.lat, -90, 90) !== undefined && _privacySafeCoordinate(ac.lon, -180, 180) !== undefined;
+        const positionAgeSec = _boundedNonNegative(ac.seen_pos);
+        const messageAgeSec = _boundedNonNegative(ac.seen);
+        const observedAge = positionAgeSec ?? messageAgeSec;
+        let quality = 'unverified';
+        if (!hasPosition) quality = 'no-position';
+        else if (observedAge === null) quality = 'unverified';
+        else if (observedAge <= 30 && (messageAgeSec === null || messageAgeSec <= 60)) quality = 'fresh';
+        else if (observedAge <= 120 && (messageAgeSec === null || messageAgeSec <= 300)) quality = 'aging';
+        else quality = 'stale';
+        const integrity = {
+            nic: _boundedInteger(ac.nic, 0, 20),
+            nacp: _boundedInteger(ac.nac_p, 0, 20),
+            nacv: _boundedInteger(ac.nac_v, 0, 20),
+            sil: _boundedInteger(ac.sil, 0, 4),
+            version: _boundedInteger(ac.version, 0, 4)
+        };
+        const integrityParts = [];
+        if (integrity.nic !== null) integrityParts.push('NIC ' + integrity.nic);
+        if (integrity.nacp !== null) integrityParts.push('NACp ' + integrity.nacp);
+        if (integrity.nacv !== null) integrityParts.push('NACv ' + integrity.nacv);
+        if (integrity.sil !== null) integrityParts.push('SIL ' + integrity.sil);
+        if (integrity.version !== null) integrityParts.push('ADS-B v' + integrity.version);
+        integrity.summary = integrityParts.length ? integrityParts.join(' · ') : 'Feed metadata unavailable';
+        const budget = source.rateBudget || {};
+        return {
+            sourceKey: _privacySafeText(source.key, 32),
+            sourceName: _privacySafeText(source.name, 64),
+            sourceFetchedAt: Number.isFinite(Number(context.sourceFetchedAt)) ? Number(context.sourceFetchedAt) : Date.now(),
+            sourceLatencyMs: Math.min(120000, Math.max(0, Number(context.sourceLatencyMs) || 0)),
+            sourceFallbackChain: (Array.isArray(context.fallbackChain) ? context.fallbackChain : [source]).map(item => _privacySafeText(item?.name || item?.key, 64)).filter(Boolean).slice(0, 4),
+            sourceRateBudget: {
+                capacity: _boundedInteger(budget.capacity, 1, 10) || 1,
+                refillPerSec: Math.min(10, Math.max(0.1, Number(budget.refillPerSec) || 1)),
+                label: _privacySafeText(budget.label || 'Conservative client budget', 96)
+            },
+            sourceCoverage: _privacySafeText(source.coverage || 'Coverage varies by receiver network.', 192),
+            sourceLimitations: _privacySafeText(source.limitations || 'Feed freshness and availability are not guaranteed.', 192),
+            positionAgeSec,
+            messageAgeSec,
+            quality,
+            sourceIntegrity: integrity
+        };
+    }
+    function _privacySafeAircraftProvenance(ac) {
+        if (!ac || typeof ac !== 'object' || !ac.sourceKey) return {};
+        const rateBudget = ac.sourceRateBudget && typeof ac.sourceRateBudget === 'object' ? ac.sourceRateBudget : {};
+        const integrity = ac.sourceIntegrity && typeof ac.sourceIntegrity === 'object' ? ac.sourceIntegrity : {};
+        const safeIntegrity = {
+            nic: _boundedInteger(integrity.nic, 0, 20),
+            nacp: _boundedInteger(integrity.nacp, 0, 20),
+            nacv: _boundedInteger(integrity.nacv, 0, 20),
+            sil: _boundedInteger(integrity.sil, 0, 4),
+            version: _boundedInteger(integrity.version, 0, 4),
+            summary: _privacySafeText(integrity.summary || 'Feed metadata unavailable', 160)
+        };
+        return {
+            sourceKey: _privacySafeText(ac.sourceKey, 32),
+            sourceName: _privacySafeText(ac.sourceName, 64),
+            sourceFetchedAt: Number.isFinite(Number(ac.sourceFetchedAt)) ? Number(ac.sourceFetchedAt) : undefined,
+            sourceLatencyMs: Number.isFinite(Number(ac.sourceLatencyMs)) ? Math.min(120000, Math.max(0, Number(ac.sourceLatencyMs))) : undefined,
+            sourceFallbackChain: (Array.isArray(ac.sourceFallbackChain) ? ac.sourceFallbackChain : []).map(item => _privacySafeText(item, 64)).filter(Boolean).slice(0, 4),
+            sourceRateBudget: {
+                capacity: _boundedInteger(rateBudget.capacity, 1, 10) || 1,
+                refillPerSec: Math.min(10, Math.max(0.1, Number(rateBudget.refillPerSec) || 1)),
+                label: _privacySafeText(rateBudget.label || 'Conservative client budget', 96)
+            },
+            sourceCoverage: _privacySafeText(ac.sourceCoverage, 192),
+            sourceLimitations: _privacySafeText(ac.sourceLimitations, 192),
+            positionAgeSec: _boundedNonNegative(ac.positionAgeSec),
+            messageAgeSec: _boundedNonNegative(ac.messageAgeSec),
+            quality: _privacySafeText(ac.quality || 'unverified', 24),
+            sourceIntegrity: safeIntegrity
+        };
+    }
     function privacySafeAircraftSnapshot(ac, { includeHistory = true } = {}) {
         if (!ac || typeof ac !== 'object') return null;
         const protectedAircraft = isPrivacyProtectedAircraft(ac);
@@ -5383,6 +5531,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             dbFlags: Number.isFinite(Number(ac.dbFlags)) ? Number(ac.dbFlags) : undefined,
             lastSeen: Number.isFinite(Number(ac.lastSeen)) ? Number(ac.lastSeen) : undefined
         };
+        Object.assign(snapshot, _privacySafeAircraftProvenance(ac));
         if (protectedAircraft) {
             snapshot.privacyProtected = true;
             return snapshot;
@@ -8013,9 +8162,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const allSrc=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
             if(!allSrc.length){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();return;}
             let success=false;
+            const attemptedSources = [];
             // Try each source until one succeeds - fetch mil + pia in parallel
             const _fetch = (url, cors) => (cors && !CONFIG.isLocalFile) ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url);
             for(const src of allSrc){
+                attemptedSources.push(src);
+                const sourceStartedAt = Date.now();
                 try{
                     const [milResp,piaResp]=await Promise.all([
                         _fetch(src.milUrl, src.cors),
@@ -8025,12 +8177,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     try{ if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
                     try{ if(piaResp?.ok){const d=await piaResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
                     if(allAc.length){
-                        processAircraftData(allAc);
+                        const sourceFetchedAt = Date.now();
+                        const sourceLatencyMs = sourceFetchedAt - sourceStartedAt;
+                        const provenance = { source: src, sourceFetchedAt, sourceLatencyMs, fallbackChain: attemptedSources };
+                        processAircraftData(allAc, provenance);
                         const n=Object.keys(markers).length;
                         _el('dataSource').textContent=src.name+' - '+n+' aircraft';
                         lastSuccessfulSource=src.key;success=true;
-                        statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt);
-                        connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src);offlineManager.cachePositions();
+                        statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt, provenance);
+                        connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src, sourceLatencyMs, attemptedSources.map(source => source.name));offlineManager.cachePositions();
                         break;
                     }
                 }catch(e){dataSourceManager.recordFailure(src);}
@@ -8129,11 +8284,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         cached._enriched = true;
     }
 
-    function processAircraftData(aircraft) {
+    function processAircraftData(aircraft, sourceContext = null) {
         const now = Date.now();
         aircraft.forEach(ac => {
             try {
             if (!ac.hex) return; const hex = ac.hex.toUpperCase(); const existing = aircraftCache[hex];
+            const provenance = _normaliseAircraftProvenance(ac, sourceContext);
             
             if (existing) {
                 // Update mutable fields in-place (no object allocation)
@@ -8154,6 +8310,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 if (ac.dbFlags !== undefined) existing.dbFlags = ac.dbFlags;
                 if (ac.from) existing.from = ac.from;
                 if (ac.to) existing.to = ac.to;
+                if (provenance) Object.assign(existing, provenance);
                 existing.lastSeen = now;
 
                 if (!existing._enriched) _enrichAircraft(existing, hex);
@@ -8196,7 +8353,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const cached = { hex, flight: (ac.flight?.trim()) || '', r: ac.r || '', t: ac.t || '', desc: ac.desc || '', ownOp: ac.ownOp || ac.operator || '',
                     lat: ac.lat, lon: ac.lon, alt_baro: ac.alt_baro, gs: ac.gs, track: ac.track, baro_rate: ac.baro_rate,
                     squawk: ac.squawk || '', category: ac.category || '', dbFlags: ac.dbFlags, from: ac.from || '', to: ac.to || '',
-                    lastSeen: now, history, category_type: null, interesting: null, airlineName: null, militaryInfo: null, piaInfo: null, alliance: null, militaryRangeInfo: null, year: null, isVIP: false, civilianInteresting: null, _enriched: false };
+                    lastSeen: now, history, category_type: null, interesting: null, airlineName: null, militaryInfo: null, piaInfo: null, alliance: null, militaryRangeInfo: null, year: null, isVIP: false, civilianInteresting: null, _enriched: false, ...provenance };
                 // Enrich first to classify, then gate on mil/vip/pia
                 _enrichAircraft(cached, hex);
                 const isMil = cached.category_type === 'military' || cached.category_type === 'government' || cached.militaryInfo || cached.militaryRangeInfo;
@@ -8913,6 +9070,39 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
 
     // ============ SELECTION ============
+    function _formatProvenanceAge(ageSec, fetchedAt) {
+        let age = _boundedNonNegative(ageSec, 604800);
+        const fetched = Number(fetchedAt);
+        if (age !== null && Number.isFinite(fetched)) age += Math.max(0, (Date.now() - fetched) / 1000);
+        if (age === null) return 'Unknown';
+        if (age < 1) return '<1 s';
+        if (age < 60) return Math.round(age) + ' s';
+        if (age < 3600) return Math.round(age / 60) + ' min';
+        return (age / 3600).toFixed(1) + ' h';
+    }
+    function _formatProvenanceTime(value) {
+        const timestamp = Number(value);
+        if (!Number.isFinite(timestamp)) return 'Unknown';
+        try { return new Date(timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' }); }
+        catch (e) { return new Date(timestamp).toISOString(); }
+    }
+    function renderAircraftProvenance(ac) {
+        const provenance = _privacySafeAircraftProvenance(ac);
+        const source = provenance.sourceName || provenance.sourceKey || 'Unknown feed';
+        const chain = provenance.sourceFallbackChain?.length ? provenance.sourceFallbackChain.join(' → ') : source;
+        const set = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value || 'Unknown'; };
+        set('infoSource', source);
+        set('infoFetchTime', _formatProvenanceTime(provenance.sourceFetchedAt));
+        set('infoPositionAge', _formatProvenanceAge(provenance.positionAgeSec, provenance.sourceFetchedAt));
+        set('infoMessageAge', _formatProvenanceAge(provenance.messageAgeSec, provenance.sourceFetchedAt));
+        set('infoQuality', String(provenance.quality || 'unverified').replace(/-/g, ' '));
+        set('infoFallbackChain', chain);
+        set('infoResponseLatency', Number.isFinite(Number(provenance.sourceLatencyMs)) ? Math.round(Number(provenance.sourceLatencyMs)) + ' ms' : 'Unknown');
+        set('infoRateBudget', provenance.sourceRateBudget?.label || 'Unknown');
+        set('infoIntegrity', provenance.sourceIntegrity?.summary || 'Feed metadata unavailable');
+        set('infoCoverage', provenance.sourceCoverage || 'Coverage varies by receiver network.');
+        set('infoLimitations', provenance.sourceLimitations || 'Feed freshness and availability are not guaranteed.');
+    }
     let _selectLock = 0;
     function selectAircraft(hex) {
         _selectLock = Date.now();
@@ -8924,6 +9114,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (ownerRow) { document.getElementById('infoFaaOwner').textContent = ac.faaOwner; ownerRow.style.display = 'flex'; }
         });
         piaRotationTimeline.render(ac);
+        renderAircraftProvenance(ac);
         document.getElementById('infoCallsign').textContent = ac.flight || 'N/A'; document.getElementById('infoHex').textContent = ac.hex; document.getElementById('infoReg').textContent = getDisplayRegistration(ac);
         const typeDesc = aircraftTypeDB.getDescription(ac.t); document.getElementById('infoType').textContent = typeDesc || ac.t || 'N/A';
         const descRow = document.getElementById('infoDescRow'); if (ac.desc) { document.getElementById('infoDesc').textContent = ac.desc; descRow.style.display = 'flex'; } else descRow.style.display = 'none';
@@ -9361,6 +9552,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             updateDataSourceList();
             toast('Source check complete');
         });
+        document.getElementById('copySourceDiagnosticsBtn')?.addEventListener('click', async () => {
+            const status = document.getElementById('sourceDiagnosticsStatus');
+            try {
+                if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+                await navigator.clipboard.writeText(JSON.stringify(dataSourceManager.getDiagnostics(), null, 2));
+                if (status) status.textContent = 'Copied redacted source diagnostics';
+            } catch (e) {
+                if (status) status.textContent = 'Copy is unavailable in this context';
+            }
+        });
         
         document.getElementById('clearOfflineCacheBtn')?.addEventListener('click', async () => {
             try {
@@ -9381,10 +9582,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             list.innerHTML = safeHTML(stats.map(s => {
                 const statusColor = s.status === 'healthy' ? 'var(--success)' : 
                                    s.status === 'degraded' ? '#fbbf24' : 'var(--danger)';
-                return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">' +
-                    '<span>' + s.name + '</span>' +
-                    '<span style="color:' + statusColor + '">' + s.status + ' (' + (s.latency < 9999 ? s.latency + 'ms' : '--') + ')</span>' +
-                    '</div>';
+                const budget = s.rateBudget?.label || 'Budget unavailable';
+                const fallback = s.fallbackChain?.length > 1 ? ' · ' + s.fallbackChain.join(' → ') : '';
+                return '<div style="padding:5px 0;border-bottom:1px solid var(--border);">' +
+                    '<div style="display:flex;justify-content:space-between;gap:8px;">' +
+                    '<span>' + escapeHTML(s.name) + '</span>' +
+                    '<span style="color:' + statusColor + '">' + escapeHTML(s.status) + ' (' + (s.latency < 9999 ? s.latency + 'ms' : '--') + ')</span>' +
+                    '</div><span class="source-card-note">' + escapeHTML(budget) + ' · ' + escapeHTML(s.coverage || 'Coverage varies') + '</span>' +
+                    '<span class="source-card-note">' + escapeHTML((s.limitations || 'Feed limitations unavailable') + fallback) + '</span></div>';
             }).join(''));
         }
         

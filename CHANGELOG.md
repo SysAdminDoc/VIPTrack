@@ -13,6 +13,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Replaced generated Blob service-worker code and unregister-all startup behavior with the checked-in same-origin `sw.js`; file URLs and unsupported contexts continue with the live map.
+- Live aircraft records now retain a bounded, PIA-safe source provenance model with feed/fetch time, position and message age, quality, integrity indicators, fallback chain, response latency, rate budget, and coverage limitations; Settings can copy redacted source-only diagnostics.
 
 ## [v0.1.0] - 2026-08-03
 

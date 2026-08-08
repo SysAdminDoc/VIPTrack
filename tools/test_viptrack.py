@@ -67,7 +67,7 @@ class VipTrackContracts(unittest.TestCase):
         for forbidden in ("snapshot.r", "snapshot.desc", "snapshot.ownOp", "snapshot.from", "snapshot.to", "snapshot.history", "faaOwner", "faaRegistry"):
             self.assertNotIn(forbidden, protected_projection)
         for marker in (
-            "const AIRCRAFT_CACHE_SCHEMA = 2",
+            "const AIRCRAFT_CACHE_SCHEMA = 3",
             "function scrubAircraftCacheForPrivacy",
             "schemaVersion: AIRCRAFT_CACHE_SCHEMA",
             "data?.schemaVersion !== AIRCRAFT_CACHE_SCHEMA",
@@ -383,7 +383,7 @@ class VipTrackContracts(unittest.TestCase):
             "messagesSeen = 0",
             "latencySamples = []",
             "sourceUse = new Map()",
-            "statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt)",
+            "statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt, provenance)",
             "statsDashboard.recordFailure()",
             "id=\"statsLatencyHistogram\"",
             "id=\"statsRollingCounts\"",
@@ -399,6 +399,42 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("localStorage", section)
         self.assertIn("this.rolling.slice(-12)", section)
         self.assertIn("this.latencySamples", section)
+
+    def test_source_provenance_is_freshness_bounded_and_pia_safe(self) -> None:
+        for marker in (
+            "rateBudget: { capacity: 1, refillPerSec: 1",
+            "coverage:",
+            "limitations:",
+            "describe(url)",
+            "lastFetchLatency",
+            "lastFallbackChain",
+            "getDiagnostics()",
+            "function _normaliseAircraftProvenance",
+            "ac.seen_pos",
+            "ac.seen",
+            "ac.nac_p",
+            "sourceFetchedAt",
+            "sourceFallbackChain",
+            "sourceRateBudget",
+            "sourceIntegrity",
+            "quality = 'fresh'",
+            "quality = 'stale'",
+            "processAircraftData(allAc, provenance)",
+            "renderAircraftProvenance(ac)",
+            "id=\"sourceEvidenceSection\"",
+            "id=\"copySourceDiagnosticsBtn\"",
+            "navigator.clipboard.writeText(JSON.stringify(dataSourceManager.getDiagnostics()",
+        ):
+            self.assertIn(marker, self.source)
+        source_start = self.source.index("const dataSourceManager =")
+        source_end = self.source.index("// ============ L14:", source_start)
+        source_section = self.source[source_start:source_end]
+        self.assertNotIn("aircraftCache", source_section)
+        self.assertNotIn("ac.r", source_section)
+        provenance_start = self.source.index("function _normaliseAircraftProvenance")
+        provenance_end = self.source.index("function privacySafeAircraftSnapshot", provenance_start)
+        self.assertNotIn("ac.r", self.source[provenance_start:provenance_end])
+        self.assertIn("AIRCRAFT_CACHE_SCHEMA = 3", self.source)
 
     def test_track_shape_heuristics_are_local_unverified_and_pia_safe(self) -> None:
         for marker in (
