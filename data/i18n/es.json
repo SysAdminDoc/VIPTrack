@@ -285,7 +285,7 @@
     "settings.historicalNoData": "Sin resultados históricos",
     "settings.overlays": "Capas (X10)",
     "settings.pluginCatalog": "Catálogo de plugins / capas (L7)",
-    "settings.pluginCatalogHelp": "Capas opcionales respaldadas por manifiesto. Cada entrada requiere un clic explícito en Cargar; los módulos JavaScript futuros se restringen a URL del mismo origen.",
+    "settings.pluginCatalogHelp": "Capas y plugins opcionales respaldados por manifiesto. Cada entrada declara versión, licencia, clases de datos, capacidades y limpieza; los módulos JavaScript son del mismo origen, están desactivados de forma predeterminada y requieren un clic explícito en Cargar.",
     "settings.receiverCoverage": "Cobertura del receptor (X13)",
     "settings.receiverCoverageHelp": "Introduzca una URL base de tar1090/readsb. VIPTrack lee receiver.json, aircraft.json y stats.json directamente; el receptor debe permitir CORS. No se envían datos del receptor a un proxy.",
     "settings.receiverUrl": "http://receiver.local/tar1090",

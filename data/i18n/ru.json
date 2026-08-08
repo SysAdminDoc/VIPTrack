@@ -285,7 +285,7 @@
     "settings.historicalNoData": "Исторических результатов нет",
     "settings.overlays": "Слои (X10)",
     "settings.pluginCatalog": "Каталог плагинов / слоёв (L7)",
-    "settings.pluginCatalogHelp": "Необязательные слои из манифеста. Для каждой записи требуется явное нажатие «Загрузить»; будущие модули JavaScript ограничены URL того же источника.",
+    "settings.pluginCatalogHelp": "Необязательные слои и плагины из манифеста. Каждая запись объявляет версию, лицензию, классы данных, возможности и очистку; модули JavaScript используют тот же источник, по умолчанию отключены и требуют явного нажатия «Загрузить».",
     "settings.receiverCoverage": "Покрытие приёмника (X13)",
     "settings.receiverCoverageHelp": "Введите базовый URL tar1090/readsb. VIPTrack напрямую читает receiver.json, aircraft.json и stats.json; приёмник должен разрешать CORS. Данные приёмника не отправляются прокси.",
     "settings.receiverUrl": "http://receiver.local/tar1090",

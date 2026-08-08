@@ -285,7 +285,7 @@
     "settings.historicalNoData": "Aucun résultat historique",
     "settings.overlays": "Calques (X10)",
     "settings.pluginCatalog": "Catalogue de plugins / calques (L7)",
-    "settings.pluginCatalogHelp": "Calques facultatifs pilotés par manifeste. Chaque entrée nécessite un clic explicite sur Charger ; les futurs modules JavaScript sont limités aux URL de même origine.",
+    "settings.pluginCatalogHelp": "Calques et plugins facultatifs pilotés par manifeste. Chaque entrée déclare sa version, sa licence, ses classes de données, ses capacités et son hook de nettoyage ; les modules JavaScript sont de même origine, désactivés par défaut et nécessitent un clic explicite sur Charger.",
     "settings.receiverCoverage": "Couverture du récepteur (X13)",
     "settings.receiverCoverageHelp": "Saisissez une URL de base tar1090/readsb. VIPTrack lit directement receiver.json, aircraft.json et stats.json ; votre récepteur doit autoriser CORS. Aucune donnée du récepteur n’est envoyée à un proxy.",
     "settings.receiverUrl": "http://receiver.local/tar1090",

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "VIPTrack optional plugins and overlays",
   "description": "Explicitly opt-in, same-origin extensions for analyst annotation.",
   "plugins": [
@@ -11,7 +11,14 @@
       "presetId": "awacs-orbit-template",
       "geojson": "../data/overlays/mil-patterns.geojson",
       "requiresOptIn": true,
-      "verified": false
+      "verified": false,
+      "version": "1.0.0",
+      "origin": "same-origin",
+      "license": "MIT",
+      "dataClasses": ["public-geometry"],
+      "capabilities": ["overlay.geojson"],
+      "approvedCapabilities": ["overlay.geojson"],
+      "cleanupHook": "deactivate"
     },
     {
       "id": "tanker-racetrack-template",
@@ -21,7 +28,14 @@
       "presetId": "tanker-racetrack-template",
       "geojson": "../data/overlays/mil-patterns.geojson",
       "requiresOptIn": true,
-      "verified": false
+      "verified": false,
+      "version": "1.0.0",
+      "origin": "same-origin",
+      "license": "MIT",
+      "dataClasses": ["public-geometry"],
+      "capabilities": ["overlay.geojson"],
+      "approvedCapabilities": ["overlay.geojson"],
+      "cleanupHook": "deactivate"
     },
     {
       "id": "drone-cap-template",
@@ -31,7 +45,14 @@
       "presetId": "drone-cap-template",
       "geojson": "../data/overlays/mil-patterns.geojson",
       "requiresOptIn": true,
-      "verified": false
+      "verified": false,
+      "version": "1.0.0",
+      "origin": "same-origin",
+      "license": "MIT",
+      "dataClasses": ["public-geometry"],
+      "capabilities": ["overlay.geojson"],
+      "approvedCapabilities": ["overlay.geojson"],
+      "cleanupHook": "deactivate"
     },
     {
       "id": "exercise-box-template",
@@ -41,7 +62,14 @@
       "presetId": "exercise-box-template",
       "geojson": "../data/overlays/mil-patterns.geojson",
       "requiresOptIn": true,
-      "verified": false
+      "verified": false,
+      "version": "1.0.0",
+      "origin": "same-origin",
+      "license": "MIT",
+      "dataClasses": ["public-geometry"],
+      "capabilities": ["overlay.geojson"],
+      "approvedCapabilities": ["overlay.geojson"],
+      "cleanupHook": "deactivate"
     }
   ],
   "modules": []

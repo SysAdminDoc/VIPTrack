@@ -9,6 +9,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - Added a version-1 local-state JSON backup flow in Settings > Storage for supported display, map, watchlist, named-rule, geofence, trail, alert, and curated-overlay state, with a 1 MiB cap, deterministic migrations, strict validation, and local-only restore.
 - Added a source-independent Historical Query Workspace with bounded JSON/CSV ingestion, declared source/license metadata, manual OpenSky trace reuse, time/region/aircraft/flight filters, sorted pagination, missing-signal gaps, local query history, and redacted CSV/JSON exports.
+- Added a versioned plugin capability/provenance contract requiring origin, license, data-class, capability, and cleanup metadata; JavaScript modules remain disabled by default, receive only approved capability facades, and record local load/unload outcomes.
 
 ### Security
 - Removed the embedded OpenSky OAuth client and made historical credentials transient, user-supplied, and cleared after each request.

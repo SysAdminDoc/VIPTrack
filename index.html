@@ -2261,7 +2261,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.pluginCatalog">Plugin / Overlay Catalog (L7)</div>
-            <div class="curated-overlay-help" data-i18n="settings.pluginCatalogHelp">Manifest-backed optional overlays. Every entry requires an explicit Load click; future JavaScript modules are restricted to same-origin URLs.</div>
+            <div class="curated-overlay-help" data-i18n="settings.pluginCatalogHelp">Manifest-backed optional overlays and plugins. Every entry declares its version, license, data classes, capabilities, and cleanup hook; JavaScript modules are same-origin, disabled by default, and require an explicit Load click.</div>
             <div class="receiver-coverage-status" id="pluginManifestStatus" role="status" aria-live="polite" data-i18n="settings.loadingPluginManifest">Loading plugin manifest…</div>
             <div class="plugin-manifest-list" id="pluginManifestList"><div class="watchlist-empty" data-i18n="settings.loadingPlugins">Loading plugins…</div></div>
         </div>
@@ -12706,17 +12706,30 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
     };
 
     // ============ L7: PLUGIN / OVERLAY MANIFEST ============
-    // Manifest entries are inert until the user clicks Load. GeoJSON presets
-    // reuse the curated loader; future modules must be same-origin and export
-    // an explicit activate() hook before any code is imported.
+    // Catalog entries are inert until an explicit Load click. JavaScript
+    // modules receive only the capabilities declared and approved in the
+    // manifest; raw map, Leaflet, toast, and loader objects never cross the
+    // module boundary. modules: [] keeps module execution disabled by default.
+    const PLUGIN_CAPABILITY_ALLOWLIST = Object.freeze(['ui.toast', 'map.view', 'overlay.geojson']);
+    const PLUGIN_DATA_CLASS_ALLOWLIST = Object.freeze(['public-geometry', 'public-map-state', 'public-ui']);
+    const PLUGIN_CAPABILITY_DATA_CLASS = Object.freeze({
+        'map.view': 'public-map-state',
+        'overlay.geojson': 'public-geometry'
+    });
+    const PLUGIN_PROVENANCE_STORAGE_KEY = 'viptrack_plugin_provenance_v1';
+    const PLUGIN_PROVENANCE_MAX = 100;
     const pluginManifestManager = {
         manifestUrl: 'plugins/manifest.json',
         entries: [],
+        moduleIds: new Set(),
         activeModules: new Map(),
+        pluginOverlays: new Map(),
+        provenance: new Map(),
+        provenanceLog: [],
 
         _setStatus(message) {
             const status = document.getElementById('pluginManifestStatus');
-            if (status) status.textContent = message;
+            if (status) status.textContent = String(message || '');
         },
 
         _validId(value) {
@@ -12726,38 +12739,209 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         _sameOriginUrl(value) {
             try {
                 const url = new URL(String(value || '').trim(), new URL(this.manifestUrl, document.baseURI));
-                return ['http:', 'https:'].includes(url.protocol) && url.origin === location.origin ? url : null;
+                return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && url.origin === location.origin ? url : null;
             } catch (e) { return null; }
+        },
+
+        _stringArray(value, label, maximum = 16) {
+            if (!Array.isArray(value) || value.length < 1 || value.length > maximum) return null;
+            const values = value.map(item => String(item || '').trim());
+            if (values.some(item => !item || item.length > 80) || new Set(values).size !== values.length) return null;
+            return values;
         },
 
         _normalise(entry) {
             if (!entry || !this._validId(entry.id) || entry.requiresOptIn !== true) return null;
+            const id = String(entry.id);
             const kind = String(entry.kind || '');
-            if (!['geojson-preset', 'module'].includes(kind)) return null;
-            if (kind === 'geojson-preset' && !this._validId(entry.presetId)) return null;
-            if (kind === 'geojson-preset' && !this._sameOriginUrl(entry.geojson)) return null;
-            if (kind === 'module' && !String(entry.module || '').trim()) return null;
+            const version = String(entry.version || '').trim();
+            const origin = String(entry.origin || '').trim();
+            const license = String(entry.license || '').trim().slice(0, 120);
+            const dataClasses = this._stringArray(entry.dataClasses, 'dataClasses');
+            const capabilities = this._stringArray(entry.capabilities, 'capabilities');
+            const approvedCapabilities = this._stringArray(entry.approvedCapabilities, 'approvedCapabilities');
+            const cleanupHook = String(entry.cleanupHook || '').trim();
+            if (!['geojson-preset', 'module'].includes(kind) ||
+                !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version) ||
+                origin !== 'same-origin' || !license || !dataClasses || !capabilities ||
+                !approvedCapabilities || cleanupHook !== 'deactivate') return null;
+            if (dataClasses.some(item => !PLUGIN_DATA_CLASS_ALLOWLIST.includes(item))) return null;
+            if (approvedCapabilities.some(item => !capabilities.includes(item))) return null;
+            if (kind === 'geojson-preset' && (!this._validId(entry.presetId) || !this._sameOriginUrl(entry.geojson))) return null;
+            if (kind === 'module' && (!this.moduleIds.has(id) || !this._sameOriginUrl(entry.module))) return null;
+            const deniedCapabilities = capabilities.filter(capability =>
+                !PLUGIN_CAPABILITY_ALLOWLIST.includes(capability) ||
+                !approvedCapabilities.includes(capability) ||
+                (PLUGIN_CAPABILITY_DATA_CLASS[capability] && !dataClasses.includes(PLUGIN_CAPABILITY_DATA_CLASS[capability]))
+            );
             return {
-                id: String(entry.id),
+                id,
                 kind,
-                name: String(entry.name || entry.id).slice(0, 80),
+                name: String(entry.name || id).slice(0, 80),
                 description: String(entry.description || '').slice(0, 180),
                 presetId: String(entry.presetId || ''),
                 geojson: String(entry.geojson || ''),
-                module: String(entry.module || '')
+                module: String(entry.module || ''),
+                version,
+                origin,
+                license,
+                dataClasses,
+                capabilities,
+                approvedCapabilities,
+                deniedCapabilities: Array.from(new Set(deniedCapabilities)),
+                cleanupHook
             };
         },
 
+        _safeProvenance(record) {
+            if (!record || !this._validId(record.id) || !['load', 'unload', 'blocked', 'error'].includes(record.event)) return null;
+            const dataClasses = this._stringArray(record.dataClasses, 'provenance.dataClasses');
+            const capabilities = this._stringArray(record.capabilities, 'provenance.capabilities');
+            if (!dataClasses || !capabilities || dataClasses.some(item => !PLUGIN_DATA_CLASS_ALLOWLIST.includes(item)) ||
+                String(record.origin || '') !== 'same-origin' ||
+                !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(String(record.version || '')) ||
+                !String(record.license || '').trim()) return null;
+            if (typeof record.at !== 'string' || !Number.isFinite(Date.parse(record.at))) return null;
+            return {
+                id: String(record.id),
+                name: String(record.name || record.id).slice(0, 80),
+                version: String(record.version || '').slice(0, 32),
+                origin: String(record.origin || '').slice(0, 40),
+                license: String(record.license || '').slice(0, 120),
+                dataClasses,
+                capabilities,
+                event: record.event,
+                at: record.at,
+                detail: String(record.detail || '').replace(/[\r\n]+/g, ' ').slice(0, 160)
+            };
+        },
+
+        _loadProvenance() {
+            this.provenance.clear();
+            this.provenanceLog = [];
+            try {
+                const saved = JSON.parse(localStorage.getItem(PLUGIN_PROVENANCE_STORAGE_KEY) || '[]');
+                if (!Array.isArray(saved)) return;
+                for (const item of saved.slice(0, PLUGIN_PROVENANCE_MAX)) {
+                    const record = this._safeProvenance(item);
+                    if (record) {
+                        this.provenanceLog.push(record);
+                        if (!this.provenance.has(record.id)) this.provenance.set(record.id, record);
+                    }
+                }
+            } catch (e) {}
+        },
+
+        _persistProvenance() {
+            try { localStorage.setItem(PLUGIN_PROVENANCE_STORAGE_KEY, JSON.stringify(this.provenanceLog.slice(0, PLUGIN_PROVENANCE_MAX))); } catch (e) {}
+        },
+
+        _recordProvenance(entry, event, detail = '') {
+            const record = this._safeProvenance({
+                id: entry.id,
+                name: entry.name,
+                version: entry.version,
+                origin: entry.origin,
+                license: entry.license,
+                dataClasses: entry.dataClasses,
+                capabilities: entry.capabilities,
+                event,
+                at: new Date().toISOString(),
+                detail
+            });
+            if (!record) return null;
+            this.provenance.set(record.id, record);
+            this.provenanceLog = [record, ...this.provenanceLog].slice(0, PLUGIN_PROVENANCE_MAX);
+            this._persistProvenance();
+            return record;
+        },
+
+        _grantedCapabilities(entry) {
+            return entry.capabilities.filter(capability =>
+                PLUGIN_CAPABILITY_ALLOWLIST.includes(capability) &&
+                entry.approvedCapabilities.includes(capability) &&
+                (!PLUGIN_CAPABILITY_DATA_CLASS[capability] || entry.dataClasses.includes(PLUGIN_CAPABILITY_DATA_CLASS[capability]))
+            );
+        },
+
+        _deniedCapabilities(entry) {
+            return Array.from(new Set(entry.capabilities.filter(capability => !this._grantedCapabilities(entry).includes(capability))));
+        },
+
+        _safeMapView() {
+            try {
+                const center = map?.getCenter?.();
+                const zoom = Number(map?.getZoom?.());
+                if (!center || !Number.isFinite(Number(center.lat)) || !Number.isFinite(Number(center.lng)) || !Number.isFinite(zoom)) return null;
+                return { center: { lat: Number(center.lat), lng: Number(center.lng) }, zoom };
+            } catch (e) { return null; }
+        },
+
+        _addPluginGeoJSON(entry, data) {
+            const normalized = geojsonLoader._parse(JSON.stringify(data));
+            const layer = L.geoJSON(normalized, {
+                style: { color: '#38bdf8', weight: 2, opacity: 0.9, fillColor: '#38bdf8', fillOpacity: 0.12 },
+                pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 5, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 0.65 }),
+                onEachFeature: (feature, featureLayer) => {
+                    const label = _privacySafeText(feature?.properties?.name || entry.name, 120);
+                    if (label) featureLayer.bindTooltip(safeHTML(label), { direction: 'top' });
+                }
+            }).addTo(map);
+            if (!this.pluginOverlays.has(entry.id)) this.pluginOverlays.set(entry.id, new Set());
+            this.pluginOverlays.get(entry.id).add(layer);
+            return true;
+        },
+
+        _removePluginOverlays(id) {
+            const layers = this.pluginOverlays.get(id);
+            if (!layers) return;
+            layers.forEach(layer => { try { map.removeLayer(layer); } catch (e) {} });
+            this.pluginOverlays.delete(id);
+        },
+
+        _capabilityContext(entry) {
+            const granted = this._grantedCapabilities(entry);
+            const capabilities = {};
+            if (granted.includes('ui.toast')) {
+                capabilities.toast = message => toast('[Plugin] ' + String(message || '').slice(0, 160));
+            }
+            if (granted.includes('map.view')) {
+                capabilities.getView = () => this._safeMapView();
+            }
+            if (granted.includes('overlay.geojson')) {
+                capabilities.addGeoJSON = data => {
+                    try { return this._addPluginGeoJSON(entry, data); }
+                    catch (e) { throw new Error('GeoJSON capability rejected: ' + String(e?.message || 'invalid data').slice(0, 120)); }
+                };
+            }
+            return Object.freeze({
+                plugin: Object.freeze({
+                    id: entry.id,
+                    name: entry.name,
+                    version: entry.version,
+                    origin: entry.origin,
+                    license: entry.license,
+                    dataClasses: Object.freeze(entry.dataClasses.slice()),
+                    capabilities: Object.freeze(granted.slice())
+                }),
+                capabilities: Object.freeze(capabilities)
+            });
+        },
+
         async init() {
+            this._loadProvenance();
             try {
                 const response = await fetchWithTimeout(this.manifestUrl, { cache: 'no-cache' }, 5000);
                 if (!response?.ok) throw new Error('HTTP ' + (response?.status || 0));
                 const manifest = await response.json();
-                if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.plugins)) throw new Error('invalid schema');
+                if (manifest?.schemaVersion !== 2 || !Array.isArray(manifest.plugins) || !Array.isArray(manifest.modules)) throw new Error('invalid schema');
+                this.moduleIds = new Set(manifest.modules.filter(item => this._validId(item)));
                 this.entries = manifest.plugins.map(entry => this._normalise(entry)).filter(Boolean);
-                this._setStatus(this.entries.length + ' optional manifest entr' + (this.entries.length === 1 ? 'y' : 'ies') + ' · explicit opt-in');
+                const moduleStatus = this.moduleIds.size ? this.moduleIds.size + ' module(s) remain explicit opt-in' : 'modules disabled by default';
+                this._setStatus(this.entries.length + ' optional manifest entr' + (this.entries.length === 1 ? 'y' : 'ies') + ' · ' + moduleStatus + ' · provenance local');
             } catch (e) {
                 this.entries = [];
+                this.moduleIds = new Set();
                 this._setStatus('Plugin manifest unavailable · built-in overlays remain available');
             }
             this.render();
@@ -12771,35 +12955,76 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         async toggle(id) {
             const entry = this.entries.find(item => item.id === id);
             if (!entry) return;
+            const denied = entry.deniedCapabilities.length ? entry.deniedCapabilities : this._deniedCapabilities(entry);
+            if (denied.length) {
+                this._recordProvenance(entry, 'blocked', 'capability denied: ' + denied.join(', '));
+                toast('Plugin blocked: capability approval required');
+                this.render();
+                return;
+            }
             if (entry.kind === 'geojson-preset') {
                 if (!curatedOverlayManager.presets.some(preset => preset.id === entry.presetId)) {
+                    this._recordProvenance(entry, 'blocked', 'preset unavailable');
                     toast('Preset unavailable: ' + entry.name);
                     return;
                 }
+                const wasActive = this.isActive(entry);
                 await curatedOverlayManager.setPreset(entry.presetId);
+                const isActive = this.isActive(entry);
+                if (wasActive !== isActive) this._recordProvenance(entry, isActive ? 'load' : 'unload');
+                else this._recordProvenance(entry, 'error', 'preset action did not change state');
+                this.render();
+                return;
+            }
+            if (!this.moduleIds.has(entry.id)) {
+                this._recordProvenance(entry, 'blocked', 'module is not enabled in the manifest module allowlist');
+                toast('Plugin blocked: module execution is disabled');
                 this.render();
                 return;
             }
             if (this.activeModules.has(entry.id)) {
                 const handle = this.activeModules.get(entry.id);
-                try { await handle?.deactivate?.(); } catch (e) { _dbg('Plugin deactivate failed:', e.message); }
-                this.activeModules.delete(entry.id);
-                this.render();
+                try {
+                    await handle[entry.cleanupHook]();
+                    this._recordProvenance(entry, 'unload');
+                } catch (e) {
+                    this._recordProvenance(entry, 'error', 'deactivate failed: ' + String(e?.message || 'plugin error'));
+                    _dbg('Plugin deactivate failed:', e.message);
+                } finally {
+                    this._removePluginOverlays(entry.id);
+                    this.activeModules.delete(entry.id);
+                    this.render();
+                }
                 return;
             }
             const url = this._sameOriginUrl(entry.module);
-            if (!url) { toast('Plugin blocked: same-origin module required'); return; }
+            if (!url) {
+                this._recordProvenance(entry, 'blocked', 'same-origin module required');
+                toast('Plugin blocked: same-origin module required');
+                this.render();
+                return;
+            }
             try {
                 const module = await import(url.href);
-                if (typeof module.activate !== 'function') throw new Error('missing activate hook');
-                const handle = await module.activate({ map, L, toast, geojsonLoader });
-                this.activeModules.set(entry.id, handle || module);
+                if (typeof module?.activate !== 'function') throw new Error('missing activate hook');
+                const handle = await module.activate(this._capabilityContext(entry));
+                if (!handle || typeof handle[entry.cleanupHook] !== 'function') throw new Error('activate() must return a cleanup handle');
+                this.activeModules.set(entry.id, handle);
+                this._recordProvenance(entry, 'load');
                 this.render();
                 toast('Loaded plugin: ' + entry.name);
             } catch (e) {
+                this._removePluginOverlays(entry.id);
+                this._recordProvenance(entry, 'error', 'load failed: ' + String(e?.message || 'plugin error'));
                 _dbg('Plugin load failed:', e.message);
                 toast('Could not load plugin: ' + entry.name);
+                this.render();
             }
+        },
+
+        async deactivateAll() {
+            for (const id of Array.from(this.activeModules.keys())) await this.toggle(id);
+            this.pluginOverlays.forEach((layers, id) => this._removePluginOverlays(id));
         },
 
         render() {
@@ -12826,12 +13051,24 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 description.textContent = entry.description;
                 const kind = document.createElement('div');
                 kind.className = 'plugin-manifest-kind';
-                kind.textContent = entry.kind;
-                info.append(name, description, kind);
+                kind.textContent = entry.kind + ' · v' + entry.version + ' · ' + entry.license;
+                const contract = document.createElement('div');
+                contract.className = 'plugin-manifest-description';
+                contract.textContent = 'Capabilities: ' + entry.capabilities.join(', ') + ' · Data: ' + entry.dataClasses.join(', ');
+                info.append(name, description, kind, contract);
+                const latest = this.provenance.get(entry.id);
+                if (latest) {
+                    const provenance = document.createElement('div');
+                    provenance.className = 'plugin-manifest-description';
+                    provenance.textContent = 'Provenance: ' + latest.event + ' · ' + new Date(latest.at).toLocaleString() + (latest.detail ? ' · ' + latest.detail : '');
+                    info.appendChild(provenance);
+                }
                 const button = document.createElement('button');
                 button.className = 'plugin-manifest-btn';
                 button.type = 'button';
-                button.textContent = this.isActive(entry) ? 'On' : 'Load';
+                button.disabled = entry.deniedCapabilities.length > 0;
+                button.textContent = entry.deniedCapabilities.length ? 'Blocked' : (this.isActive(entry) ? 'On' : 'Load');
+                if (entry.deniedCapabilities.length) button.title = 'Denied capabilities: ' + entry.deniedCapabilities.join(', ');
                 button.addEventListener('click', () => this.toggle(entry.id));
                 item.append(info, button);
                 container.appendChild(item);

@@ -317,7 +317,7 @@ class VipTrackContracts(unittest.TestCase):
 
     def test_plugin_manifest_is_explicit_opt_in_and_same_origin_only(self) -> None:
         manifest = json.loads(PLUGINS_MANIFEST.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["schemaVersion"], 1)
+        self.assertEqual(manifest["schemaVersion"], 2)
         self.assertEqual(len(manifest["plugins"]), 4)
         self.assertEqual(manifest["modules"], [])
         preset_manifest = json.loads((ROOT / "data" / "overlays" / "manifest.json").read_text(encoding="utf-8"))
@@ -328,16 +328,34 @@ class VipTrackContracts(unittest.TestCase):
             self.assertTrue(entry["requiresOptIn"])
             self.assertFalse(entry["verified"])
             self.assertEqual(entry["geojson"], "../data/overlays/mil-patterns.geojson")
+            self.assertEqual(entry["version"], "1.0.0")
+            self.assertEqual(entry["origin"], "same-origin")
+            self.assertEqual(entry["license"], "MIT")
+            self.assertEqual(entry["dataClasses"], ["public-geometry"])
+            self.assertEqual(entry["capabilities"], ["overlay.geojson"])
+            self.assertEqual(entry["approvedCapabilities"], ["overlay.geojson"])
+            self.assertEqual(entry["cleanupHook"], "deactivate")
         for marker in (
             "const pluginManifestManager =",
             "plugins/manifest.json",
             "entry.requiresOptIn !== true",
             "url.origin === location.origin",
             "await import(url.href)",
+            "PLUGIN_CAPABILITY_ALLOWLIST",
+            "_grantedCapabilities",
+            "_deniedCapabilities",
+            "_capabilityContext",
+            "_recordProvenance",
+            "pluginOverlays",
+            "cleanupHook",
+            "modules disabled by default",
+            "moduleIds",
+            "module.activate(this._capabilityContext(entry))",
             "id=\"pluginManifestList\"",
             "pluginManifestManager.init();",
         ):
             self.assertIn(marker, self.source)
+        self.assertNotIn("module.activate({ map, L, toast, geojsonLoader })", self.source)
 
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (

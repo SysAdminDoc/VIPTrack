@@ -285,7 +285,7 @@
     "settings.historicalNoData": "Keine historischen Ergebnisse",
     "settings.overlays": "Ebenen (X10)",
     "settings.pluginCatalog": "Plugin-/Ebenenkatalog (L7)",
-    "settings.pluginCatalogHelp": "Manifest-gesteuerte optionale Ebenen. Jeder Eintrag erfordert einen ausdrücklichen Klick auf Laden; künftige JavaScript-Module sind auf gleich-originige URLs beschränkt.",
+    "settings.pluginCatalogHelp": "Manifest-gesteuerte optionale Ebenen und Plugins. Jeder Eintrag deklariert Version, Lizenz, Datenklassen, Fähigkeiten und Bereinigungs-Hook; JavaScript-Module sind gleich-originig, standardmäßig deaktiviert und erfordern einen ausdrücklichen Klick auf Laden.",
     "settings.receiverCoverage": "Empfängerabdeckung (X13)",
     "settings.receiverCoverageHelp": "Geben Sie eine tar1090/readsb-Basis-URL ein. VIPTrack liest receiver.json, aircraft.json und stats.json direkt; Ihr Empfänger muss Browser-CORS erlauben. Es werden keine Empfängerdaten an einen Proxy gesendet.",
     "settings.receiverUrl": "http://receiver.local/tar1090",

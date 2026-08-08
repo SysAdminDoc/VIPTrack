@@ -285,7 +285,7 @@
     "settings.historicalNoData": "No historical results",
     "settings.overlays": "Overlays (X10)",
     "settings.pluginCatalog": "Plugin / Overlay Catalog (L7)",
-    "settings.pluginCatalogHelp": "Manifest-backed optional overlays. Every entry requires an explicit Load click; future JavaScript modules are restricted to same-origin URLs.",
+    "settings.pluginCatalogHelp": "Manifest-backed optional overlays and plugins. Every entry declares its version, license, data classes, capabilities, and cleanup hook; JavaScript modules are same-origin, disabled by default, and require an explicit Load click.",
     "settings.receiverCoverage": "Receiver Coverage (X13)",
     "settings.receiverCoverageHelp": "Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.",
     "settings.receiverUrl": "http://receiver.local/tar1090",
