@@ -2611,7 +2611,6 @@ if ('serviceWorker' in navigator) {
         refreshInterval: 6000,
         cacheExpiry: 300000,
         debug: (new URLSearchParams(window.location.search)).has('debug'),
-        defaultCredentials: { clientId: 'mparker-api-client', clientSecret: 'aPEAJUp6WgZuN7UZxX83BionDNsozUTF' },
         corsProxies: [
             url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
             url => 'https://corsproxy.io/?' + encodeURIComponent(url),
@@ -12408,8 +12407,20 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             this.layer = null;
         },
 
+        clearAuthState({ clearInputs = true } = {}) {
+            this.token = '';
+            this.tokenExpiresAt = 0;
+            if (clearInputs) {
+                const clientIdInput = document.getElementById('openSkyClientId');
+                const clientSecretInput = document.getElementById('openSkyClientSecret');
+                if (clientIdInput) clientIdInput.value = '';
+                if (clientSecretInput) clientSecretInput.value = '';
+            }
+        },
+
         clear(announce = true) {
             this._clearLayer();
+            this.clearAuthState();
             this._setStatus('No historical track loaded');
             if (announce) toast('OpenSky historical track cleared');
         },
@@ -12479,11 +12490,12 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 const bounds = this.layer.getBounds();
                 if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 9 });
                 this._setStatus('Loaded ' + points.length + ' historical points for ' + hex + ' · ' + new Date(timestamp * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC');
-                if (clientSecretInput) clientSecretInput.value = '';
                 toast('OpenSky historical track loaded');
             } catch (e) {
                 this._setStatus('OpenSky request failed; check credentials, CORS, and historical availability');
                 toast('OpenSky historical lookup failed');
+            } finally {
+                this.clearAuthState();
             }
         }
     };

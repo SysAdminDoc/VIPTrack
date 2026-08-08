@@ -4,6 +4,11 @@ All notable changes to VIPTrack will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Security
+- Removed the embedded OpenSky OAuth client and made historical credentials transient, user-supplied, and cleared after each request.
+
 ## [v0.1.0] - 2026-08-03
 
 ### Added

@@ -484,6 +484,9 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("L.polygon(points", section)
 
     def test_opensky_replay_is_manual_oauth_historical_only(self) -> None:
+        self.assertNotIn("defaultCredentials", self.source)
+        self.assertNotIn("mparker-api-client", self.source)
+        self.assertNotRegex(self.source, r"clientSecret\s*:\s*['\"]")
         for marker in (
             "const openSkyHistoricalManager =",
             "OpenSky Historical Replay (X20)",
@@ -493,6 +496,7 @@ class VipTrackContracts(unittest.TestCase):
             "openSkyLoadBtn",
             "No historical track loaded",
             "this._timestamp",
+            "clearAuthState",
         ):
             self.assertIn(marker, self.source)
         start = self.source.index("const openSkyHistoricalManager =")
@@ -501,6 +505,8 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("setInterval", section)
         self.assertNotIn("fetchWithProxy", section)
         self.assertIn("clientSecretInput.value = ''", section)
+        self.assertIn("finally", section)
+        self.assertIn("this.clearAuthState()", section)
         self.assertIn("age <= 30 * 86400", section)
 
     def test_faa_sua_overlay_is_filtered_cached_and_stale_safe(self) -> None:
