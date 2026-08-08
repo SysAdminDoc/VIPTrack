@@ -150,6 +150,8 @@ Access via the gear icon. All settings persist in localStorage.
 | Trail Retention | 7 days | Remove older IndexedDB trail history on startup or on demand (24 h / 7 d / 14 d / 30 d) |
 | Map Bookmarks | None | Save named map camera positions in local storage |
 
+Remote GeoJSON overlays require an explicit Load action, public HTTPS, a bounded response, and valid GeoJSON geometry; URL parameters only prefill the field for review. Webhooks also require a public HTTPS URL, show a redacted payload preview, and stay disabled for automatic alerts until explicitly enabled.
+
 ## Architecture
 
 ```

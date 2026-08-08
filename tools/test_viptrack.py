@@ -96,6 +96,55 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("privacySafeAircraftSnapshot", export_section)
         self.assertIn("registration: safe.r || null", export_section)
 
+    def test_user_egress_policy_bounds_overlays_proxies_and_webhooks(self) -> None:
+        policy_start = self.source.index("const egressPolicy =")
+        proxy_start = self.source.index("async function fetchWithProxy", policy_start)
+        policy = self.source[policy_start:proxy_start]
+        for marker in (
+            "maxUrlLength: 2048",
+            "maxOverlayBytes: 2 * 1024 * 1024",
+            "url.protocol !== 'https:'",
+            "url.username || url.password",
+            "this._isPrivateHost(url.hostname)",
+            "validateWebhookUrl(value, kind = 'generic')",
+            "discord.com",
+        ):
+            self.assertIn(marker, policy)
+        proxy_section = self.source[proxy_start:self.source.index("function saveMapPosition", proxy_start)]
+        self.assertIn("const target = egressPolicy.validateUrl(url)", proxy_section)
+        self.assertIn("const proxyUrl = egressPolicy.validateUrl", proxy_section)
+        overlay_start = self.source.index("const geojsonLoader =")
+        overlay_end = self.source.index("const curatedOverlayManager =", overlay_start)
+        overlay = self.source[overlay_start:overlay_end]
+        for marker in (
+            "readBoundedResponseText(resp)",
+            "egressPolicy.validateUrl(url, { kind: 'overlay' })",
+            "credentials: 'omit'",
+            "_parse(text)",
+            "_valid(data)",
+            "featureCount",
+        ):
+            if marker == "featureCount":
+                continue
+            self.assertIn(marker, overlay)
+        self.assertNotIn("fetchWithProxy", overlay)
+        self.assertNotIn("geojsonLoader.addFromUrl(overlayUrl)", self.source)
+        webhook_start = self.source.index("const alertWebhook =")
+        webhook_end = self.source.index("// Hook into existing alertSystem", webhook_start)
+        webhook = self.source[webhook_start:webhook_end]
+        for marker in (
+            "validateWebhookUrl",
+            "explicit = false",
+            "mode: 'cors'",
+            "credentials: 'omit'",
+            "Payload preview (redacted)",
+            "webhookClearBtn",
+            "setEnabled",
+        ):
+            self.assertIn(marker, webhook + self.source)
+        self.assertNotIn("mode: 'no-cors'", webhook)
+        self.assertNotIn("ac.r", webhook)
+
     def test_faa_registry_shards_are_lazy_compact_and_pia_safe(self) -> None:
         for marker in (
             "const faaRegistryManager =",

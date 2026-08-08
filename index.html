@@ -2179,6 +2179,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <button class="btn-secondary" id="overlayLoadUrlBtn" style="padding:6px 10px;" data-i18n="common.load">Load</button>
             </div>
             <button class="btn-secondary" id="overlayClearBtn" style="width: 100%;" data-i18n="settings.clearOverlays">Clear all overlays</button>
+            <div id="overlayStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-top:6px;">Remote overlays require an explicit Load click and public HTTPS</div>
             <div id="overlaysList" style="margin-top:8px;"></div>
         </div>
         <div class="settings-section">
@@ -2202,7 +2203,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 </select>
                 <input type="text" id="webhookUrl" placeholder="https://…" data-i18n-placeholder="settings.webhookUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
             </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);margin-bottom:6px;">
+                <input type="checkbox" id="webhookAutoSend"> Send matching alerts automatically
+            </label>
+            <div id="webhookStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">No webhook configured</div>
+            <div id="webhookPreview" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">Payload preview is empty</div>
             <button class="btn-secondary" id="webhookSaveBtn" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveWebhook">Save webhook</button>
+            <button class="btn-secondary" id="webhookClearBtn" style="width:100%;margin-bottom:6px;">Clear webhook</button>
             <button class="btn-secondary" id="webhookTestBtn" style="width:100%;" data-i18n="settings.testAlert">Send test alert</button>
         </div>
         <div class="settings-section">
@@ -7655,8 +7662,88 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             this.renderer.triggerRepaint();
         }
     };
-    async function fetchWithProxy(url, options = {}) { if (!CONFIG.isLocalFile) { try { const r = await fetchWithTimeout(url, options); if (r?.ok) return r; } catch(e) {} } for (let i = 0; i < CONFIG.corsProxies.length; i++) { const idx = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length; try { const r = await fetchWithTimeout(CONFIG.corsProxies[idx](url), {}); if (r?.ok) { lastSuccessfulProxy = idx; return r; } } catch(e) {} } return null; }
-    async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...options, signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
+    const egressPolicy = {
+        maxUrlLength: 2048,
+        maxOverlayBytes: 2 * 1024 * 1024,
+
+        _isPrivateHost(hostname) {
+            const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+            if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.home.arpa') || host.endsWith('.lan') || host.endsWith('.test') || host.endsWith('.invalid') || host.endsWith('.example') || host === 'metadata.google.internal') return true;
+            if (host.startsWith('::ffff:')) return this._isPrivateHost(host.slice(7));
+            const ipv4 = host.split('.').map(Number);
+            if (ipv4.length === 4 && ipv4.every(Number.isInteger) && ipv4.every(value => value >= 0 && value <= 255)) {
+                const [a, b] = ipv4;
+                return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19)) || a >= 224;
+            }
+            return host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:') || host.startsWith('::ffff:192.168.') || host.startsWith('::ffff:10.');
+        },
+
+        validateUrl(value, { kind = 'remote' } = {}) {
+            const raw = String(value || '').trim();
+            if (!raw || raw.length > this.maxUrlLength) return null;
+            try {
+                const url = new URL(raw);
+                if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || this._isPrivateHost(url.hostname)) return null;
+                if (kind === 'overlay' && url.origin === location.origin && location.protocol === 'file:') return null;
+                url.hash = '';
+                return url;
+            } catch (e) { return null; }
+        },
+
+        validateWebhookUrl(value, kind = 'generic') {
+            const url = this.validateUrl(value, { kind: 'webhook' });
+            if (!url) return null;
+            if (kind === 'discord' && !['discord.com', 'discordapp.com', 'discordapp.net'].includes(url.hostname)) return null;
+            if (kind === 'ntfy' && !url.pathname.replace(/\/+$/, '')) return null;
+            return url;
+        }
+    };
+    async function fetchWithProxy(url, options = {}) {
+        const target = egressPolicy.validateUrl(url);
+        if (!target) return null;
+        if (!CONFIG.isLocalFile) {
+            try { const response = await fetchWithTimeout(target.href, options); if (response?.ok) return response; } catch (e) {}
+        }
+        for (let i = 0; i < CONFIG.corsProxies.length; i++) {
+            const index = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length;
+            try {
+                const proxyUrl = egressPolicy.validateUrl(CONFIG.corsProxies[index](target.href), { kind: 'proxy' });
+                if (!proxyUrl) continue;
+                const response = await fetchWithTimeout(proxyUrl.href, { cache: 'no-cache', credentials: 'omit' });
+                if (response?.ok) { lastSuccessfulProxy = index; return response; }
+            } catch (e) {}
+        }
+        return null;
+    }
+    async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...(options || {}), signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
+    async function readBoundedResponseText(response, maxBytes = egressPolicy.maxOverlayBytes) {
+        const declaredLength = Number(response.headers?.get('content-length'));
+        if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error('Response exceeds size limit');
+        if (!response.body?.getReader) {
+            const text = await response.text();
+            if (new TextEncoder().encode(text).byteLength > maxBytes) throw new Error('Response exceeds size limit');
+            return text;
+        }
+        const reader = response.body.getReader();
+        const chunks = [];
+        let total = 0;
+        try {
+            while (true) {
+                const result = await reader.read();
+                if (result.done) break;
+                total += result.value.byteLength;
+                if (total > maxBytes) {
+                    await reader.cancel();
+                    throw new Error('Response exceeds size limit');
+                }
+                chunks.push(result.value);
+            }
+        } finally { reader.releaseLock?.(); }
+        const bytes = new Uint8Array(total);
+        let offset = 0;
+        chunks.forEach(chunk => { bytes.set(chunk, offset); offset += chunk.byteLength; });
+        return new TextDecoder().decode(bytes);
+    }
     function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('viptrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
     function loadMapPosition() { try { const s = localStorage.getItem('viptrack_map'); if (s) { const p = JSON.parse(s); CONFIG.center = [p.lat, p.lng]; CONFIG.zoom = p.zoom; return true; } } catch(e){} return false; }
     function saveAircraftCache() {
@@ -7809,7 +7896,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const focus = params.get('focus');
             if (focus) setTimeout(() => { try { selectAircraft(focus.toUpperCase()); } catch(e){} }, 2500);
             const overlayUrl = params.get('overlay');
-            if (overlayUrl) setTimeout(() => geojsonLoader.addFromUrl(overlayUrl), 1500);
+            if (overlayUrl) {
+                const overlayInput = document.getElementById('overlayUrlInput');
+                if (overlayInput) overlayInput.value = overlayUrl.slice(0, egressPolicy.maxUrlLength);
+                toast('Overlay URL loaded for review; click Load to fetch it');
+            }
         } catch(e) {}
 
         // Check URL params for shared flight links
@@ -9447,12 +9538,22 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // X4: Webhook
         const _wkUrl = document.getElementById('webhookUrl');
         const _wkKind = document.getElementById('webhookKind');
+        const _wkAuto = document.getElementById('webhookAutoSend');
+        alertWebhook.init();
         if (_wkUrl) _wkUrl.value = alertWebhook.url;
         if (_wkKind) _wkKind.value = alertWebhook.kind;
+        if (_wkAuto) _wkAuto.checked = alertWebhook.enabled;
         document.getElementById('webhookSaveBtn')?.addEventListener('click', () => {
-            alertWebhook.setUrl(_wkUrl?.value?.trim() || '', _wkKind?.value || 'generic');
-            toast(alertWebhook.url ? 'Webhook saved' : 'Webhook cleared');
+            const saved = alertWebhook.setUrl(_wkUrl?.value?.trim() || '', _wkKind?.value || 'generic');
+            if (_wkUrl) _wkUrl.value = alertWebhook.url;
+            toast(saved ? (alertWebhook.url ? 'Webhook saved' : 'Webhook cleared') : 'Webhook URL rejected');
         });
+        document.getElementById('webhookClearBtn')?.addEventListener('click', () => {
+            alertWebhook.clear();
+            if (_wkUrl) _wkUrl.value = '';
+            if (_wkAuto) _wkAuto.checked = false;
+        });
+        _wkAuto?.addEventListener('change', () => alertWebhook.setEnabled(_wkAuto.checked));
         document.getElementById('webhookTestBtn')?.addEventListener('click', () => alertWebhook.test());
 
         // X6: Coincidence detector toggle
@@ -11761,49 +11862,132 @@ ${segs}
     };
 
     // ============ X4: WEBHOOK / TELEGRAM / DISCORD / NTFY ALERT SINK ============
-    // Outgoing-only. User pastes a webhook URL into settings; alertSystem.showAlert posts JSON.
+    // Outgoing-only. A public HTTPS URL must be explicitly saved and automatic
+    // sends remain disabled until the user opts in.
     const alertWebhook = {
-        url: localStorage.getItem('viptrack_webhook_url') || '',
-        kind: localStorage.getItem('viptrack_webhook_kind') || 'generic', // generic / discord / ntfy
+        url: '',
+        kind: 'generic',
+        enabled: false,
+        preview: '',
+
+        _setStatus(message) {
+            const status = document.getElementById('webhookStatus');
+            if (status) status.textContent = message;
+        },
+
+        _setPreview(message) {
+            this.preview = String(message || '');
+            const preview = document.getElementById('webhookPreview');
+            if (preview) preview.textContent = this.preview || 'Payload preview is empty';
+        },
+
+        init() {
+            const storedKind = ['generic', 'discord', 'ntfy'].includes(localStorage.getItem('viptrack_webhook_kind')) ? localStorage.getItem('viptrack_webhook_kind') : 'generic';
+            const storedUrl = localStorage.getItem('viptrack_webhook_url') || '';
+            const validated = egressPolicy.validateWebhookUrl(storedUrl, storedKind);
+            this.kind = storedKind;
+            this.url = validated?.href || '';
+            this.enabled = localStorage.getItem('viptrack_webhook_enabled') === '1' && Boolean(this.url);
+            if (storedUrl && !validated) localStorage.removeItem('viptrack_webhook_url');
+            this._setStatus(this.url ? (this.enabled ? 'Automatic sends enabled' : 'Ready; automatic sends disabled') : 'No webhook configured');
+            this._setPreview('Payload preview is empty');
+        },
+
         setUrl(u, kind) {
-            this.url = u || '';
-            this.kind = kind || 'generic';
-            localStorage.setItem('viptrack_webhook_url', this.url);
+            const nextKind = ['generic', 'discord', 'ntfy'].includes(kind) ? kind : 'generic';
+            const raw = String(u || '').trim();
+            const validated = raw ? egressPolicy.validateWebhookUrl(raw, nextKind) : null;
+            if (raw && !validated) {
+                this.url = '';
+                this.setEnabled(false);
+                localStorage.removeItem('viptrack_webhook_url');
+                this._setStatus('Webhook rejected: public HTTPS URL or provider host required');
+                this._setPreview('Payload preview is empty');
+                return false;
+            }
+            this.url = validated?.href || '';
+            this.kind = nextKind;
             localStorage.setItem('viptrack_webhook_kind', this.kind);
+            if (this.url) localStorage.setItem('viptrack_webhook_url', this.url);
+            else localStorage.removeItem('viptrack_webhook_url');
+            if (!this.url) this.setEnabled(false);
+            this._setStatus(this.url ? (this.enabled ? 'Automatic sends enabled' : 'Ready; automatic sends disabled') : 'No webhook configured');
+            this._setPreview('Payload preview is empty');
+            return true;
         },
-        async send(alert) {
-            if (!this.url) return;
+
+        setEnabled(enabled) {
+            this.enabled = Boolean(enabled && this.url);
+            localStorage.setItem('viptrack_webhook_enabled', this.enabled ? '1' : '0');
+            this._setStatus(this.url ? (this.enabled ? 'Automatic sends enabled' : 'Ready; automatic sends disabled') : 'No webhook configured');
+        },
+
+        clear() {
+            this.url = '';
+            this.enabled = false;
+            localStorage.removeItem('viptrack_webhook_url');
+            localStorage.setItem('viptrack_webhook_enabled', '0');
+            this._setStatus('Webhook cleared');
+            this._setPreview('Payload preview is empty');
+        },
+
+        _buildRequest(alert) {
+            const ac = alert.aircraft || {};
+            const safeAc = privacySafeAircraftSnapshot(ac, { includeHistory: false }) || {};
+            const type = String(alert.type || 'ALERT').slice(0, 32);
+            const cs = safeAc.flight || safeAc.hex || 'unknown';
+            const title = '[VIPTrack] ' + type + ' — ' + cs;
+            const body = String(alert.message || '').slice(0, 512) + (Number.isFinite(safeAc.lat) && Number.isFinite(safeAc.lon) ? '  @ ' + safeAc.lat.toFixed(3) + ',' + safeAc.lon.toFixed(3) : '');
+            let payload, headers = { 'Content-Type': 'application/json' };
+            if (this.kind === 'discord') {
+                payload = JSON.stringify({ username: 'VIPTrack', content: '**' + title + '**\n' + body });
+            } else if (this.kind === 'ntfy') {
+                headers = { 'Title': title, 'Tags': type.toLowerCase(), 'Priority': type === 'EMERGENCY' ? '5' : '3' };
+                payload = body;
+            } else {
+                payload = JSON.stringify({
+                    source: 'viptrack', type, message: String(alert.message || '').slice(0, 512),
+                    callsign: cs, hex: safeAc.hex, lat: safeAc.lat, lon: safeAc.lon, alt: safeAc.alt_baro,
+                    squawk: safeAc.squawk, time: new Date(alert.timestamp || Date.now()).toISOString()
+                });
+            }
+            return {
+                body: payload,
+                headers,
+                preview: 'Payload preview (redacted): ' + this.kind + ' · ' + String(payload).length + ' bytes · aircraft fields redacted'
+            };
+        },
+
+        async send(alert, { explicit = false } = {}) {
+            if (!explicit && !this.enabled) return false;
+            const validated = egressPolicy.validateWebhookUrl(this.url, this.kind);
+            if (!validated) {
+                this._setStatus('Webhook blocked: configure a public HTTPS URL first');
+                return false;
+            }
             try {
-                const ac = alert.aircraft || {};
-                const safeAc = privacySafeAircraftSnapshot(ac, { includeHistory: false }) || {};
-                const cs = safeAc.flight || safeAc.hex || 'unknown';
-                const title = '[VIPTrack] ' + alert.type + ' — ' + cs;
-                const body = String(alert.message || '').slice(0, 512) + (Number.isFinite(safeAc.lat) && Number.isFinite(safeAc.lon) ? '  @ ' + safeAc.lat.toFixed(3) + ',' + safeAc.lon.toFixed(3) : '');
-                let payload, headers = { 'Content-Type': 'application/json' };
-                if (this.kind === 'discord') {
-                    payload = JSON.stringify({ username: 'VIPTrack', content: '**' + title + '**\n' + body });
-                } else if (this.kind === 'ntfy') {
-                    // ntfy.sh accepts plain text + headers
-                    headers = { 'Title': title, 'Tags': alert.type.toLowerCase(), 'Priority': alert.type === 'EMERGENCY' ? '5' : '3' };
-                    payload = body;
-                } else {
-                    // generic JSON envelope (Bluesky bridge, custom server, IFTTT)
-                    payload = JSON.stringify({
-                        source: 'viptrack', type: alert.type, message: String(alert.message || '').slice(0, 512),
-                        callsign: cs, hex: safeAc.hex, lat: safeAc.lat, lon: safeAc.lon, alt: safeAc.alt_baro,
-                        squawk: safeAc.squawk, time: new Date(alert.timestamp).toISOString()
-                    });
-                }
-                await fetch(this.url, { method: 'POST', headers, body: payload, mode: 'no-cors' });
-            } catch (e) { _dbg('webhook send failed', e); }
+                const request = this._buildRequest(alert);
+                this._setPreview(request.preview);
+                this._setStatus('Sending webhook…');
+                const response = await fetch(validated.href, { method: 'POST', headers: request.headers, body: request.body, mode: 'cors', credentials: 'omit' });
+                if (!response?.ok) throw new Error('HTTP ' + (response?.status || 0));
+                this._setStatus('Webhook sent · ' + new Date().toLocaleTimeString());
+                return true;
+            } catch (e) {
+                this._setStatus('Webhook failed: ' + String(e?.message || 'network error').slice(0, 120));
+                _dbg('webhook send failed', e);
+                return false;
+            }
         },
+
         async test() {
-            if (!this.url) { toast('Set webhook URL first'); return; }
-            await this.send({
+            if (!this.url) { toast('Set a public HTTPS webhook URL first'); return false; }
+            const sent = await this.send({
                 type: 'TEST', message: 'VIPTrack webhook test message', timestamp: Date.now(),
                 aircraft: { hex: 'TEST00', flight: 'TEST123' }
-            });
-            toast('Test sent to ' + this.kind + ' webhook');
+            }, { explicit: true });
+            toast(sent ? 'Test sent to ' + this.kind + ' webhook' : 'Webhook test failed');
+            return sent;
         }
     };
     // Hook into existing alertSystem: monkey-patch showAlert to also fire webhook
@@ -11819,9 +12003,43 @@ ${segs}
     // ============ X10: CUSTOM GEOJSON OVERLAY LOADER ============
     const geojsonLoader = {
         layers: [],
+        _setStatus(message) {
+            const status = document.getElementById('overlayStatus');
+            if (status) status.textContent = message;
+        },
+
+        _coordinate(value) {
+            return Array.isArray(value) && value.length >= 2 && Number.isFinite(Number(value[0])) && Number(value[0]) >= -180 && Number(value[0]) <= 180 && Number.isFinite(Number(value[1])) && Number(value[1]) >= -90 && Number(value[1]) <= 90;
+        },
+
+        _geometryValid(geometry) {
+            if (!geometry) return true;
+            if (geometry.type === 'GeometryCollection') return Array.isArray(geometry.geometries) && geometry.geometries.length <= 5000 && geometry.geometries.every(item => this._geometryValid(item));
+            const coordinates = geometry.coordinates;
+            if (geometry.type === 'Point') return this._coordinate(coordinates);
+            if (geometry.type === 'MultiPoint' || geometry.type === 'LineString') return Array.isArray(coordinates) && coordinates.length >= (geometry.type === 'LineString' ? 2 : 1) && coordinates.every(item => this._coordinate(item));
+            if (geometry.type === 'MultiLineString' || geometry.type === 'Polygon') return Array.isArray(coordinates) && coordinates.length > 0 && coordinates.every(line => Array.isArray(line) && line.length >= (geometry.type === 'Polygon' ? 4 : 2) && line.every(item => this._coordinate(item)));
+            if (geometry.type === 'MultiPolygon') return Array.isArray(coordinates) && coordinates.length > 0 && coordinates.every(polygon => Array.isArray(polygon) && polygon.length > 0 && polygon.every(line => Array.isArray(line) && line.length >= 4 && line.every(item => this._coordinate(item))));
+            return false;
+        },
+
+        _valid(data) {
+            if (!data || typeof data !== 'object') return false;
+            if (data.type === 'FeatureCollection') return Array.isArray(data.features) && data.features.length <= 5000 && data.features.every(feature => feature?.type === 'Feature' && this._geometryValid(feature.geometry));
+            if (data.type === 'Feature') return this._geometryValid(data.geometry);
+            return ['Point', 'MultiPoint', 'LineString', 'MultiLineString', 'Polygon', 'MultiPolygon', 'GeometryCollection'].includes(data.type) && this._geometryValid(data);
+        },
+
+        _parse(text) {
+            if (typeof text !== 'string' || new TextEncoder().encode(text).byteLength > egressPolicy.maxOverlayBytes) throw new Error('GeoJSON exceeds size limit');
+            const data = JSON.parse(text);
+            if (!this._valid(data)) throw new Error('Invalid GeoJSON schema');
+            return data;
+        },
+
         addFromText(text, name) {
             try {
-                const data = JSON.parse(text);
+                const data = this._parse(text);
                 const layer = L.geoJSON(data, {
                     style: { color: '#ff9500', weight: 2, opacity: 0.85, fillOpacity: 0.15, fillColor: '#ff9500' },
                     pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, color: '#ff9500', fillOpacity: 0.6 }),
@@ -11829,22 +12047,42 @@ ${segs}
 if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properties.name)), { permanent: false, direction: 'top' });
                     }
                 }).addTo(map);
-                this.layers.push({ name: name || ('Overlay #' + (this.layers.length + 1)), layer });
-                toast('Loaded overlay: ' + (name || 'unnamed'));
+                const label = _privacySafeText(name || ('Overlay #' + (this.layers.length + 1)), 120) || 'unnamed';
+                this.layers.push({ name: label, layer });
+                this._setStatus('Loaded ' + label + ' · schema validated');
+                toast('Loaded overlay: ' + label);
                 this.renderList();
-            } catch (e) { toast('Invalid GeoJSON'); }
+                return true;
+            } catch (e) {
+                this._setStatus('Overlay rejected: ' + String(e?.message || 'invalid GeoJSON').slice(0, 120));
+                toast('Invalid GeoJSON');
+                return false;
+            }
         },
         async addFromUrl(url) {
+            const target = egressPolicy.validateUrl(url, { kind: 'overlay' });
+            if (!target) {
+                this._setStatus('Overlay blocked: public HTTPS URL required; private/local targets are rejected');
+                toast('Overlay URL rejected');
+                return false;
+            }
+            this._setStatus('Fetching overlay from ' + target.hostname + '…');
             try {
-                const resp = await fetchWithTimeout(url, {}, 8000);
-                if (!resp?.ok) return toast('Could not fetch overlay');
-                const text = await resp.text();
-                this.addFromText(text, (url.split('/').pop() || 'remote'));
-            } catch (e) { toast('Could not fetch overlay'); }
+                const resp = await fetchWithTimeout(target.href, { cache: 'no-store', credentials: 'omit' }, 8000);
+                if (!resp?.ok) throw new Error('HTTP ' + (resp?.status || 0));
+                const text = await readBoundedResponseText(resp);
+                const name = decodeURIComponent(target.pathname.split('/').pop() || target.hostname).slice(0, 120);
+                return this.addFromText(text, name || 'remote');
+            } catch (e) {
+                this._setStatus('Overlay fetch failed: ' + String(e?.message || 'network error').slice(0, 120));
+                toast('Could not fetch overlay');
+                return false;
+            }
         },
         clear() {
             this.layers.forEach(l => { try { map.removeLayer(l.layer); } catch(e){} });
             this.layers = [];
+            this._setStatus('Remote overlays require an explicit Load click and public HTTPS');
             this.renderList();
             toast('Overlays cleared');
         },

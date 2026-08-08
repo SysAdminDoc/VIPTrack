@@ -9,6 +9,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 - Removed the embedded OpenSky OAuth client and made historical credentials transient, user-supplied, and cleared after each request.
 - Added a centralized PIA-safe aircraft projection across caches, offline snapshots, alerts, reports, shares, webhooks, and track/viewport exports; legacy aircraft-cache records are expired by schema.
+- Constrained remote overlays and webhook egress to explicit public HTTPS actions with private-target rejection, bounded/schema-validated GeoJSON, redacted previews, visible status, and opt-in automatic webhook sends.
 
 ### Changed
 - Replaced generated Blob service-worker code and unregister-all startup behavior with the checked-in same-origin `sw.js`; file URLs and unsupported contexts continue with the live map.
