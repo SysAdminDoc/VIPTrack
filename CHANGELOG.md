@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 - Removed the embedded OpenSky OAuth client and made historical credentials transient, user-supplied, and cleared after each request.
+- Added a centralized PIA-safe aircraft projection across caches, offline snapshots, alerts, reports, shares, webhooks, and track/viewport exports; legacy aircraft-cache records are expired by schema.
 
 ## [v0.1.0] - 2026-08-03
 

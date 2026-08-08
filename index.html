@@ -3028,6 +3028,7 @@ if ('serviceWorker' in navigator) {
     };
 
     // ============ PHASE 16: OFFLINE MODE MANAGER ============
+    const OFFLINE_CACHE_SCHEMA = 2;
     const offlineManager = {
         isOnline: navigator.onLine,
         lastOnlineTime: Date.now(),
@@ -3093,22 +3094,14 @@ if ('serviceWorker' in navigator) {
             
             const positions = {};
             Object.entries(aircraftCache).forEach(([hex, ac]) => {
-                if (ac.lat !== undefined) {
-                    positions[hex] = {
-                        lat: ac.lat,
-                        lon: ac.lon,
-                        alt: ac.alt_baro,
-                        track: ac.track,
-                        gs: ac.gs,
-                        flight: ac.flight,
-                        r: ac.r,
-                        t: ac.t,
-                        timestamp: Date.now()
-                    };
+                const safe = privacySafeAircraftSnapshot(ac, { includeHistory: false });
+                if (safe?.lat !== undefined && safe?.lon !== undefined) {
+                    positions[hex] = { ...safe, timestamp: Date.now() };
                 }
             });
             
             this.offlineData = {
+                schemaVersion: OFFLINE_CACHE_SCHEMA,
                 positions,
                 timestamp: Date.now(),
                 mapCenter: map ? { lat: map.getCenter().lat, lng: map.getCenter().lng } : null,
@@ -3122,7 +3115,8 @@ if ('serviceWorker' in navigator) {
         
         async loadCachedData() {
             try {
-                this.offlineData = await skytrackDB.loadDatabase('offlineCache');
+                const cached = await skytrackDB.loadDatabase('offlineCache');
+                this.offlineData = cached?.schemaVersion === OFFLINE_CACHE_SCHEMA ? cached : null;
             } catch (e) {
                 console.warn('Failed to load offline cache:', e);
             }
@@ -3147,9 +3141,11 @@ if ('serviceWorker' in navigator) {
             });
             
             Object.entries(this.offlineData.positions).forEach(([hex, data]) => {
+                const current = aircraftCache[hex];
+                const safeData = privacySafeAircraftSnapshot({ ...data, hex }, { includeHistory: false }) || {};
                 aircraftCache[hex] = {
-                    ...aircraftCache[hex],
-                    ...data,
+                    ...(safeData.privacyProtected ? {} : current),
+                    ...safeData,
                     hex,
                     _cached: true,
                     lastSeen: data.timestamp
@@ -4168,9 +4164,10 @@ if ('serviceWorker' in navigator) {
             const lastTime = this.lastAlertTime[alertKey] || 0;
             if (Date.now() - lastTime < alertType.cooldown) return;
             this.lastAlertTime[alertKey] = Date.now();
+            const safeAircraft = privacySafeAircraftSnapshot(ac, { includeHistory: false }) || {};
             const alert = {
                 type, alertType, aircraft: ac, message,
-                callsign: ac.flight?.trim() || ac.r || ac.hex,
+                callsign: safeAircraft.flight || safeAircraft.hex || 'unknown',
                 timestamp: Date.now()
             };
             this.showAlert(alert);
@@ -5473,6 +5470,7 @@ if ('serviceWorker' in navigator) {
                 const cached = await skytrackDB.loadDatabase('pia');
                 if (cached) {
                     this.loadFromData(cached);
+                    await this.saveCache();
                     _dbg('Loaded', this.aircraft.size, 'PIA aircraft from IndexedDB');
                     return true;
                 }
@@ -5482,6 +5480,7 @@ if ('serviceWorker' in navigator) {
                 const local = JSON.parse(localStorage.getItem(this.cacheKey) || 'null');
                 if (local && Date.now() - local.ts < this.cacheMaxAge) {
                     this.loadFromData(local.aircraft);
+                    await this.saveCache();
                     _dbg('Loaded', this.aircraft.size, 'PIA aircraft from localStorage');
                     return true;
                 }
@@ -5512,9 +5511,6 @@ if ('serviceWorker' in navigator) {
                 const hex = fields[0].replace('$', '').toUpperCase();
                 if (!hex) continue;
                 this.aircraft.set(hex, {
-                    registration: fields[1] || '',
-                    operator: fields[2] || '',
-                    type: fields[3] || '',
                     category: 'PIA',
                     tag: fields[6]?.replace('#', '') || 'Privacy ICAO Address'
                 });
@@ -5526,10 +5522,17 @@ if ('serviceWorker' in navigator) {
             this.aircraft.clear();
             if (Array.isArray(data)) {
                 data.forEach(([hex, info]) => {
-                    if (hex && info) this.aircraft.set(String(hex).toUpperCase(), info);
+                    if (hex && info) this.aircraft.set(String(hex).toUpperCase(), this._normaliseInfo(info));
                 });
             }
             this.loaded = true;
+        },
+
+        _normaliseInfo(info) {
+            return {
+                category: 'PIA',
+                tag: String(info?.tag || 'Privacy ICAO Address').trim().slice(0, 96) || 'Privacy ICAO Address'
+            };
         },
 
         async saveCache() {
@@ -5557,10 +5560,89 @@ if ('serviceWorker' in navigator) {
         return !!hex && piaDB.loaded && piaDB.isPIA(hex);
     }
     function isPrivacyProtectedAircraft(ac) {
-        return !!ac && (ac.piaInfo || isPrivacyProtectedHex(ac.hex));
+        return !!ac && (ac.privacyProtected === true || ac.piaInfo || isPrivacyProtectedHex(ac.hex));
     }
     function getDisplayRegistration(ac) {
         return isPrivacyProtectedAircraft(ac) ? 'PIA — operator anonymised' : (ac?.r || 'N/A');
+    }
+
+    // Durable and outbound aircraft data must pass through this explicit
+    // allowlist. PIA/LADD records retain only the fields needed to understand
+    // the live observation; registrations, operators, enrichment objects, and
+    // identifying history are never copied across this boundary.
+    const AIRCRAFT_CACHE_SCHEMA = 2;
+    function _privacySafeText(value, maxLength = 128) {
+        return String(value ?? '').trim().slice(0, maxLength);
+    }
+    function _privacySafeCoordinate(value, minimum, maximum) {
+        const number = Number(value);
+        return Number.isFinite(number) && number >= minimum && number <= maximum ? number : undefined;
+    }
+    function _privacySafeHistory(history, limit = 50) {
+        if (!Array.isArray(history)) return [];
+        return history.slice(-limit).map(point => {
+            if (!Array.isArray(point) || point.length < 2) return null;
+            const lat = _privacySafeCoordinate(point[0], -90, 90);
+            const lon = _privacySafeCoordinate(point[1], -180, 180);
+            if (lat === undefined || lon === undefined) return null;
+            const altitude = Number(point[2]);
+            const timestamp = Number(point[3]);
+            return [lat, lon, Number.isFinite(altitude) ? altitude : 0, Number.isFinite(timestamp) ? timestamp : undefined];
+        }).filter(Boolean);
+    }
+    function privacySafeAircraftSnapshot(ac, { includeHistory = true } = {}) {
+        if (!ac || typeof ac !== 'object') return null;
+        const protectedAircraft = isPrivacyProtectedAircraft(ac);
+        const snapshot = {
+            hex: _privacySafeText(ac.hex, 6).toUpperCase(),
+            flight: _privacySafeText(ac.flight, 32),
+            t: _privacySafeText(ac.t, 16),
+            lat: _privacySafeCoordinate(ac.lat, -90, 90),
+            lon: _privacySafeCoordinate(ac.lon, -180, 180),
+            alt_baro: typeof ac.alt_baro === 'string' ? _privacySafeText(ac.alt_baro, 16) : Number.isFinite(Number(ac.alt_baro)) ? Number(ac.alt_baro) : undefined,
+            gs: Number.isFinite(Number(ac.gs)) ? Number(ac.gs) : undefined,
+            track: Number.isFinite(Number(ac.track)) ? Number(ac.track) : undefined,
+            baro_rate: Number.isFinite(Number(ac.baro_rate)) ? Number(ac.baro_rate) : undefined,
+            squawk: _privacySafeText(ac.squawk, 8),
+            category: _privacySafeText(ac.category, 32),
+            dbFlags: Number.isFinite(Number(ac.dbFlags)) ? Number(ac.dbFlags) : undefined,
+            lastSeen: Number.isFinite(Number(ac.lastSeen)) ? Number(ac.lastSeen) : undefined
+        };
+        if (protectedAircraft) {
+            snapshot.privacyProtected = true;
+            return snapshot;
+        }
+        snapshot.r = _privacySafeText(ac.r, 16);
+        snapshot.desc = _privacySafeText(ac.desc, 128);
+        snapshot.ownOp = _privacySafeText(ac.ownOp || ac.operator, 128);
+        snapshot.from = _privacySafeText(ac.from, 8);
+        snapshot.to = _privacySafeText(ac.to, 8);
+        if (includeHistory) snapshot.history = _privacySafeHistory(ac.history);
+        return snapshot;
+    }
+
+    function scrubAircraftCacheForPrivacy() {
+        if (!piaDB.loaded || typeof aircraftCache !== 'object' || !aircraftCache) return false;
+        let changed = false;
+        Object.entries(aircraftCache).forEach(([key, ac]) => {
+            const info = piaDB.getByHex(ac?.hex || key);
+            if (!info || !ac) return;
+            const hadSensitiveFields = Boolean(ac.r || ac.desc || ac.ownOp || ac.operator || ac.from || ac.to || ac.faaOwner || ac.faaRegistry || ac.history?.length);
+            ac.privacyProtected = true;
+            ac.piaInfo = info;
+            ac.r = '';
+            ac.desc = '';
+            ac.ownOp = '';
+            ac.from = '';
+            ac.to = '';
+            ac.history = [];
+            ac.interesting = info;
+            ac._enriched = false;
+            ['operator', 'faaOwner', 'faaRegistry', 'faaRegistryChecked', 'year', 'militaryInfo', 'civilianInteresting', 'airlineName', 'alliance', 'preloadedImage', 'trackHeuristics'].forEach(field => delete ac[field]);
+            changed = changed || hadSensitiveFields;
+        });
+        if (changed) saveAircraftCache();
+        return changed;
     }
 
     // L4: Lazy FAA Releasable Aircraft Registry lookup.  The generated shards
@@ -5872,20 +5954,21 @@ if ('serviceWorker' in navigator) {
             if (!/^[0-9A-F]{6}$/.test(hex) || !Number.isFinite(lastSeen)) return null;
             const firstSeen = Number(item?.firstSeen);
             const lat = Number(item?.lat), lon = Number(item?.lon), altFeet = Number(item?.altFeet);
+            const isPIA = item?.isPIA === true;
             return {
                 id: String(item?.id || ('7700_' + hex + '_' + lastSeen)).slice(0, 120),
                 hex,
-                callsign: String(item?.callsign || hex).trim().slice(0, 32),
+                callsign: isPIA ? 'PIA' : String(item?.callsign || hex).trim().slice(0, 32),
                 squawk: '7700',
                 firstSeen: Number.isFinite(firstSeen) ? firstSeen : lastSeen,
                 lastSeen,
                 lat: Number.isFinite(lat) && lat >= -90 && lat <= 90 ? lat : null,
                 lon: Number.isFinite(lon) && lon >= -180 && lon <= 180 ? lon : null,
                 altFeet: Number.isFinite(altFeet) && altFeet >= 0 ? Math.round(altFeet) : null,
-                category: String(item?.category || '').trim().slice(0, 64),
-                tag: String(item?.tag || '').trim().slice(0, 96),
-                operator: String(item?.operator || '').trim().slice(0, 96),
-                isPIA: item?.isPIA === true
+                category: isPIA ? 'PIA' : String(item?.category || '').trim().slice(0, 64),
+                tag: isPIA ? 'Privacy ICAO Address' : String(item?.tag || '').trim().slice(0, 96),
+                operator: isPIA ? 'Operator anonymised' : String(item?.operator || '').trim().slice(0, 96),
+                isPIA
             };
         },
 
@@ -7808,8 +7891,30 @@ if ('serviceWorker' in navigator) {
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...options, signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
     function saveMapPosition() { const c = map.getCenter(); localStorage.setItem('viptrack_map', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })); }
     function loadMapPosition() { try { const s = localStorage.getItem('viptrack_map'); if (s) { const p = JSON.parse(s); CONFIG.center = [p.lat, p.lng]; CONFIG.zoom = p.zoom; return true; } } catch(e){} return false; }
-    function saveAircraftCache() { try { const d = { ts: Date.now(), ac: {} }; const keys = Object.keys(aircraftCache); for (let i = 0; i < keys.length; i++) { const h = keys[i], a = aircraftCache[h]; d.ac[h] = { hex: a.hex, flight: a.flight, r: a.r, t: a.t, desc: a.desc, ownOp: a.ownOp, lat: a.lat, lon: a.lon, alt_baro: a.alt_baro, gs: a.gs, track: a.track, baro_rate: a.baro_rate, squawk: a.squawk, category: a.category, dbFlags: a.dbFlags, from: a.from, to: a.to, lastSeen: a.lastSeen, history: a.history?.slice(-50) || [] }; } localStorage.setItem('viptrack_aircraft', JSON.stringify(d)); } catch(e){} }
-    function loadAircraftCache() { try { const s = localStorage.getItem('viptrack_aircraft'); if (s) { const d = JSON.parse(s); if (Date.now() - d.ts < CONFIG.cacheExpiry) { aircraftCache = d.ac; return true; } } } catch(e){} return false; }
+    function saveAircraftCache() {
+        try {
+            const d = { schemaVersion: AIRCRAFT_CACHE_SCHEMA, ts: Date.now(), ac: {} };
+            Object.entries(aircraftCache || {}).forEach(([key, aircraft]) => {
+                const snapshot = privacySafeAircraftSnapshot(aircraft);
+                if (snapshot?.hex) d.ac[key] = snapshot;
+            });
+            localStorage.setItem('viptrack_aircraft', JSON.stringify(d));
+        } catch (e) {}
+    }
+    function loadAircraftCache() {
+        try {
+            const raw = localStorage.getItem('viptrack_aircraft');
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (data?.schemaVersion !== AIRCRAFT_CACHE_SCHEMA || !data.ac || typeof data.ac !== 'object') {
+                localStorage.removeItem('viptrack_aircraft');
+                return false;
+            }
+            if (Date.now() - Number(data.ts) >= CONFIG.cacheExpiry) return false;
+            aircraftCache = Object.fromEntries(Object.entries(data.ac).filter(([, aircraft]) => aircraft && typeof aircraft === 'object'));
+            return true;
+        } catch (e) { return false; }
+    }
     function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
     function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to supported curated subsets
         if (!['mil-vip','military','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip'; }
@@ -7879,6 +7984,7 @@ if ('serviceWorker' in navigator) {
             milRangesDB.init().then(() => trackDb('Military ranges')),
             civilianDB.init().then(() => trackDb('Civilian'))
         ]);
+        scrubAircraftCacheForPrivacy();
         
         // Batch 3: Supplementary databases (airlines, routes, images)
         setLoadingProgress(65, 'Loading supplementary data...');
@@ -8086,8 +8192,13 @@ if ('serviceWorker' in navigator) {
             const piaInfo = piaDB.getByHex(hex);
             if (piaInfo) {
                 cached.piaInfo = piaInfo;
+                cached.privacyProtected = true;
                 cached.r = '';
+                cached.desc = '';
                 cached.ownOp = '';
+                cached.from = '';
+                cached.to = '';
+                cached.history = [];
                 if (!cached.interesting) cached.interesting = piaInfo;
             }
         }
@@ -8185,9 +8296,19 @@ if ('serviceWorker' in navigator) {
                 if (ac.from) existing.from = ac.from;
                 if (ac.to) existing.to = ac.to;
                 existing.lastSeen = now;
+
+                if (!existing._enriched) _enrichAircraft(existing, hex);
+                if (isPrivacyProtectedAircraft(existing)) {
+                    existing.r = '';
+                    existing.desc = '';
+                    existing.ownOp = '';
+                    existing.from = '';
+                    existing.to = '';
+                    existing.history = [];
+                }
                 
                 // Append to position history
-                if (ac.lat !== undefined && ac.lon !== undefined) {
+                if (!isPrivacyProtectedAircraft(existing) && ac.lat !== undefined && ac.lon !== undefined) {
                     const last = existing.history[existing.history.length - 1];
                     if (!last || last[0] !== ac.lat || last[1] !== ac.lon) {
                         existing.history.push([ac.lat, ac.lon, ac.alt_baro || 0, now]);
@@ -10220,6 +10341,8 @@ if ('serviceWorker' in navigator) {
 
         _collectTrailPoints(hex) {
             const points = [];
+            const ac = aircraftCache[hex];
+            const privacyProtected = isPrivacyProtectedAircraft(ac);
             const add = value => {
                 const lat = Number(Array.isArray(value) ? value[0] : value?.lat);
                 const lon = Number(Array.isArray(value) ? value[1] : (value?.lng ?? value?.lon));
@@ -10234,12 +10357,11 @@ if ('serviceWorker' in navigator) {
                 }
                 else add(value);
             };
-            if (hex === selectedHex && trailLine) {
+            if (!privacyProtected && hex === selectedHex && trailLine) {
                 const layers = trailLine._group?.getLayers?.() || (trailLine.getLatLngs ? [trailLine] : []);
                 layers.forEach(layer => { if (layer?.getLatLngs) walk(layer.getLatLngs()); });
             }
-            const ac = aircraftCache[hex];
-            if (points.length < 2 && Array.isArray(ac?.history)) ac.history.forEach(walk);
+            if (!privacyProtected && points.length < 2 && Array.isArray(ac?.history)) ac.history.forEach(walk);
             if (ac?.lat !== undefined && ac?.lon !== undefined) add({ lat: ac.lat, lon: ac.lon });
             return points.slice(-600);
         },
@@ -10252,7 +10374,7 @@ if ('serviceWorker' in navigator) {
             const ctx = canvas.getContext('2d');
             if (!ctx || typeof canvas.convertToBlob !== 'function') return null;
             const ac = aircraftCache[hex] || {};
-            const title = String(ac.flight?.trim() || ac.r || hex).slice(0, 64);
+            const title = String(ac.flight?.trim() || (isPrivacyProtectedAircraft(ac) ? hex : ac.r || hex)).slice(0, 64);
             const wrapped = points.map(point => {
                 let lon = point.lon;
                 const base = points[0].lon;
@@ -10309,14 +10431,15 @@ if ('serviceWorker' in navigator) {
             const link = this.generateLink(hex);
             if (!link) { toast('No aircraft selected'); return; }
             const ac = aircraftCache[hex];
-            const title = 'Track ' + (ac.flight?.trim() || ac.r || hex) + ' on VIPTrack';
+            const label = ac.flight?.trim() || (isPrivacyProtectedAircraft(ac) ? hex : ac.r || hex);
+            const title = 'Track ' + label + ' on VIPTrack';
             let blob = null;
             try { blob = await this.createTrailPng(hex); } catch (e) { blob = null; }
             if (blob && navigator.share && typeof File !== 'undefined') {
                 try {
                     const file = new File([blob], 'viptrack-' + hex.toLowerCase() + '-trail.png', { type: 'image/png' });
                     if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-                        await navigator.share({ title, text: 'VIPTrack trail for ' + (ac.flight?.trim() || hex), files: [file] });
+                        await navigator.share({ title, text: 'VIPTrack trail for ' + label, files: [file] });
                         return;
                     }
                 } catch (e) { if (e.name !== 'AbortError') console.warn('Trail share failed:', e); }
@@ -11667,13 +11790,18 @@ if ('serviceWorker' in navigator) {
 
     // ============ X24: TRACK EXPORT (KML / GPX / GeoJSON / CSV) ============
     const trackExport = {
+        _safe(ac) {
+            return privacySafeAircraftSnapshot(ac, { includeHistory: true }) || {};
+        },
         _filename(ac, ext) {
-            const tag = (ac.flight?.trim() || ac.r || ac.hex || 'aircraft').replace(/[^\w-]/g, '_');
+            const safe = this._safe(ac);
+            const tag = (safe.flight?.trim() || safe.r || safe.hex || 'aircraft').replace(/[^\w-]/g, '_');
             return 'viptrack_' + tag + '_' + new Date().toISOString().slice(0, 10) + '.' + ext;
         },
         _points(ac) {
             // Each history entry: [lat, lon, alt, ts?]
-            return (ac.history || []).filter(p => p && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+            const safe = this._safe(ac);
+            return (safe.history || []).filter(p => p && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
         },
         _download(filename, body, mime) {
             const blob = new Blob([body], { type: mime });
@@ -11684,9 +11812,10 @@ if ('serviceWorker' in navigator) {
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         },
         kml(ac) {
+            const safe = this._safe(ac);
             const pts = this._points(ac);
             if (!pts.length) return toast('No trail data to export');
-            const name = ac.flight?.trim() || ac.r || ac.hex;
+            const name = safe.flight?.trim() || safe.r || safe.hex;
             const coords = pts.map(p => p[1] + ',' + p[0] + ',' + (p[2] || 0)).join(' ');
             const body = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${name}</name>
@@ -11697,9 +11826,10 @@ if ('serviceWorker' in navigator) {
             toast('Exported KML');
         },
         gpx(ac) {
+            const safe = this._safe(ac);
             const pts = this._points(ac);
             if (!pts.length) return toast('No trail data to export');
-            const name = ac.flight?.trim() || ac.r || ac.hex;
+            const name = safe.flight?.trim() || safe.r || safe.hex;
             const segs = pts.map(p => {
                 const t = p[3] ? new Date(p[3]).toISOString() : new Date().toISOString();
                 const ele = (p[2] || 0) * 0.3048; // ft → m
@@ -11715,6 +11845,7 @@ ${segs}
             toast('Exported GPX');
         },
         geojson(ac) {
+            const safe = this._safe(ac);
             const pts = this._points(ac);
             if (!pts.length) return toast('No trail data to export');
             const fc = {
@@ -11722,8 +11853,8 @@ ${segs}
                 features: [{
                     type: 'Feature',
                     properties: {
-                        hex: ac.hex, callsign: ac.flight?.trim() || null, registration: ac.r || null,
-                        type: ac.t || null, operator: ac.ownOp || null
+                        hex: safe.hex, callsign: safe.flight?.trim() || null, registration: safe.r || null,
+                        type: safe.t || null, operator: safe.ownOp || null
                     },
                     geometry: { type: 'LineString', coordinates: pts.map(p => [p[1], p[0], p[2] || 0]) }
                 }]
@@ -11876,9 +12007,10 @@ ${segs}
             if (!this.url) return;
             try {
                 const ac = alert.aircraft || {};
-                const cs = (ac.flight || '').trim() || ac.r || ac.hex || 'unknown';
+                const safeAc = privacySafeAircraftSnapshot(ac, { includeHistory: false }) || {};
+                const cs = safeAc.flight || safeAc.hex || 'unknown';
                 const title = '[VIPTrack] ' + alert.type + ' — ' + cs;
-                const body = alert.message + (ac.lat ? '  @ ' + ac.lat.toFixed(3) + ',' + ac.lon.toFixed(3) : '');
+                const body = String(alert.message || '').slice(0, 512) + (Number.isFinite(safeAc.lat) && Number.isFinite(safeAc.lon) ? '  @ ' + safeAc.lat.toFixed(3) + ',' + safeAc.lon.toFixed(3) : '');
                 let payload, headers = { 'Content-Type': 'application/json' };
                 if (this.kind === 'discord') {
                     payload = JSON.stringify({ username: 'VIPTrack', content: '**' + title + '**\n' + body });
@@ -11889,9 +12021,9 @@ ${segs}
                 } else {
                     // generic JSON envelope (Bluesky bridge, custom server, IFTTT)
                     payload = JSON.stringify({
-                        source: 'viptrack', type: alert.type, message: alert.message,
-                        callsign: cs, hex: ac.hex, lat: ac.lat, lon: ac.lon, alt: ac.alt_baro,
-                        squawk: ac.squawk, time: new Date(alert.timestamp).toISOString()
+                        source: 'viptrack', type: alert.type, message: String(alert.message || '').slice(0, 512),
+                        callsign: cs, hex: safeAc.hex, lat: safeAc.lat, lon: safeAc.lon, alt: safeAc.alt_baro,
+                        squawk: safeAc.squawk, time: new Date(alert.timestamp).toISOString()
                     });
                 }
                 await fetch(this.url, { method: 'POST', headers, body: payload, mode: 'no-cors' });
@@ -13266,12 +13398,13 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         const ac = aircraftCache[selectedHex];
         if (!ac) return;
         const lines = [];
+        const privacyProtected = isPrivacyProtectedAircraft(ac);
         const displayReg = getDisplayRegistration(ac);
         lines.push('Aircraft: ' + (ac.flight?.trim() || displayReg || ac.hex));
-        if (ac.r && !isPrivacyProtectedAircraft(ac)) lines.push('Reg: ' + ac.r);
+        if (ac.r && !privacyProtected) lines.push('Reg: ' + ac.r);
         lines.push('Hex: ' + ac.hex);
-        if (ac.t) lines.push('Type: ' + ac.t + (ac.desc ? ' (' + ac.desc + ')' : ''));
-        if (ac.ownOp) lines.push('Operator: ' + ac.ownOp);
+        if (ac.t) lines.push('Type: ' + ac.t + (!privacyProtected && ac.desc ? ' (' + ac.desc + ')' : ''));
+        if (!privacyProtected && ac.ownOp) lines.push('Operator: ' + ac.ownOp);
         if (Number.isFinite(ac.lat)) {
             lines.push('Position: ' + ac.lat.toFixed(4) + ', ' + ac.lon.toFixed(4));
             lines.push('  DMS: ' + coords.toDMS(ac.lat, ac.lon));
@@ -13283,7 +13416,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         if (ac.gs != null) lines.push('Ground speed: ' + ac.gs + ' kt');
         if (ac.track != null) lines.push('Track: ' + ac.track + '°');
         if (ac.squawk) lines.push('Squawk: ' + ac.squawk);
-        if (ac.from || ac.to) lines.push('Route: ' + (ac.from || '???') + ' → ' + (ac.to || '???'));
+        if (!privacyProtected && (ac.from || ac.to)) lines.push('Route: ' + (ac.from || '???') + ' → ' + (ac.to || '???'));
         lines.push('Observed: ' + new Date().toISOString());
         lines.push('Source: VIPTrack (public ADS-B)');
         const text = lines.join('\n');
@@ -13299,14 +13432,15 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         rows.push('hex,callsign,reg,type,operator,lat,lon,alt_ft,gs_kt,track,squawk,class,from,to,timestamp_iso');
         const now = new Date().toISOString();
         for (const ac of Object.values(aircraftCache || {})) {
-            if (!Number.isFinite(ac.lat) || !Number.isFinite(ac.lon)) continue;
-            if (!bounds.contains([ac.lat, ac.lon])) continue;
+            const safe = privacySafeAircraftSnapshot(ac, { includeHistory: false });
+            if (!Number.isFinite(safe?.lat) || !Number.isFinite(safe?.lon)) continue;
+            if (!bounds.contains([safe.lat, safe.lon])) continue;
             const cls = (typeof classifyAircraft === 'function') ? classifyAircraft(ac) : '';
             rows.push([
-                ac.hex || '', '"' + (ac.flight?.trim() || '') + '"', ac.r || '',
-                ac.t || '', '"' + (ac.ownOp || '').replace(/"/g,'""') + '"',
-                ac.lat, ac.lon, ac.alt_baro ?? '', ac.gs ?? '', ac.track ?? '',
-                ac.squawk || '', cls, ac.from || '', ac.to || '', now
+                safe.hex || '', '"' + (safe.flight?.trim() || '') + '"', safe.r || '',
+                safe.t || '', '"' + (safe.ownOp || '').replace(/"/g,'""') + '"',
+                safe.lat, safe.lon, safe.alt_baro ?? '', safe.gs ?? '', safe.track ?? '',
+                safe.squawk || '', cls, safe.from || '', safe.to || '', now
             ].join(','));
         }
         if (rows.length === 1) { toast('No aircraft in viewport'); return; }
@@ -13346,7 +13480,11 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
     })();
     
 
-    window.addEventListener('beforeunload', () => { saveAircraftCache(); saveMapPosition(); });
+    window.addEventListener('beforeunload', () => {
+        saveAircraftCache();
+        saveMapPosition();
+        if (typeof openSkyHistoricalManager !== 'undefined') openSkyHistoricalManager.clearAuthState();
+    });
 
     // PWA Install Prompt Handler
     let deferredPrompt = null;

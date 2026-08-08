@@ -59,6 +59,42 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("PIA — operator anonymised", self.source)
         self.assertIn("cacheKey: 'viptrack_pia_v1'", self.source)
 
+    def test_pia_safe_projection_covers_durable_and_outbound_boundaries(self) -> None:
+        projection_start = self.source.index("function privacySafeAircraftSnapshot")
+        projection_end = self.source.index("snapshot.r =", projection_start)
+        protected_projection = self.source[self.source.index("if (protectedAircraft)", projection_start):projection_end]
+        for forbidden in ("snapshot.r", "snapshot.desc", "snapshot.ownOp", "snapshot.from", "snapshot.to", "snapshot.history", "faaOwner", "faaRegistry"):
+            self.assertNotIn(forbidden, protected_projection)
+        for marker in (
+            "const AIRCRAFT_CACHE_SCHEMA = 2",
+            "function scrubAircraftCacheForPrivacy",
+            "schemaVersion: AIRCRAFT_CACHE_SCHEMA",
+            "data?.schemaVersion !== AIRCRAFT_CACHE_SCHEMA",
+            "localStorage.removeItem('viptrack_aircraft')",
+            "const OFFLINE_CACHE_SCHEMA = 2",
+            "schemaVersion: OFFLINE_CACHE_SCHEMA",
+            "cached?.schemaVersion === OFFLINE_CACHE_SCHEMA ? cached : null",
+            "this._normaliseInfo(info)",
+            "const safe = privacySafeAircraftSnapshot(ac, { includeHistory: false })",
+            "const safeAc = privacySafeAircraftSnapshot(ac, { includeHistory: false }) || {}",
+            "const safeAircraft = privacySafeAircraftSnapshot(ac, { includeHistory: false }) || {}",
+            "const privacyProtected = isPrivacyProtectedAircraft(ac)",
+            "if (!privacyProtected && points.length < 2",
+            "const trackExport =",
+            "_safe(ac)",
+            "if (!privacyProtected && ac.ownOp)",
+            "const isPIA = item?.isPIA === true",
+        ):
+            self.assertIn(marker, self.source)
+        webhook_start = self.source.index("const alertWebhook =")
+        webhook_end = self.source.index("// Hook into existing alertSystem", webhook_start)
+        self.assertNotIn("ac.r", self.source[webhook_start:webhook_end])
+        export_start = self.source.index("const trackExport =")
+        export_end = self.source.index("// ============ X8:", export_start)
+        export_section = self.source[export_start:export_end]
+        self.assertIn("privacySafeAircraftSnapshot", export_section)
+        self.assertIn("registration: safe.r || null", export_section)
+
     def test_faa_registry_shards_are_lazy_compact_and_pia_safe(self) -> None:
         for marker in (
             "const faaRegistryManager =",
