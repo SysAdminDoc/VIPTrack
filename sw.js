@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_SCHEMA_VERSION = '4.18';
+const CACHE_SCHEMA_VERSION = '4.19';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',
@@ -14,6 +14,7 @@ const STATIC_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
+    'https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js',
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/aircraft.png',
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo.ico',
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo-16x16.png',
@@ -57,6 +58,7 @@ function isReferenceAsset(url) {
 function isStaticRequest(url) {
     return STATIC_ASSETS.some(asset => url.href === new URL(asset, self.location.href).href) ||
         url.hostname.includes('cdnjs.cloudflare.com') ||
+        url.hostname.includes('cdn.jsdelivr.net') ||
         (url.hostname.includes('githubusercontent.com') && url.pathname.includes('/logo/'));
 }
 

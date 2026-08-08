@@ -8,6 +8,8 @@ import re
 import unittest
 from pathlib import Path
 
+from check_cdn_dependencies import run_gate
+
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "index.html"
@@ -31,18 +33,36 @@ class VipTrackContracts(unittest.TestCase):
 
     def test_pinned_cdn_resources_have_sri(self) -> None:
         resources = re.findall(
-            r"<(?:script|link)\b[^>]*(?:src|href)=\"(https://cdnjs\.cloudflare\.com/[^\"]+)\"[^>]*>",
+            r"<(?:script|link)\b[^>]*(?:src|href)=\"(https://(?:cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)/[^\"]+)\"[^>]*>",
             self.source,
             flags=re.IGNORECASE,
         )
         self.assertGreaterEqual(len(resources), 6)
         for match in re.finditer(
-            r"<(?:script|link)\b[^>]*(?:src|href)=\"https://cdnjs\.cloudflare\.com/[^\"]+\"[^>]*>",
+            r"<(?:script|link)\b[^>]*(?:src|href)=\"https://(?:cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)/[^\"]+\"[^>]*>",
             self.source,
             flags=re.IGNORECASE,
         ):
             self.assertRegex(match.group(0), r'\bintegrity="sha512-[^"]+"')
             self.assertRegex(match.group(0), r'\bcrossorigin="anonymous"')
+
+    def test_cdn_dependency_inventory_and_sanitizer_gate(self) -> None:
+        summary = run_gate()
+        self.assertEqual(summary["schemaVersion"], 1)
+        self.assertEqual(summary["dependencies"], 9)
+        for marker in (
+            "cdn_dependencies.json",
+            "reviewPolicyDays",
+            "advisoryStatus",
+            "clear-through-3.4.13",
+            "https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js",
+            "FORBID_TAGS",
+            "FORBID_ATTR",
+            "srcdoc",
+            "escapeHTML(markup)",
+        ):
+            self.assertIn(marker, self.source + (ROOT / "tools" / "check_cdn_dependencies.py").read_text(encoding="utf-8") + (ROOT / "tools" / "cdn_dependencies.json").read_text(encoding="utf-8"))
+        self.assertNotIn("dompurify/3.2.6", self.source)
 
     def test_html_sinks_use_pinned_sanitizer(self) -> None:
         self.assertIn("purify.min.js", self.source)
@@ -695,7 +715,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.18'",
+            "const CACHE_SCHEMA_VERSION = '4.19'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
