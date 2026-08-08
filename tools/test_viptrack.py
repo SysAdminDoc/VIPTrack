@@ -219,6 +219,38 @@ class VipTrackContracts(unittest.TestCase):
             self.assertIn(marker, self.source + headers)
         self.assertNotIn("'unsafe-eval'", headers.split("/index.html", 1)[1].split("/cesium-frame.html", 1)[0])
 
+    def test_local_state_backup_is_versioned_bounded_and_privacy_safe(self) -> None:
+        manager_start = self.source.index("const localStateManager =")
+        manager_end = self.source.index("async function getWikipediaSummary", manager_start)
+        manager = self.source[manager_start:manager_end]
+        for marker in (
+            "const LOCAL_STATE_FORMAT = 'viptrack-local-state'",
+            "const LOCAL_STATE_SCHEMA = 1",
+            "const LOCAL_STATE_MAX_BYTES = 1024 * 1024",
+            "LOCAL_STATE_FORBIDDEN_KEY_RE",
+            "_localStateFindForbiddenKey",
+            "schemaVersion > LOCAL_STATE_SCHEMA",
+            "migrate(payload)",
+            "_localStateCanonicalState",
+            "aircraft cache and trail observations",
+            "raw PIA and enrichment fields",
+            "viptrack_settings_v3",
+            "viptrack_alert_settings",
+            "saveUserData('watchlist'",
+            "saveUserData('named_watchlists'",
+            "saveUserData('geofences'",
+            "id=\"localStateExportBtn\"",
+            "id=\"localStateImportBtn\"",
+            "localStateManager.importFile(file)",
+        ):
+            self.assertIn(marker, manager + self.source)
+        self.assertNotIn("openSkyClientSecret", manager)
+        self.assertNotIn("openAipApiKey", manager)
+        for catalog in I18N_DIR.glob("*.json"):
+            messages = json.loads(catalog.read_text(encoding="utf-8"))["messages"]
+            for key in ("settings.exportLocalState", "settings.importLocalState", "settings.localStateHelp", "settings.localStateReady"):
+                self.assertIn(key, messages, msg=f"{catalog.name}: {key}")
+
     def test_airframes_acars_link_is_callsign_based_and_pia_safe(self) -> None:
         for marker in (
             'id="linkAirframes"',

@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Added a version-1 local-state JSON backup flow in Settings > Storage for supported display, map, watchlist, named-rule, geofence, trail, alert, and curated-overlay state, with a 1 MiB cap, deterministic migrations, strict validation, and local-only restore.
+
 ### Security
 - Removed the embedded OpenSky OAuth client and made historical credentials transient, user-supplied, and cleared after each request.
 - Added a centralized PIA-safe aircraft projection across caches, offline snapshots, alerts, reports, shares, webhooks, and track/viewport exports; legacy aircraft-cache records are expired by schema.

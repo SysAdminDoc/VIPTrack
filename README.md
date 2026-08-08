@@ -158,6 +158,10 @@ Remote GeoJSON overlays require an explicit Load action, public HTTPS, a bounded
 
 GitHub Pages cannot attach response headers, so `index.html` retains a compatible meta CSP fallback. Cloudflare Pages and Netlify-style hosts can use the root `_headers` policy, which supplies HSTS, framing, permissions, MIME, referrer, enforcing CSP, and matching CSP Report-Only headers for the main page and isolated Cesium frame. Validate Report-Only violations in the deployed host before changing the policy; `python tools/check_security_headers.py` checks the committed policy and all dynamic HTML sinks. Do not apply HSTS to an HTTP-only local deployment.
 
+### Local state backups
+
+Settings > Storage provides a versioned JSON backup for supported configuration and analyst state: display settings, map position, bookmarks, watchlists, named rules, geofences, trail display/retention choices, heading projection, coincidence detection, and curated overlay selections. Files are capped at 1 MiB. Credentials, tokens, API keys, webhook or receiver endpoints, aircraft cache, trail observations, raw PIA/enrichment fields, and remote GeoJSON are excluded by design. Imports reject malformed, oversized, future-version, duplicate, out-of-range, and privacy-sensitive payloads before writing local storage; legacy schema migrations are deterministic and idempotent. Import is local-only and reloads the app after the validated state is persisted.
+
 ## Architecture
 
 ```

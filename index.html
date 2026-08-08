@@ -2254,6 +2254,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 </select>
             </div>
             <button class="btn-secondary" id="trailRetentionApply" style="width: 100%; margin-top: 8px;" data-i18n="settings.applyClean">Apply &amp; clean now</button>
+            <div class="receiver-coverage-help" data-i18n="settings.localStateHelp">Export supported configuration and analyst state. Credentials, tokens, aircraft cache, and raw private-aircraft fields are never included.</div>
+            <input type="file" id="localStateImportInput" accept=".json,application/json" style="display:none;">
+            <button class="btn-secondary" id="localStateExportBtn" style="width: 100%; margin-top: 8px;" data-i18n="settings.exportLocalState">Export local state</button>
+            <button class="btn-secondary" id="localStateImportBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.importLocalState">Import local state</button>
+            <div class="receiver-coverage-status" id="localStateStatus" role="status" aria-live="polite" data-i18n="settings.localStateReady">No local-state backup loaded</div>
         </div>
     </div>
     <div class="bottom-panels">
@@ -7948,6 +7953,209 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function deleteBookmark(id) { bookmarks = bookmarks.filter(b => b.id !== id); saveBookmarks(); }
     function goToBookmark(id) { const b = bookmarks.find(x => x.id === id); if (b) { map.setView([b.lat, b.lng], b.zoom); toast('Jumped to ' + b.name); } }
     function renderBookmarks() { const list = document.getElementById('bookmarksList'); if (!bookmarks.length) { list.innerHTML = safeHTML('<div class="bookmarks-empty">No saved locations</div>'); return; } list.innerHTML = safeHTML(bookmarks.map(b => '<div class="bookmark-item" data-id="' + b.id + '"><span class="bookmark-name">' + b.name + '</span><button class="bookmark-delete" data-id="' + b.id + '">&times;</button></div>').join('')); list.querySelectorAll('.bookmark-item').forEach(item => item.addEventListener('click', e => { if (!e.target.classList.contains('bookmark-delete')) goToBookmark(parseInt(item.dataset.id)); })); list.querySelectorAll('.bookmark-delete').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); deleteBookmark(parseInt(btn.dataset.id)); })); }
+    // ============ VERSIONED LOCAL STATE EXPORT / IMPORT ============
+    // This file is deliberately configuration-only. Aircraft observations,
+    // trail samples, remote endpoints, credentials, tokens, API keys, and raw
+    // PIA/enrichment fields never cross this backup boundary.
+    const LOCAL_STATE_FORMAT = 'viptrack-local-state';
+    const LOCAL_STATE_SCHEMA = 1;
+    const LOCAL_STATE_MAX_BYTES = 1024 * 1024;
+    const LOCAL_STATE_FORBIDDEN_KEY_RE = /password|secret|token|credential|api[_-]?key|access|refresh|auth|webhook|receiver|opensky|openaip|aircraft|trailhistory|history|raw|pia|faa|operator|registration|ownop|privacy|url/i;
+    function _localStateIsObject(value) { return Boolean(value && typeof value === 'object' && !Array.isArray(value)); }
+    function _localStateAssertKeys(value, allowed, label) {
+        if (!_localStateIsObject(value)) throw new Error(label + ' must be an object');
+        const unknown = Object.keys(value).filter(key => !allowed.includes(key));
+        if (unknown.length) throw new Error(label + ' contains unsupported field(s): ' + unknown.slice(0, 3).join(', '));
+    }
+    function _localStateRequireKeys(value, required, label, allowed = required) {
+        _localStateAssertKeys(value, allowed, label);
+        const missing = required.filter(key => !Object.prototype.hasOwnProperty.call(value, key));
+        if (missing.length) throw new Error(label + ' is missing: ' + missing.join(', '));
+    }
+    function _localStateText(value, maxLength, label) {
+        if (typeof value !== 'string') throw new Error(label + ' must be text');
+        const text = value.trim();
+        if (text.length > maxLength) throw new Error(label + ' exceeds ' + maxLength + ' characters');
+        return text;
+    }
+    function _localStateNumber(value, minimum, maximum, label, integer = false) {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > maximum || (integer && !Number.isInteger(value))) throw new Error(label + ' is outside the supported range');
+        return value;
+    }
+    function _localStateBoolean(value, label) {
+        if (typeof value !== 'boolean') throw new Error(label + ' must be true or false');
+        return value;
+    }
+    function _localStateUnique(values, label) {
+        const seen = new Set();
+        values.forEach(value => { if (seen.has(value)) throw new Error(label + ' contains duplicates'); seen.add(value); });
+        return values;
+    }
+    function _localStateParseStorage(key, fallback) {
+        try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; }
+    }
+    function _localStatePoint(value, label) {
+        _localStateRequireKeys(value, ['lat', 'lng'], label);
+        return { lat: _localStateNumber(value.lat, -90, 90, label + '.lat'), lng: _localStateNumber(value.lng, -180, 180, label + '.lng') };
+    }
+    function _localStateRules(value, label) {
+        _localStateRequireKeys(value, ['hexes', 'callsignRegex', 'types', 'countries', 'altMin', 'altMax', 'geofences'], label);
+        for (const key of ['hexes', 'types', 'countries', 'geofences']) if (!Array.isArray(value[key])) throw new Error(label + '.' + key + ' must be an array');
+        const values = (key, max, upper = false) => _localStateUnique(value[key].map(item => _localStateText(item, max, label + '.' + key)).map(item => upper ? item.toUpperCase() : item), label + '.' + key);
+        const hexes = values('hexes', 6, true), types = values('types', 32, true), countries = values('countries', 16, true), geofences = values('geofences', 100);
+        if (hexes.length > 100 || hexes.some(item => !/^[0-9A-F]{6}$/.test(item))) throw new Error(label + '.hexes contains an invalid ICAO hex');
+        if (types.length > 32 || countries.length > 32 || geofences.length > 32) throw new Error(label + ' contains too many rule values');
+        const callsignRegex = _localStateText(value.callsignRegex, 256, label + '.callsignRegex');
+        if (callsignRegex) { try { new RegExp(callsignRegex, 'i'); } catch (e) { throw new Error(label + '.callsignRegex is invalid'); } }
+        const altMin = value.altMin === null ? null : _localStateNumber(value.altMin, -2000, 100000, label + '.altMin');
+        const altMax = value.altMax === null ? null : _localStateNumber(value.altMax, -2000, 100000, label + '.altMax');
+        if (altMin !== null && altMax !== null && altMin > altMax) throw new Error(label + ' altitude range is reversed');
+        if (!hexes.length && !callsignRegex && !types.length && !countries.length && altMin === null && altMax === null && !geofences.length) throw new Error(label + ' must contain a matching rule');
+        return { hexes, callsignRegex, types, countries, altMin, altMax, geofences };
+    }
+    function _localStateBookmark(value, label) {
+        _localStateRequireKeys(value, ['id', 'name', 'lat', 'lng', 'zoom'], label);
+        return { id: _localStateNumber(value.id, 0, 9007199254740991, label + '.id', true), name: _localStateText(value.name, 120, label + '.name'), lat: _localStateNumber(value.lat, -90, 90, label + '.lat'), lng: _localStateNumber(value.lng, -180, 180, label + '.lng'), zoom: _localStateNumber(value.zoom, 0, 22, label + '.zoom') };
+    }
+    function _localStateWatchlist(value, label) {
+        _localStateRequireKeys(value, ['hex', 'name', 'notes', 'addedAt'], label);
+        const hex = _localStateText(value.hex, 6, label + '.hex').toUpperCase();
+        if (!/^[0-9A-F]{6}$/.test(hex)) throw new Error(label + '.hex is invalid');
+        return { hex, name: _localStateText(value.name, 120, label + '.name'), notes: _localStateText(value.notes, 500, label + '.notes'), addedAt: _localStateNumber(value.addedAt, 0, 9007199254740991, label + '.addedAt', true) };
+    }
+    function _localStateNamedWatchlist(value, label) {
+        _localStateRequireKeys(value, ['id', 'name', 'enabled', 'rules', 'createdAt'], label);
+        return { id: _localStateText(value.id, 100, label + '.id'), name: _localStateText(value.name, 80, label + '.name'), enabled: _localStateBoolean(value.enabled, label + '.enabled'), rules: _localStateRules(value.rules, label + '.rules'), createdAt: _localStateNumber(value.createdAt, 0, 9007199254740991, label + '.createdAt', true) };
+    }
+    function _localStateGeofence(value, label) {
+        const allowed = ['id', 'name', 'enabled', 'createdAt', 'kind', 'center', 'radiusKm', 'points'];
+        _localStateRequireKeys(value, ['id', 'name', 'enabled', 'createdAt', 'kind'], label, allowed);
+        const common = { id: _localStateText(value.id, 100, label + '.id'), name: _localStateText(value.name, 80, label + '.name'), enabled: _localStateBoolean(value.enabled, label + '.enabled'), createdAt: _localStateNumber(value.createdAt, 0, 9007199254740991, label + '.createdAt', true) };
+        if (value.kind === 'circle') {
+            _localStateRequireKeys(value, ['center', 'radiusKm'], label, allowed);
+            if (Object.prototype.hasOwnProperty.call(value, 'points')) throw new Error(label + '.points is not valid for a circle');
+            return { ...common, kind: 'circle', center: _localStatePoint(value.center, label + '.center'), radiusKm: _localStateNumber(value.radiusKm, 0.1, 1000, label + '.radiusKm') };
+        }
+        if (value.kind !== 'polygon') throw new Error(label + '.kind is unsupported');
+        _localStateRequireKeys(value, ['points'], label, allowed);
+        if (Object.prototype.hasOwnProperty.call(value, 'center') || Object.prototype.hasOwnProperty.call(value, 'radiusKm')) throw new Error(label + ' polygon has circle fields');
+        if (!Array.isArray(value.points) || value.points.length < 3 || value.points.length > 100) throw new Error(label + '.points is outside the supported range');
+        return { ...common, kind: 'polygon', points: value.points.map((point, index) => _localStatePoint(point, label + '.points[' + index + ']')) };
+    }
+    function _localStateSettings(value, label) {
+        _localStateRequireKeys(value, ['mapStyle', 'showLabels', 'altitudeColors', 'showWiki', 'filter', 'followMode', 'compactMode'], label);
+        if (!['esri-gray', 'carto-voyager', 'stadia-alidade-smooth-dark'].includes(value.mapStyle)) throw new Error(label + '.mapStyle is unsupported');
+        if (!['mil-vip', 'military', 'vip', 'curated'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
+        return { mapStyle: value.mapStyle, showLabels: _localStateBoolean(value.showLabels, label + '.showLabels'), altitudeColors: _localStateBoolean(value.altitudeColors, label + '.altitudeColors'), showWiki: _localStateBoolean(value.showWiki, label + '.showWiki'), filter: value.filter, followMode: _localStateBoolean(value.followMode, label + '.followMode'), compactMode: _localStateBoolean(value.compactMode, label + '.compactMode') };
+    }
+    function _localStateCanonicalState(value) {
+        _localStateRequireKeys(value, ['settings', 'map', 'bookmarks', 'watchlist', 'namedWatchlists', 'alerts', 'geofences', 'trail', 'overlays'], 'state');
+        _localStateRequireKeys(value.map, ['lat', 'lng', 'zoom'], 'state.map');
+        const mapValue = { lat: _localStateNumber(value.map.lat, -90, 90, 'state.map.lat'), lng: _localStateNumber(value.map.lng, -180, 180, 'state.map.lng'), zoom: _localStateNumber(value.map.zoom, 0, 22, 'state.map.zoom') };
+        if (!Array.isArray(value.bookmarks) || value.bookmarks.length > 200) throw new Error('state.bookmarks exceeds the supported limit');
+        if (!Array.isArray(value.watchlist) || value.watchlist.length > 500) throw new Error('state.watchlist exceeds the supported limit');
+        if (!Array.isArray(value.namedWatchlists) || value.namedWatchlists.length > 100) throw new Error('state.namedWatchlists exceeds the supported limit');
+        if (!Array.isArray(value.geofences) || value.geofences.length > 100) throw new Error('state.geofences exceeds the supported limit');
+        const bookmarksValue = value.bookmarks.map((item, index) => _localStateBookmark(item, 'state.bookmarks[' + index + ']'));
+        const watchlistValue = value.watchlist.map((item, index) => _localStateWatchlist(item, 'state.watchlist[' + index + ']'));
+        _localStateUnique(watchlistValue.map(item => item.hex), 'state.watchlist.hex');
+        const namedValue = value.namedWatchlists.map((item, index) => _localStateNamedWatchlist(item, 'state.namedWatchlists[' + index + ']'));
+        _localStateUnique(namedValue.map(item => item.id), 'state.namedWatchlists.id');
+        const geofencesValue = value.geofences.map((item, index) => _localStateGeofence(item, 'state.geofences[' + index + ']'));
+        _localStateUnique(geofencesValue.map(item => item.id), 'state.geofences.id');
+        _localStateRequireKeys(value.alerts, ['enabled', 'soundEnabled', 'militaryAlertRadius'], 'state.alerts');
+        if (![0, 25, 50, 100, 200].includes(value.alerts.militaryAlertRadius)) throw new Error('state.alerts.militaryAlertRadius is unsupported');
+        const alertsValue = { enabled: _localStateBoolean(value.alerts.enabled, 'state.alerts.enabled'), soundEnabled: _localStateBoolean(value.alerts.soundEnabled, 'state.alerts.soundEnabled'), militaryAlertRadius: value.alerts.militaryAlertRadius };
+        _localStateRequireKeys(value.trail, ['colorBy', 'showDirection', 'trailWidth', 'opacity', 'retentionDays', 'headingEnabled', 'headingLookaheadSec', 'coincidenceEnabled'], 'state.trail');
+        if (!['altitude', 'speed', 'time', 'solid'].includes(value.trail.colorBy)) throw new Error('state.trail.colorBy is unsupported');
+        if (![1, 7, 14, 30].includes(value.trail.retentionDays)) throw new Error('state.trail.retentionDays is unsupported');
+        if (![60, 180, 300, 600].includes(value.trail.headingLookaheadSec)) throw new Error('state.trail.headingLookaheadSec is unsupported');
+        const trailValue = { colorBy: value.trail.colorBy, showDirection: _localStateBoolean(value.trail.showDirection, 'state.trail.showDirection'), trailWidth: _localStateNumber(value.trail.trailWidth, 1, 10, 'state.trail.trailWidth'), opacity: _localStateNumber(value.trail.opacity, 0, 1, 'state.trail.opacity'), retentionDays: value.trail.retentionDays, headingEnabled: _localStateBoolean(value.trail.headingEnabled, 'state.trail.headingEnabled'), headingLookaheadSec: value.trail.headingLookaheadSec, coincidenceEnabled: _localStateBoolean(value.trail.coincidenceEnabled, 'state.trail.coincidenceEnabled') };
+        _localStateRequireKeys(value.overlays, ['curatedIds'], 'state.overlays');
+        if (!Array.isArray(value.overlays.curatedIds) || value.overlays.curatedIds.length > 20) throw new Error('state.overlays.curatedIds exceeds the supported limit');
+        const curatedIds = _localStateUnique(value.overlays.curatedIds.map((id, index) => { const normalized = _localStateText(id, 80, 'state.overlays.curatedIds[' + index + ']'); if (!/^[a-z0-9-]{3,80}$/.test(normalized)) throw new Error('state.overlays.curatedIds contains an invalid preset ID'); return normalized; }), 'state.overlays.curatedIds');
+        return { settings: _localStateSettings(value.settings, 'state.settings'), map: mapValue, bookmarks: bookmarksValue, watchlist: watchlistValue, namedWatchlists: namedValue, alerts: alertsValue, geofences: geofencesValue, trail: trailValue, overlays: { curatedIds } };
+    }
+    function _localStateFindForbiddenKey(value, path = 'root') {
+        if (Array.isArray(value)) { for (let index = 0; index < value.length; index++) { const found = _localStateFindForbiddenKey(value[index], path + '[' + index + ']'); if (found) return found; } return ''; }
+        if (!_localStateIsObject(value)) return '';
+        for (const [key, child] of Object.entries(value)) { if (LOCAL_STATE_FORBIDDEN_KEY_RE.test(key)) return path + '.' + key; const found = _localStateFindForbiddenKey(child, path + '.' + key); if (found) return found; }
+        return '';
+    }
+    function _localStateEmptyState() {
+        return { settings: { mapStyle: 'esri-gray', showLabels: false, altitudeColors: true, showWiki: true, filter: 'mil-vip', followMode: false, compactMode: false }, map: { lat: 0, lng: 0, zoom: 3 }, bookmarks: [], watchlist: [], namedWatchlists: [], alerts: { enabled: true, soundEnabled: true, militaryAlertRadius: 50 }, geofences: [], trail: { colorBy: 'altitude', showDirection: true, trailWidth: 3, opacity: 0.8, retentionDays: 7, headingEnabled: false, headingLookaheadSec: 300, coincidenceEnabled: false }, overlays: { curatedIds: [] } };
+    }
+    const localStateManager = {
+        _setStatus(message) { const status = document.getElementById('localStateStatus'); if (status) status.textContent = String(message || ''); },
+        _fail(error) { const message = String(error?.message || 'Local-state file rejected').slice(0, 180); this._setStatus('Import rejected: ' + message); if (typeof toast === 'function') toast('Local-state import rejected: ' + message); return false; },
+        _safeMap() { try { if (map) { const center = map.getCenter(); return { lat: center.lat, lng: center.lng, zoom: map.getZoom() }; } return _localStateParseStorage('viptrack_map', null) || _localStateEmptyState().map; } catch (e) { return _localStateEmptyState().map; } },
+        _safeCuratedIds() { if (typeof curatedOverlayManager !== 'undefined' && curatedOverlayManager.layers) return Array.from(curatedOverlayManager.layers.keys()); const saved = _localStateParseStorage('viptrack_curated_overlays_v1', []); return Array.isArray(saved) ? saved : []; },
+        buildState() {
+            const empty = _localStateEmptyState(), trailOptions = typeof trailRenderer !== 'undefined' ? trailRenderer.options : empty.trail;
+            const watchlistValue = typeof alertSystem !== 'undefined' ? Array.from(alertSystem.watchlist.values()).map(item => ({ hex: String(item.hex || '').toUpperCase(), name: String(item.name || item.hex || ''), notes: String(item.notes || ''), addedAt: Number(item.addedAt) || Date.now() })) : [];
+            const namedValue = typeof alertSystem !== 'undefined' ? Array.from(alertSystem.namedWatchlists.values()).map(item => ({ id: String(item.id || ''), name: String(item.name || ''), enabled: item.enabled !== false, rules: item.rules, createdAt: Number(item.createdAt) || Date.now() })) : [];
+            const geofencesValue = typeof geofenceManager !== 'undefined' ? Array.from(geofenceManager.geofences.values()).map(item => item.kind === 'circle' ? ({ id: String(item.id || ''), name: String(item.name || ''), enabled: item.enabled !== false, createdAt: Number(item.createdAt) || Date.now(), kind: 'circle', center: { lat: item.center.lat, lng: item.center.lng }, radiusKm: item.radiusKm }) : ({ id: String(item.id || ''), name: String(item.name || ''), enabled: item.enabled !== false, createdAt: Number(item.createdAt) || Date.now(), kind: 'polygon', points: item.points.map(point => ({ lat: point.lat, lng: point.lng })) })) : [];
+            const retention = parseInt(localStorage.getItem('viptrack_trail_retention_days') || '7', 10);
+            return _localStateCanonicalState({
+                settings: { mapStyle: settings.mapStyle, showLabels: Boolean(settings.showLabels), altitudeColors: Boolean(settings.altitudeColors), showWiki: Boolean(settings.showWiki), filter: settings.filter, followMode: Boolean(settings.followMode), compactMode: Boolean(settings.compactMode) },
+                map: this._safeMap(),
+                bookmarks: (Array.isArray(bookmarks) ? bookmarks : []).map(item => ({ id: Number(item.id) || Date.now(), name: String(item.name || ''), lat: Number(item.lat), lng: Number(item.lng), zoom: Number(item.zoom) })),
+                watchlist: watchlistValue, namedWatchlists: namedValue,
+                alerts: typeof alertSystem !== 'undefined' ? { enabled: Boolean(alertSystem.enabled), soundEnabled: Boolean(alertSystem.soundEnabled), militaryAlertRadius: Number(alertSystem.militaryAlertRadius) } : empty.alerts,
+                geofences: geofencesValue,
+                trail: { colorBy: trailOptions.colorBy, showDirection: Boolean(trailOptions.showDirection), trailWidth: Number(trailOptions.trailWidth), opacity: Number(trailOptions.opacity), retentionDays: [1, 7, 14, 30].includes(retention) ? retention : 7, headingEnabled: typeof headingProjection !== 'undefined' ? Boolean(headingProjection.enabled) : false, headingLookaheadSec: typeof headingProjection !== 'undefined' ? Number(headingProjection.lookaheadSec) : 300, coincidenceEnabled: typeof coincidenceDetector !== 'undefined' ? Boolean(coincidenceDetector.enabled) : false },
+                overlays: { curatedIds: this._safeCuratedIds() }
+            });
+        },
+        _payload(state) {
+            const payload = { format: LOCAL_STATE_FORMAT, schemaVersion: LOCAL_STATE_SCHEMA, exportedAt: new Date().toISOString(), appVersion: document.title.match(/v([0-9]+\.[0-9]+\.[0-9]+)/)?.[1] || 'unknown', state, excluded: ['credentials and tokens', 'API keys', 'webhook and receiver endpoints', 'aircraft cache and trail observations', 'raw PIA and enrichment fields', 'remote GeoJSON payloads'] };
+            const text = JSON.stringify(payload, null, 2);
+            if (new TextEncoder().encode(text).byteLength > LOCAL_STATE_MAX_BYTES) throw new Error('Local-state export exceeds the 1 MiB limit');
+            return { payload, text };
+        },
+        exportFile() {
+            try { const { text } = this._payload(this.buildState()), blob = new Blob([text], { type: 'application/json' }), url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = 'viptrack-local-state-v' + LOCAL_STATE_SCHEMA + '.json'; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); this._setStatus('Exported privacy-safe local state · aircraft observations excluded'); if (typeof toast === 'function') toast('Local state exported'); return true; } catch (e) { return this._fail(e); }
+        },
+        migrate(payload) {
+            if (!Number.isInteger(payload.schemaVersion)) throw new Error('State file is missing an integer schema version');
+            if (payload.schemaVersion > LOCAL_STATE_SCHEMA) throw new Error('State file version ' + payload.schemaVersion + ' is newer than this app');
+            if (payload.schemaVersion === LOCAL_STATE_SCHEMA) return payload;
+            const source = _localStateIsObject(payload.state) ? payload.state : payload, empty = _localStateEmptyState();
+            const merged = { settings: { ...empty.settings, ...(_localStateIsObject(source.settings) ? source.settings : {}) }, map: { ...empty.map, ...(_localStateIsObject(source.map) ? source.map : {}) }, bookmarks: Array.isArray(source.bookmarks) ? source.bookmarks : [], watchlist: Array.isArray(source.watchlist) ? source.watchlist : [], namedWatchlists: Array.isArray(source.namedWatchlists) ? source.namedWatchlists : [], alerts: { ...empty.alerts, ...(_localStateIsObject(source.alerts) ? source.alerts : {}) }, geofences: Array.isArray(source.geofences) ? source.geofences : [], trail: { ...empty.trail, ...(_localStateIsObject(source.trail) ? source.trail : {}) }, overlays: { ...empty.overlays, ...(_localStateIsObject(source.overlays) ? source.overlays : {}) } };
+            return { format: LOCAL_STATE_FORMAT, schemaVersion: LOCAL_STATE_SCHEMA, exportedAt: payload.exportedAt || new Date().toISOString(), appVersion: payload.appVersion || 'legacy', state: merged, excluded: Array.isArray(payload.excluded) ? payload.excluded : [] };
+        },
+        validatePayload(payload) {
+            if (!_localStateIsObject(payload)) throw new Error('State file must contain a JSON object');
+            const version = payload.schemaVersion;
+            if (!Number.isInteger(version)) throw new Error('State file is missing an integer schema version');
+            if (version > LOCAL_STATE_SCHEMA) throw new Error('State file version ' + version + ' is newer than this app');
+            const forbidden = _localStateFindForbiddenKey(payload); if (forbidden) throw new Error('Privacy-sensitive field is not importable: ' + forbidden);
+            const migrated = this.migrate(payload);
+            _localStateRequireKeys(migrated, ['format', 'schemaVersion', 'exportedAt', 'appVersion', 'state', 'excluded'], 'state file');
+            if (migrated.format !== LOCAL_STATE_FORMAT) throw new Error('This is not a VIPTrack local-state file');
+            if (migrated.schemaVersion !== LOCAL_STATE_SCHEMA) throw new Error('Unsupported local-state schema version');
+            if (typeof migrated.exportedAt !== 'string' || !Number.isFinite(Date.parse(migrated.exportedAt))) throw new Error('State file has an invalid export timestamp');
+            _localStateText(migrated.appVersion, 32, 'state file.appVersion');
+            if (!Array.isArray(migrated.excluded) || migrated.excluded.some(item => typeof item !== 'string')) throw new Error('State file excluded list is malformed');
+            return { ...migrated, state: _localStateCanonicalState(migrated.state) };
+        },
+        async _persist(state) {
+            try { localStorage.setItem('viptrack_settings_v3', JSON.stringify(state.settings)); localStorage.setItem('viptrack_map', JSON.stringify(state.map)); localStorage.setItem('viptrack_bookmarks', JSON.stringify(state.bookmarks)); localStorage.setItem('viptrack_alert_settings', JSON.stringify(state.alerts)); localStorage.setItem('viptrack_trail_options', JSON.stringify({ colorBy: state.trail.colorBy, showDirection: state.trail.showDirection, trailWidth: state.trail.trailWidth, opacity: state.trail.opacity })); localStorage.setItem('viptrack_trail_retention_days', String(state.trail.retentionDays)); localStorage.setItem('viptrack_heading_proj', state.trail.headingEnabled ? '1' : '0'); localStorage.setItem('viptrack_heading_lookahead', String(state.trail.headingLookaheadSec)); localStorage.setItem('viptrack_coincidence', state.trail.coincidenceEnabled ? '1' : '0'); localStorage.setItem('viptrack_curated_overlays_v1', JSON.stringify(state.overlays.curatedIds)); } catch (e) { throw new Error('Browser storage rejected the imported state; free space and retry'); }
+            localStorage.setItem('viptrack_watchlist', JSON.stringify(state.watchlist));
+            localStorage.setItem('viptrack_named_watchlists', JSON.stringify(state.namedWatchlists));
+            localStorage.setItem('viptrack_geofences', JSON.stringify(state.geofences));
+            try { await skytrackDB.saveUserData('watchlist', state.watchlist); } catch (e) {}
+            try { await skytrackDB.saveUserData('named_watchlists', state.namedWatchlists); } catch (e) {}
+            try { await skytrackDB.saveUserData('geofences', state.geofences); } catch (e) {}
+        },
+        async importText(text) {
+            try { if (typeof text !== 'string' || new TextEncoder().encode(text).byteLength > LOCAL_STATE_MAX_BYTES) throw new Error('State file exceeds the 1 MiB limit'); let payload; try { payload = JSON.parse(text); } catch (e) { throw new Error('State file is not valid JSON'); } const validated = this.validatePayload(payload); await this._persist(validated.state); this._setStatus('Import accepted · reloading with restored local state'); if (typeof location !== 'undefined' && typeof location.reload === 'function') setTimeout(() => location.reload(), 250); return true; } catch (e) { return this._fail(e); }
+        },
+        async importFile(file) {
+            try { if (!file || typeof file.size !== 'number') throw new Error('Choose a JSON state file'); if (file.size > LOCAL_STATE_MAX_BYTES) throw new Error('State file exceeds the 1 MiB limit'); const text = typeof file.text === 'function' ? await file.text() : await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || '')); reader.onerror = () => reject(new Error('Could not read state file')); reader.readAsText(file); }); return this.importText(text); } catch (e) { return this._fail(e); }
+        }
+    };
+
     async function getWikipediaSummary(url) { if (!settings.showWiki || !url) return null; try { const m = url.match(/wikipedia\.org\/wiki\/(.+)$/); if (!m) return null; const r = await fetchWithTimeout('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(decodeURIComponent(m[1])), {}, 5000); if (!r?.ok) return null; const d = await r.json(); return { title: d.title, extract: d.extract, thumbnail: d.thumbnail?.source, url }; } catch(e) { return null; } }
     function setLoadingProgress(pct, status) { document.getElementById('loadingProgress').style.width = pct + '%'; document.getElementById('loadingStatus').textContent = status; }
     async function getInitialLocation() { if (loadMapPosition()) { setLoadingProgress(5, 'Restoring view...'); return; } if (!navigator.geolocation) { setLoadingProgress(5, 'Using default...'); return; } setLoadingProgress(3, 'Getting location...'); return new Promise(resolve => { navigator.geolocation.getCurrentPosition(pos => { CONFIG.center = [pos.coords.latitude, pos.coords.longitude]; CONFIG.zoom = CONFIG.localZoom; setLoadingProgress(5, 'Found!'); resolve(); }, () => { setLoadingProgress(5, 'Using default...'); resolve(); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }); }); }
@@ -9682,6 +9890,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     toast('Trails older than ' + days + 'd cleaned');
                 }
             } catch(e) { toast('Cleanup failed'); }
+        });
+
+        // Versioned local configuration backup. The file input is only opened
+        // after an explicit user click; raw aircraft/cache and credentials are
+        // rejected by localStateManager before any storage write occurs.
+        document.getElementById('localStateExportBtn')?.addEventListener('click', () => localStateManager.exportFile());
+        const _localStateImportInput = document.getElementById('localStateImportInput');
+        document.getElementById('localStateImportBtn')?.addEventListener('click', () => _localStateImportInput?.click());
+        _localStateImportInput?.addEventListener('change', async event => {
+            const file = event.target.files?.[0];
+            if (file) await localStateManager.importFile(file);
+            event.target.value = '';
         });
 
         // X11: TFR toggle
