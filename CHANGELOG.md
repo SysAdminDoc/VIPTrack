@@ -11,6 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a centralized PIA-safe aircraft projection across caches, offline snapshots, alerts, reports, shares, webhooks, and track/viewport exports; legacy aircraft-cache records are expired by schema.
 - Constrained remote overlays and webhook egress to explicit public HTTPS actions with private-target rejection, bounded/schema-validated GeoJSON, redacted previews, visible status, and opt-in automatic webhook sends.
 - Upgraded DOMPurify to 3.4.13 from its reviewed upstream release and added a fail-closed CDN inventory/advisory/SRI gate covering direct and lazy-loaded executable/style dependencies.
+- Added a self-host response-header policy with CSP Report-Only/enforcing pairs, HSTS, framing, permissions, MIME, and referrer controls; the main page now has a Trusted Types sanitizer policy while the isolated Cesium frame keeps its compatible eval allowance.
 
 ### Changed
 - Replaced generated Blob service-worker code and unregister-all startup behavior with the checked-in same-origin `sw.js`; file URLs and unsupported contexts continue with the live map.

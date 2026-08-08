@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from check_cdn_dependencies import run_gate
+from check_security_headers import run_gate as run_security_header_gate
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -198,6 +199,25 @@ class VipTrackContracts(unittest.TestCase):
 
     def test_csp_covers_tfr_mirror(self) -> None:
         self.assertIn("https://tfr2go.com", self.source)
+
+    def test_deployment_headers_and_trusted_types_cover_modes_and_sinks(self) -> None:
+        summary = run_security_header_gate()
+        self.assertEqual(summary["headerBlocks"], 3)
+        headers = (ROOT / "_headers").read_text(encoding="utf-8")
+        for marker in (
+            "Content-Security-Policy-Report-Only",
+            "Content-Security-Policy:",
+            "Strict-Transport-Security",
+            "Permissions-Policy",
+            "X-Frame-Options: SAMEORIGIN",
+            "trusted-types viptrack",
+            "require-trusted-types-for 'script'",
+            "trustedTypes.createPolicy('viptrack'",
+            "const SAFE_HTML_OPTIONS",
+            "document.body.insertAdjacentHTML('beforeend', safeHTML(html))",
+        ):
+            self.assertIn(marker, self.source + headers)
+        self.assertNotIn("'unsafe-eval'", headers.split("/index.html", 1)[1].split("/cesium-frame.html", 1)[0])
 
     def test_airframes_acars_link_is_callsign_based_and_pia_safe(self) -> None:
         for marker in (

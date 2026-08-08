@@ -16,6 +16,9 @@
         manifest-src 'self' blob:;
         frame-ancestors 'self';
         base-uri 'self';
+        form-action 'self';
+        trusted-types viptrack;
+        require-trusted-types-for 'script';
     ">
     <title>VIPTrack v0.1.0 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
@@ -2431,16 +2434,33 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[char]));
     }
+    const SAFE_HTML_OPTIONS = {
+        FORBID_TAGS: ['script', 'style', 'template', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: ['srcdoc']
+    };
+    let trustedHTMLPolicy;
+    function getTrustedHTMLPolicy() {
+        if (trustedHTMLPolicy !== undefined) return trustedHTMLPolicy;
+        trustedHTMLPolicy = null;
+        if (!window.trustedTypes || typeof window.trustedTypes.createPolicy !== 'function') return trustedHTMLPolicy;
+        try {
+            trustedHTMLPolicy = window.trustedTypes.createPolicy('viptrack', {
+                createHTML: input => window.DOMPurify && typeof window.DOMPurify.sanitize === 'function'
+                    ? window.DOMPurify.sanitize(String(input ?? ''), SAFE_HTML_OPTIONS)
+                    : escapeHTML(input)
+            });
+        } catch (error) { console.warn('Trusted Types policy unavailable; using compatible sanitizer fallback', error); }
+        return trustedHTMLPolicy;
+    }
     function safeHTML(value) {
         const markup = String(value ?? '');
         if (!window.DOMPurify || typeof window.DOMPurify.sanitize !== 'function') {
             console.error('DOMPurify is unavailable; rendering escaped content');
-            return escapeHTML(markup);
+            const policy = getTrustedHTMLPolicy();
+            return policy ? policy.createHTML(markup) : escapeHTML(markup);
         }
-        return window.DOMPurify.sanitize(markup, {
-            FORBID_TAGS: ['script', 'style', 'template', 'iframe', 'object', 'embed'],
-            FORBID_ATTR: ['srcdoc']
-        });
+        const policy = getTrustedHTMLPolicy();
+        return policy ? policy.createHTML(markup) : window.DOMPurify.sanitize(markup, SAFE_HTML_OPTIONS);
     }
 
     const DATA_URLS = {
@@ -13687,7 +13707,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('show')">Close</button>
           </div>
         </div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
+        document.body.insertAdjacentHTML('beforeend', safeHTML(html));
     })();
     
 

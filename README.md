@@ -154,6 +154,10 @@ Access via the gear icon. All settings persist in localStorage.
 
 Remote GeoJSON overlays require an explicit Load action, public HTTPS, a bounded response, and valid GeoJSON geometry; URL parameters only prefill the field for review. Webhooks also require a public HTTPS URL, show a redacted payload preview, and stay disabled for automatic alerts until explicitly enabled.
 
+### Deployment security headers
+
+GitHub Pages cannot attach response headers, so `index.html` retains a compatible meta CSP fallback. Cloudflare Pages and Netlify-style hosts can use the root `_headers` policy, which supplies HSTS, framing, permissions, MIME, referrer, enforcing CSP, and matching CSP Report-Only headers for the main page and isolated Cesium frame. Validate Report-Only violations in the deployed host before changing the policy; `python tools/check_security_headers.py` checks the committed policy and all dynamic HTML sinks. Do not apply HSTS to an HTTP-only local deployment.
+
 ## Architecture
 
 ```

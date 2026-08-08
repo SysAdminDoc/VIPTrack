@@ -142,7 +142,7 @@ def _validate_references(payload: dict) -> list[str]:
 def _validate_sanitizer_contract() -> list[str]:
     source = INDEX.read_text(encoding="utf-8")
     try:
-        start = source.index("function safeHTML")
+        start = source.index("const SAFE_HTML_OPTIONS")
         end = source.index("const DATA_URLS", start)
     except ValueError:
         return ["safeHTML sanitizer boundary is missing"]
