@@ -2146,6 +2146,58 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="receiver-coverage-status" id="openSkyStatus" role="status" aria-live="polite" data-i18n="settings.noHistoricalTrack">No historical track loaded</div>
         </div>
         <div class="settings-section">
+            <div class="settings-section-title" data-i18n="settings.historicalWorkspace">Historical Query Workspace</div>
+            <div class="receiver-coverage-help" data-i18n="settings.historicalWorkspaceHelp">Source-independent local analysis. Import only archives you are permitted to use and declare their license/terms. Aircraft observations stay local, PIA identities are redacted, and no bulk archive is fetched automatically.</div>
+            <select id="historicalSourceSelect" class="setting-select" aria-label="Historical source">
+                <option value="local-file">Local history file</option>
+                <option value="opensky-trace">OpenSky loaded trace</option>
+            </select>
+            <input type="file" id="historicalFileInput" accept=".json,.csv,application/json,text/csv" style="display:none;">
+            <input type="text" id="historicalSourceName" class="settings-input" placeholder="Source name" maxlength="120" autocomplete="off">
+            <input type="text" id="historicalSourceLicense" class="settings-input" placeholder="License / permission" maxlength="160" autocomplete="off">
+            <input type="text" id="historicalSourceTerms" class="settings-input" placeholder="Terms / retention note" maxlength="320" autocomplete="off">
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="historicalImportFileBtn" type="button" data-i18n="settings.importHistoricalFile">Import history file</button>
+                <button class="btn-secondary" id="historicalUseOpenSkyBtn" type="button" data-i18n="settings.useOpenSkyTrace">Use loaded OpenSky trace</button>
+            </div>
+            <div class="receiver-coverage-status" id="historicalSourceStatus" role="status" aria-live="polite">No historical source loaded</div>
+            <div class="receiver-coverage-grid">
+                <input type="datetime-local" id="historicalStart" class="settings-input" aria-label="Historical start">
+                <input type="datetime-local" id="historicalEnd" class="settings-input" aria-label="Historical end">
+                <input type="number" id="historicalMinLat" class="settings-input" placeholder="Min latitude" min="-90" max="90" step="0.01">
+                <input type="number" id="historicalMinLon" class="settings-input" placeholder="Min longitude" min="-180" max="180" step="0.01">
+                <input type="number" id="historicalMaxLat" class="settings-input" placeholder="Max latitude" min="-90" max="90" step="0.01">
+                <input type="number" id="historicalMaxLon" class="settings-input" placeholder="Max longitude" min="-180" max="180" step="0.01">
+                <input type="text" id="historicalHex" class="settings-input" placeholder="ICAO hex (optional)" maxlength="6" autocomplete="off">
+                <input type="text" id="historicalType" class="settings-input" placeholder="Type contains" maxlength="32" autocomplete="off">
+                <input type="number" id="historicalMinAlt" class="settings-input" placeholder="Min altitude ft" min="-2000" max="100000" step="100">
+                <input type="number" id="historicalMaxAlt" class="settings-input" placeholder="Max altitude ft" min="-2000" max="100000" step="100">
+                <input type="number" id="historicalMinSpeed" class="settings-input" placeholder="Min speed kt" min="0" max="2000" step="1">
+                <input type="number" id="historicalMaxSpeed" class="settings-input" placeholder="Max speed kt" min="0" max="2000" step="1">
+                <input type="number" id="historicalMinBearing" class="settings-input" placeholder="Min bearing°" min="0" max="360" step="1">
+                <input type="number" id="historicalMaxBearing" class="settings-input" placeholder="Max bearing°" min="0" max="360" step="1">
+            </div>
+            <div class="receiver-coverage-actions">
+                <select id="historicalSort" class="setting-select" aria-label="Historical sort"><option value="asc">Oldest first</option><option value="desc">Newest first</option></select>
+                <select id="historicalPageSize" class="setting-select" aria-label="Historical page size"><option value="25">25 rows</option><option value="50" selected>50 rows</option><option value="100">100 rows</option></select>
+            </div>
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="historicalRunBtn" type="button" data-i18n="settings.runHistoricalQuery">Run query</button>
+                <button class="btn-secondary" id="historicalClearBtn" type="button" data-i18n="settings.clearHistoricalData">Clear local history</button>
+            </div>
+            <div class="receiver-coverage-status" id="historicalResultSummary" role="status" aria-live="polite" data-i18n="settings.historicalNoData">No historical results</div>
+            <canvas id="historicalAltitudeChart" width="280" height="90" aria-label="Historical altitude chart"></canvas>
+            <div id="historicalGapSummary" class="receiver-coverage-help"></div>
+            <div id="historicalResults" style="max-height: 220px; overflow: auto; font-size: 10px;"></div>
+            <div class="receiver-coverage-actions">
+                <button class="btn-secondary" id="historicalPrevBtn" type="button">Previous</button>
+                <button class="btn-secondary" id="historicalNextBtn" type="button">Next</button>
+                <button class="btn-secondary" id="historicalExportCsvBtn" type="button" data-i18n="settings.exportHistoricalCsv">Export CSV</button>
+                <button class="btn-secondary" id="historicalExportJsonBtn" type="button" data-i18n="settings.exportHistoricalJson">Export JSON</button>
+            </div>
+            <div id="historicalQueryHistory" class="receiver-coverage-help">No saved local queries</div>
+        </div>
+        <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.mapTools">Map &amp; Tools</div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLine">Direction-of-flight line (X8)</span><div class="toggle" id="toggleHeadingProj"></div></div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.nexrad">NEXRAD radar (US)</span><div class="toggle" id="toggleNexrad"></div></div>
@@ -8255,6 +8307,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         await pluginManifestManager.init();
         receiverCoverageManager.init();
         openSkyHistoricalManager.init();
+        await historicalWorkspace.init();
         faaSuaOverlay.init();
         openAipAirspaceOverlay.init();
         await geofenceManager.init();
@@ -9941,6 +9994,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         document.getElementById('receiverCoverageClearBtn')?.addEventListener('click', () => receiverCoverageManager.clear());
         document.getElementById('openSkyLoadBtn')?.addEventListener('click', () => openSkyHistoricalManager.load());
         document.getElementById('openSkyClearBtn')?.addEventListener('click', () => openSkyHistoricalManager.clear());
+
+        // Source-independent historical query workspace
+        const _historicalFileInput = document.getElementById('historicalFileInput');
+        document.getElementById('historicalImportFileBtn')?.addEventListener('click', () => _historicalFileInput?.click());
+        _historicalFileInput?.addEventListener('change', async event => { const file = event.target.files?.[0]; if (file) await historicalWorkspace.importFile(file); event.target.value = ''; });
+        document.getElementById('historicalUseOpenSkyBtn')?.addEventListener('click', () => historicalWorkspace.useOpenSkyTrace());
+        document.getElementById('historicalRunBtn')?.addEventListener('click', () => historicalWorkspace.runQuery());
+        document.getElementById('historicalClearBtn')?.addEventListener('click', () => historicalWorkspace.clearData());
+        document.getElementById('historicalPrevBtn')?.addEventListener('click', () => historicalWorkspace.previousPage());
+        document.getElementById('historicalNextBtn')?.addEventListener('click', () => historicalWorkspace.nextPage());
+        document.getElementById('historicalExportCsvBtn')?.addEventListener('click', () => historicalWorkspace.exportCsv());
+        document.getElementById('historicalExportJsonBtn')?.addEventListener('click', () => historicalWorkspace.exportJson());
 
         // X23: manual FAA special-use airspace overlay
         const _faaSuaToggle = document.getElementById('toggleFAASUA');
@@ -12972,6 +13037,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         token: '',
         tokenExpiresAt: 0,
         layer: null,
+        lastRecords: [],
 
         init() {
             const dateInput = document.getElementById('openSkyDate');
@@ -13004,6 +13070,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         clear(announce = true) {
             this._clearLayer();
             this.clearAuthState();
+            this.lastRecords = [];
             this._setStatus('No historical track loaded');
             if (announce) toast('OpenSky historical track cleared');
         },
@@ -13057,16 +13124,27 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 }
                 if (!response?.ok) throw new Error('OpenSky track request failed');
                 const data = await response.json();
-                const points = (Array.isArray(data?.path) ? data.path : []).map(point => {
+                const records = (Array.isArray(data?.path) ? data.path : []).map(point => {
+                    const timestamp = Number(point?.[0]);
                     const lat = Number(point?.[1]);
                     const lon = Number(point?.[2]);
-                    return Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lon) && lon >= -180 && lon <= 180 ? [lat, lon] : null;
+                    return Number.isFinite(timestamp) && Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lon) && lon >= -180 && lon <= 180 ? {
+                        timestamp: timestamp * 1000,
+                        hex,
+                        lat,
+                        lon,
+                        altitude: Number.isFinite(Number(point?.[3])) ? Number(point[3]) : null,
+                        bearing: Number.isFinite(Number(point?.[4])) ? Number(point[4]) : null,
+                        speed: null
+                    } : null;
                 }).filter(Boolean);
+                const points = records.map(record => [record.lat, record.lon]);
                 if (points.length < 2) {
                     this._setStatus('OpenSky returned no usable path for ' + hex);
                     toast('OpenSky track has no usable path');
                     return;
                 }
+                this.lastRecords = records;
                 this._clearLayer();
                 this.layer = L.polyline(points, { color: '#c084fc', weight: 3, opacity: 0.9, dashArray: '7 4' }).addTo(map);
                 this.layer.bindTooltip(safeHTML('OpenSky historical track · ' + hex + ' · ' + points.length + ' points'), { sticky: true });
@@ -13080,6 +13158,301 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             } finally {
                 this.clearAuthState();
             }
+        }
+    };
+
+    // ============ SOURCE-INDEPENDENT HISTORICAL QUERY WORKSPACE ============
+    const HISTORICAL_WORKSPACE_SCHEMA = 1;
+    const HISTORICAL_WORKSPACE_MAX_BYTES = 8 * 1024 * 1024;
+    const HISTORICAL_WORKSPACE_MAX_RECORDS = 20000;
+    const HISTORICAL_QUERY_HISTORY_KEY = 'viptrack_historical_queries_v1';
+    const HISTORICAL_QUERY_HISTORY_MAX = 20;
+    const HISTORICAL_RECORD_FORBIDDEN_KEY_RE = /registration|operator|owner|secret|token|api[_-]?key|password|credential|history|raw|url|faa|piaInfo/i;
+
+    const historicalWorkspace = {
+        schemaVersion: HISTORICAL_WORKSPACE_SCHEMA,
+        records: [],
+        source: null,
+        matches: [],
+        lastQuery: null,
+        page: 0,
+        layer: null,
+        adapters: {
+            'local-file': { id: 'user-declared', name: 'User-provided local archive', rateLimit: 'No network requests; user-provided file' },
+            'opensky-trace': { id: 'opensky-track', name: 'OpenSky historical track API', license: 'OpenSky API terms', terms: 'Manual user-supplied track for local analysis; no bulk mirroring', attribution: 'OpenSky Network', rateLimit: 'Manual single-track adapter; no bulk polling' }
+        },
+
+        _text(value, max, label, required = true) {
+            const text = String(value ?? '').trim();
+            if (required && !text) throw new Error(label + ' is required');
+            if (text.length > max) throw new Error(label + ' exceeds ' + max + ' characters');
+            return text;
+        },
+
+        _number(value, min, max, label, required = false) {
+            if (value === null || value === undefined || value === '') { if (required) throw new Error(label + ' is required'); return null; }
+            const number = Number(value);
+            if (!Number.isFinite(number) || number < min || number > max) throw new Error(label + ' is outside the supported range');
+            return number;
+        },
+
+        _source(source) {
+            if (!source || typeof source !== 'object' || Array.isArray(source)) throw new Error('Historical source metadata is missing');
+            const allowed = ['id', 'name', 'license', 'terms', 'attribution', 'rateLimit'];
+            if (Object.keys(source).some(key => !allowed.includes(key))) throw new Error('Historical source metadata contains unsupported fields');
+            const id = this._text(source.id, 64, 'Source ID');
+            if (!/^[a-z0-9-]+$/.test(id)) throw new Error('Source ID is invalid');
+            const name = this._text(source.name, 120, 'Source name');
+            const license = this._text(source.license, 160, 'Source license / permission');
+            const terms = this._text(source.terms, 320, 'Source terms / retention note');
+            return { id, name, license, terms, attribution: this._text(source.attribution || name, 160, 'Source attribution'), rateLimit: this._text(source.rateLimit || 'Not stated', 160, 'Source rate limit') };
+        },
+
+        _sourceFromInputs() {
+            return this._source({ id: 'user-declared', name: document.getElementById('historicalSourceName')?.value, license: document.getElementById('historicalSourceLicense')?.value, terms: document.getElementById('historicalSourceTerms')?.value, attribution: document.getElementById('historicalSourceName')?.value, rateLimit: 'No network requests; user-provided file' });
+        },
+
+        _csvRow(line) {
+            const cells = []; let cell = ''; let quoted = false;
+            for (let index = 0; index < line.length; index++) {
+                const char = line[index];
+                if (char === '"' && quoted && line[index + 1] === '"') { cell += '"'; index++; continue; }
+                if (char === '"') { quoted = !quoted; continue; }
+                if (char === ',' && !quoted) { cells.push(cell.trim()); cell = ''; continue; }
+                cell += char;
+            }
+            if (quoted) throw new Error('CSV contains an unterminated quoted field');
+            cells.push(cell.trim());
+            return cells;
+        },
+
+        _csvRecords(text) {
+            const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+            if (lines.length < 2) throw new Error('CSV must contain a header and at least one record');
+            const headers = this._csvRow(lines[0]).map(value => value.toLowerCase());
+            if (!headers.length || new Set(headers).size !== headers.length) throw new Error('CSV headers are missing or duplicated');
+            return lines.slice(1).map((line, index) => { const cells = this._csvRow(line); if (cells.length !== headers.length) throw new Error('CSV row ' + (index + 2) + ' does not match the header'); return Object.fromEntries(headers.map((header, cellIndex) => [header, cells[cellIndex]])); });
+        },
+
+        _timestamp(value, label) {
+            if (value === null || value === undefined || value === '') throw new Error(label + ' is required');
+            let timestamp = Number(value);
+            if (Number.isFinite(timestamp)) timestamp = timestamp < 100000000000 ? timestamp * 1000 : timestamp;
+            else timestamp = Date.parse(String(value));
+            if (!Number.isFinite(timestamp) || timestamp < 0 || timestamp > Date.now() + 3600000) throw new Error(label + ' is invalid or in the future');
+            return Math.round(timestamp);
+        },
+
+        _record(raw, source, index) {
+            if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Historical record ' + index + ' is not an object');
+            const allowed = ['timestamp', 'time', 'hex', 'flight', 'callsign', 'type', 'lat', 'lon', 'altitude', 'alt', 'alt_baro', 'speed', 'gs', 'bearing', 'track', 'sourceId', 'piaRedacted'];
+            const forbidden = Object.keys(raw).find(key => key !== 'piaRedacted' && HISTORICAL_RECORD_FORBIDDEN_KEY_RE.test(key));
+            if (forbidden) throw new Error('Privacy-sensitive historical field is not accepted: ' + forbidden);
+            if (Object.keys(raw).some(key => !allowed.includes(key))) throw new Error('Historical record ' + index + ' contains unsupported fields');
+            const timestamp = this._timestamp(raw.timestamp ?? raw.time, 'Historical record ' + index + ' timestamp');
+            const lat = this._number(raw.lat, -90, 90, 'Historical record ' + index + ' latitude', true);
+            const lon = this._number(raw.lon, -180, 180, 'Historical record ' + index + ' longitude', true);
+            let hex = this._text(raw.hex, 6, 'Historical record ' + index + ' hex', false).toUpperCase();
+            if (hex && !/^[0-9A-F]{6}$/.test(hex)) throw new Error('Historical record ' + index + ' hex is invalid');
+            const piaRedacted = raw.piaRedacted === true || (hex && typeof isPrivacyProtectedHex === 'function' && isPrivacyProtectedHex(hex));
+            const record = {
+                timestamp,
+                hex: piaRedacted ? '' : hex,
+                callsign: piaRedacted ? '' : this._text(raw.callsign ?? raw.flight, 32, 'Historical record ' + index + ' callsign', false),
+                type: piaRedacted ? '' : this._text(raw.type, 32, 'Historical record ' + index + ' type', false),
+                lat,
+                lon,
+                altitude: this._number(raw.altitude ?? raw.alt ?? raw.alt_baro, -2000, 100000, 'Historical record ' + index + ' altitude'),
+                speed: this._number(raw.speed ?? raw.gs, 0, 2000, 'Historical record ' + index + ' speed'),
+                bearing: this._number(raw.bearing ?? raw.track, 0, 360, 'Historical record ' + index + ' bearing'),
+                sourceId: source.id,
+                piaRedacted: Boolean(piaRedacted)
+            };
+            return record;
+        },
+
+        _records(rawRecords, source) {
+            if (!Array.isArray(rawRecords) || !rawRecords.length) throw new Error('Historical source contains no records');
+            if (rawRecords.length > HISTORICAL_WORKSPACE_MAX_RECORDS) throw new Error('Historical source exceeds the 20,000-record limit');
+            const records = rawRecords.map((record, index) => this._record(record, source, index + 1)).sort((a, b) => a.timestamp - b.timestamp);
+            const bytes = new TextEncoder().encode(JSON.stringify(records)).byteLength;
+            if (bytes > HISTORICAL_WORKSPACE_MAX_BYTES) throw new Error('Historical source exceeds the 8 MiB storage limit');
+            return records;
+        },
+
+        async _filePayload(file) {
+            if (!file || typeof file.size !== 'number') throw new Error('Choose a JSON or CSV history file');
+            if (file.size > HISTORICAL_WORKSPACE_MAX_BYTES) throw new Error('History file exceeds the 8 MiB limit');
+            const text = typeof file.text === 'function' ? await file.text() : await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result || '')); reader.onerror = () => reject(new Error('Could not read history file')); reader.readAsText(file); });
+            if (new TextEncoder().encode(text).byteLength > HISTORICAL_WORKSPACE_MAX_BYTES) throw new Error('History file exceeds the 8 MiB limit');
+            const isCsv = String(file.name || '').toLowerCase().endsWith('.csv');
+            if (isCsv) return { source: this._sourceFromInputs(), records: this._csvRecords(text) };
+            let payload;
+            try { payload = JSON.parse(text); } catch (e) { throw new Error('History file is not valid JSON'); }
+            if (Array.isArray(payload)) return { source: this._sourceFromInputs(), records: payload };
+            if (!payload || typeof payload !== 'object') throw new Error('History JSON must contain an object or record array');
+            if (payload.schemaVersion !== HISTORICAL_WORKSPACE_SCHEMA) throw new Error('History JSON schema version 1 is required');
+            if (!Array.isArray(payload.records)) throw new Error('History JSON records array is missing');
+            return { source: this._source(payload.source), records: payload.records };
+        },
+
+        async _cache() {
+            try { await skytrackDB.saveUserData('historical_workspace', { schemaVersion: this.schemaVersion, source: this.source, records: this.records }); } catch (e) { _dbg('Historical workspace cache unavailable', e); }
+        },
+
+        async init() {
+            this._loadQueryHistory();
+            try {
+                const cached = await skytrackDB.loadUserData('historical_workspace');
+                if (cached?.schemaVersion === this.schemaVersion && cached.source && Array.isArray(cached.records)) {
+                    const source = this._source(cached.source);
+                    this.records = this._records(cached.records, source);
+                    this.source = source;
+                    this._setSourceStatus('Restored ' + this.records.length.toLocaleString() + ' records · ' + source.name + ' · ' + source.license);
+                }
+            } catch (e) { _dbg('Historical workspace cache rejected', e); }
+            this._renderQueryHistory();
+        },
+
+        _setSourceStatus(message) { const element = document.getElementById('historicalSourceStatus'); if (element) element.textContent = message; },
+        _setResultStatus(message) { const element = document.getElementById('historicalResultSummary'); if (element) element.textContent = message; },
+
+        async _activate(source, rawRecords) {
+            const records = this._records(rawRecords, source);
+            this.source = source;
+            this.records = records;
+            this.matches = [];
+            this.page = 0;
+            const sourceSelect = document.getElementById('historicalSourceSelect');
+            if (sourceSelect) sourceSelect.value = source.id === 'opensky-track' ? 'opensky-trace' : 'local-file';
+            this._setSourceStatus(records.length.toLocaleString() + ' records · ' + source.name + ' · license: ' + source.license + ' · ' + source.rateLimit);
+            this._setResultStatus('No historical results');
+            this._clearLayer();
+            await this._cache();
+            this._renderQueryHistory();
+            return true;
+        },
+
+        async importFile(file) {
+            try { const payload = await this._filePayload(file); return await this._activate(this._source(payload.source), payload.records); } catch (e) { this._setSourceStatus('History rejected: ' + String(e?.message || 'invalid source').slice(0, 180)); toast('Historical import rejected'); return false; }
+        },
+
+        async useOpenSkyTrace() {
+            try {
+                const records = openSkyHistoricalManager.lastRecords;
+                if (!Array.isArray(records) || !records.length) throw new Error('Load an OpenSky historical trace first');
+                return await this._activate(this._source(this.adapters['opensky-trace']), records);
+            } catch (e) { this._setSourceStatus('OpenSky trace unavailable: ' + String(e?.message || 'load a trace first').slice(0, 180)); toast('No OpenSky trace available'); return false; }
+        },
+
+        _queryNumber(id, min, max) { return this._number(document.getElementById(id)?.value, min, max, id); },
+        _readQuery() {
+            if (!this.source || !this.records.length) throw new Error('Load a permitted historical source first');
+            const startValue = document.getElementById('historicalStart')?.value || '', endValue = document.getElementById('historicalEnd')?.value || '';
+            const start = startValue ? Date.parse(startValue) : null, end = endValue ? Date.parse(endValue) : null;
+            if (startValue && !Number.isFinite(start) || endValue && !Number.isFinite(end)) throw new Error('Historical query dates are invalid');
+            if (start !== null && end !== null && start > end) throw new Error('Historical query start is after its end');
+            const minLat = this._queryNumber('historicalMinLat', -90, 90), minLon = this._queryNumber('historicalMinLon', -180, 180), maxLat = this._queryNumber('historicalMaxLat', -90, 90), maxLon = this._queryNumber('historicalMaxLon', -180, 180);
+            if (minLat !== null && maxLat !== null && minLat > maxLat || minLon !== null && maxLon !== null && minLon > maxLon) throw new Error('Historical query region bounds are reversed');
+            const hex = String(document.getElementById('historicalHex')?.value || '').trim().toUpperCase();
+            if (hex && !/^[0-9A-F]{6}$/.test(hex)) throw new Error('Historical query hex must be six hexadecimal characters');
+            const minBearing = this._queryNumber('historicalMinBearing', 0, 360), maxBearing = this._queryNumber('historicalMaxBearing', 0, 360);
+            if (minBearing !== null && maxBearing !== null && minBearing > maxBearing) throw new Error('Historical bearing bounds are reversed');
+            return {
+                sourceId: this.source.id, start, end, minLat, minLon, maxLat, maxLon, hex,
+                type: String(document.getElementById('historicalType')?.value || '').trim().toLowerCase().slice(0, 32),
+                minAlt: this._queryNumber('historicalMinAlt', -2000, 100000), maxAlt: this._queryNumber('historicalMaxAlt', -2000, 100000),
+                minSpeed: this._queryNumber('historicalMinSpeed', 0, 2000), maxSpeed: this._queryNumber('historicalMaxSpeed', 0, 2000), minBearing, maxBearing,
+                sort: ['asc', 'desc'].includes(document.getElementById('historicalSort')?.value) ? document.getElementById('historicalSort').value : 'asc',
+                pageSize: [25, 50, 100].includes(Number(document.getElementById('historicalPageSize')?.value)) ? Number(document.getElementById('historicalPageSize').value) : 50
+            };
+        },
+
+        _queryMatches(query) {
+            return this.records.filter(record => {
+                if (query.start !== null && record.timestamp < query.start || query.end !== null && record.timestamp > query.end) return false;
+                if (query.minLat !== null && record.lat < query.minLat || query.maxLat !== null && record.lat > query.maxLat || query.minLon !== null && record.lon < query.minLon || query.maxLon !== null && record.lon > query.maxLon) return false;
+                if (query.hex && record.hex !== query.hex || query.type && !record.type.toLowerCase().includes(query.type) || query.minAlt !== null && (record.altitude === null || record.altitude < query.minAlt) || query.maxAlt !== null && (record.altitude === null || record.altitude > query.maxAlt) || query.minSpeed !== null && (record.speed === null || record.speed < query.minSpeed) || query.maxSpeed !== null && (record.speed === null || record.speed > query.maxSpeed) || query.minBearing !== null && (record.bearing === null || record.bearing < query.minBearing) || query.maxBearing !== null && (record.bearing === null || record.bearing > query.maxBearing)) return false;
+                return true;
+            }).sort((a, b) => query.sort === 'desc' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
+        },
+
+        _saveQueryHistory(query) {
+            const safeQuery = { ...query, savedAt: Date.now() };
+            let history = _localStateParseStorage(HISTORICAL_QUERY_HISTORY_KEY, []);
+            if (!Array.isArray(history)) history = [];
+            history = [safeQuery, ...history.filter(item => { const comparable = { ...item }; delete comparable.savedAt; return JSON.stringify(comparable) !== JSON.stringify(query); })].slice(0, HISTORICAL_QUERY_HISTORY_MAX);
+            try { localStorage.setItem(HISTORICAL_QUERY_HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+            this.queryHistory = history;
+        },
+
+        _loadQueryHistory() { const history = _localStateParseStorage(HISTORICAL_QUERY_HISTORY_KEY, []); this.queryHistory = Array.isArray(history) ? history.slice(0, HISTORICAL_QUERY_HISTORY_MAX) : []; },
+        _applyQuery(query) {
+            for (const [id, value] of [['historicalStart', query.start ? new Date(query.start).toISOString().slice(0, 16) : ''], ['historicalEnd', query.end ? new Date(query.end).toISOString().slice(0, 16) : ''], ['historicalMinLat', query.minLat], ['historicalMinLon', query.minLon], ['historicalMaxLat', query.maxLat], ['historicalMaxLon', query.maxLon], ['historicalHex', query.hex], ['historicalType', query.type], ['historicalMinAlt', query.minAlt], ['historicalMaxAlt', query.maxAlt], ['historicalMinSpeed', query.minSpeed], ['historicalMaxSpeed', query.maxSpeed], ['historicalMinBearing', query.minBearing], ['historicalMaxBearing', query.maxBearing]]) { const input = document.getElementById(id); if (input) input.value = value === null || value === undefined ? '' : value; }
+            const sort = document.getElementById('historicalSort'); if (sort) sort.value = query.sort || 'asc'; const pageSize = document.getElementById('historicalPageSize'); if (pageSize) pageSize.value = String(query.pageSize || 50);
+        },
+        _renderQueryHistory() {
+            const element = document.getElementById('historicalQueryHistory'); if (!element) return;
+            if (!this.queryHistory?.length) { element.textContent = 'No saved local queries'; return; }
+            element.innerHTML = safeHTML('<div>Saved local queries</div>' + this.queryHistory.map((query, index) => '<button type="button" class="btn-secondary historical-query-history-btn" data-index="' + index + '" style="margin:3px 3px 0 0;">' + escapeHTML((query.hex || query.type || 'all records') + ' · ' + (query.sourceId || 'source')) + '</button>').join(''));
+            element.querySelectorAll('.historical-query-history-btn').forEach(button => button.addEventListener('click', () => this._applyQuery(this.queryHistory[Number(button.dataset.index)])));
+        },
+
+        async runQuery() {
+            try { const query = this._readQuery(); this.lastQuery = query; this.matches = this._queryMatches(query); this.page = 0; this._saveQueryHistory(query); this._renderResults(); this._renderQueryHistory(); return true; } catch (e) { this._setResultStatus('Query rejected: ' + String(e?.message || 'invalid query').slice(0, 180)); toast('Historical query rejected'); return false; }
+        },
+
+        _clearLayer() { if (this.layer) { try { map.removeLayer(this.layer); } catch (e) {} this.layer = null; } },
+        _renderMap() {
+            this._clearLayer();
+            if (!map || this.matches.length < 2) return;
+            const points = this.matches.slice(0, 5000).map(record => [record.lat, record.lon]);
+            this.layer = L.polyline(points, { color: '#c084fc', weight: 2, opacity: 0.8, dashArray: '5 4' }).addTo(map);
+            const bounds = this.layer.getBounds(); if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 10 });
+        },
+        _renderChart() {
+            const canvas = document.getElementById('historicalAltitudeChart'); if (!canvas) return;
+            const context = canvas.getContext('2d'); if (!context) return;
+            context.clearRect(0, 0, canvas.width, canvas.height); context.strokeStyle = '#475569'; context.strokeRect(0, 0, canvas.width, canvas.height);
+            const points = this.matches.filter(record => record.altitude !== null); if (points.length < 2) return;
+            const min = Math.min(...points.map(record => record.altitude)), max = Math.max(...points.map(record => record.altitude)), span = Math.max(1, max - min);
+            context.strokeStyle = '#38bdf8'; context.lineWidth = 2; context.beginPath();
+            points.slice(0, 5000).forEach((record, index, list) => { const x = index / Math.max(1, list.length - 1) * (canvas.width - 8) + 4; const y = canvas.height - 4 - (record.altitude - min) / span * (canvas.height - 8); if (!index) context.moveTo(x, y); else context.lineTo(x, y); }); context.stroke();
+        },
+        _renderResults() {
+            const pageSize = this.lastQuery?.pageSize || 50, totalPages = Math.max(1, Math.ceil(this.matches.length / pageSize)); this.page = Math.min(this.page, totalPages - 1);
+            const start = this.page * pageSize, pageRecords = this.matches.slice(start, start + pageSize), sourceName = this.source?.name || 'source';
+            this._setResultStatus(this.matches.length.toLocaleString() + ' results · ' + sourceName + ' · page ' + (this.matches.length ? this.page + 1 : 0) + '/' + (this.matches.length ? totalPages : 0));
+            const resultElement = document.getElementById('historicalResults');
+            if (resultElement) {
+                if (!pageRecords.length) resultElement.innerHTML = safeHTML('<div style="padding:8px 0;">No rows match the query.</div>');
+                else resultElement.innerHTML = safeHTML('<table style="width:100%;border-collapse:collapse;"><thead><tr><th>UTC</th><th>Identity</th><th>Type</th><th>Lat/Lon</th><th>Alt</th><th>Speed</th></tr></thead><tbody>' + pageRecords.map(record => '<tr><td>' + escapeHTML(new Date(record.timestamp).toISOString().slice(0, 16).replace('T', ' ')) + '</td><td>' + escapeHTML(record.piaRedacted ? 'PIA-redacted' : (record.callsign || record.hex || 'unknown')) + '</td><td>' + escapeHTML(record.type || '—') + '</td><td>' + record.lat.toFixed(3) + ',' + record.lon.toFixed(3) + '</td><td>' + (record.altitude === null ? '—' : Math.round(record.altitude)) + '</td><td>' + (record.speed === null ? '—' : record.speed.toFixed(1)) + '</td></tr>').join('') + '</tbody></table>');
+            }
+            const sorted = this.matches.slice().sort((a, b) => a.timestamp - b.timestamp), gaps = sorted.reduce((count, record, index) => count + (index && record.timestamp - sorted[index - 1].timestamp > 5 * 60 * 1000 ? 1 : 0), 0);
+            const gapElement = document.getElementById('historicalGapSummary'); if (gapElement) gapElement.textContent = this.matches.length ? gaps + ' missing-signal gap(s) over 5 minutes · source: ' + sourceName + ' · attribution: ' + (this.source?.attribution || sourceName) : '';
+            this._renderChart(); this._renderMap();
+            const previous = document.getElementById('historicalPrevBtn'), next = document.getElementById('historicalNextBtn'); if (previous) previous.disabled = this.page <= 0; if (next) next.disabled = this.page >= totalPages - 1 || !this.matches.length;
+        },
+        previousPage() { if (this.page > 0) { this.page--; this._renderResults(); } },
+        nextPage() { const totalPages = Math.max(1, Math.ceil(this.matches.length / (this.lastQuery?.pageSize || 50))); if (this.page + 1 < totalPages) { this.page++; this._renderResults(); } },
+        _download(filename, body, mime) { const url = URL.createObjectURL(new Blob([body], { type: mime })), link = document.createElement('a'); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); },
+        _exportRecords() { return this.matches.map(record => ({ ...record })); },
+        exportCsv() {
+            if (!this.matches.length) { toast('Run a historical query first'); return; }
+            const quote = value => '"' + String(value ?? '').replace(/"/g, '""') + '"';
+            const rows = ['timestamp_iso,hex,callsign,type,lat,lon,altitude_ft,speed_kt,bearing_deg,source_id,pia_redacted'];
+            this._exportRecords().forEach(record => rows.push([new Date(record.timestamp).toISOString(), record.hex, record.callsign, record.type, record.lat, record.lon, record.altitude ?? '', record.speed ?? '', record.bearing ?? '', record.sourceId, record.piaRedacted].map(quote).join(',')));
+            this._download('viptrack-historical-results.csv', rows.join('\n') + '\n', 'text/csv'); toast('Historical CSV exported');
+        },
+        exportJson() {
+            if (!this.matches.length) { toast('Run a historical query first'); return; }
+            const payload = { format: 'viptrack-historical-results', schemaVersion: this.schemaVersion, exportedAt: new Date().toISOString(), source: this.source, query: this.lastQuery, redaction: 'PIA identities and unsupported enrichment fields were removed before cache/export', records: this._exportRecords() };
+            this._download('viptrack-historical-results.json', JSON.stringify(payload, null, 2), 'application/json'); toast('Historical JSON exported');
+        },
+        async clearData() {
+            this.records = []; this.source = null; this.matches = []; this.lastQuery = null; this.page = 0; this._clearLayer();
+            try { await skytrackDB.saveUserData('historical_workspace', null); } catch (e) {}
+            this._setSourceStatus('Historical source cleared'); this._setResultStatus('No historical results'); const results = document.getElementById('historicalResults'); if (results) results.textContent = ''; const gaps = document.getElementById('historicalGapSummary'); if (gaps) gaps.textContent = ''; this._renderChart();
         }
     };
 

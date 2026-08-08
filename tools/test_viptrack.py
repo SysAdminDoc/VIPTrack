@@ -251,6 +251,42 @@ class VipTrackContracts(unittest.TestCase):
             for key in ("settings.exportLocalState", "settings.importLocalState", "settings.localStateHelp", "settings.localStateReady"):
                 self.assertIn(key, messages, msg=f"{catalog.name}: {key}")
 
+    def test_historical_workspace_is_bounded_source_attributed_and_pia_safe(self) -> None:
+        start = self.source.index("const historicalWorkspace =")
+        end = self.source.index("// ============ X23:", start)
+        workspace = self.source[start:end]
+        for marker in (
+            "const HISTORICAL_WORKSPACE_SCHEMA = 1",
+            "const HISTORICAL_WORKSPACE_MAX_BYTES = 8 * 1024 * 1024",
+            "const HISTORICAL_WORKSPACE_MAX_RECORDS = 20000",
+            "HISTORICAL_RECORD_FORBIDDEN_KEY_RE",
+            "adapters:",
+            "_source(source)",
+            "_records(rawRecords, source)",
+            "Source license / permission",
+            "Source terms / retention note",
+            "isPrivacyProtectedHex(hex)",
+            "piaRedacted",
+            "historical_workspace",
+            "_saveQueryHistory(query)",
+            "_queryMatches(query)",
+            "missing-signal gap(s) over 5 minutes",
+            "exportCsv()",
+            "exportJson()",
+            "historicalImportFileBtn",
+            "historicalUseOpenSkyBtn",
+            "historicalRunBtn",
+            "historicalPrevBtn",
+            "historicalNextBtn",
+        ):
+            self.assertIn(marker, workspace + self.source)
+        self.assertNotIn("clientSecret", workspace)
+        self.assertNotIn("access_token", workspace)
+        for catalog in I18N_DIR.glob("*.json"):
+            messages = json.loads(catalog.read_text(encoding="utf-8"))["messages"]
+            for key in ("settings.historicalWorkspace", "settings.historicalWorkspaceHelp", "settings.importHistoricalFile", "settings.useOpenSkyTrace", "settings.runHistoricalQuery", "settings.clearHistoricalData", "settings.exportHistoricalCsv", "settings.exportHistoricalJson", "settings.historicalNoData"):
+                self.assertIn(key, messages, msg=f"{catalog.name}: {key}")
+
     def test_airframes_acars_link_is_callsign_based_and_pia_safe(self) -> None:
         for marker in (
             'id="linkAirframes"',
