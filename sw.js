@@ -1,12 +1,13 @@
 'use strict';
 
-const CACHE_SCHEMA_VERSION = '4.19';
+const CACHE_SCHEMA_VERSION = '4.21';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',
     'sw.js',
     'cesium-frame.html',
     'manifest.json',
+    'assets/viptrack-ui.css',
     'assets/logo/SkyTrack_Logo-16x16.png',
     'assets/logo/SkyTrack_Logo-32x32.png',
     'assets/logo/SkyTrack_Logo-48x48.png',

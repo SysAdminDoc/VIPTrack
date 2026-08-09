@@ -54,7 +54,7 @@ def run_gate() -> dict[str, int]:
             if directive not in csp:
                 errors.append(f"{path}: CSP is missing {directive}")
     index_csp = index_headers.get("Content-Security-Policy", "")
-    for directive in ("trusted-types viptrack", "require-trusted-types-for 'script'"):
+    for directive in ("trusted-types viptrack default dompurify", "require-trusted-types-for 'script'"):
         if directive not in index_csp:
             errors.append(f"/index.html: CSP is missing {directive}")
     if "'unsafe-eval'" in index_csp:
@@ -66,6 +66,8 @@ def run_gate() -> dict[str, int]:
     source = INDEX.read_text(encoding="utf-8")
     for marker in (
         "trustedTypes.createPolicy('viptrack'",
+        "trustedTypes.createPolicy('default'",
+        "RETURN_TRUSTED_TYPE: false",
         "const SAFE_HTML_OPTIONS",
         "window.DOMPurify.sanitize",
         "escapeHTML(markup)",

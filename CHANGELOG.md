@@ -6,6 +6,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-08-08
+
+### Added
+- Added a purpose-built mobile operations workspace with full-height Map, Aircraft, Watch, and Settings pages, a persistent four-item bottom navigation, compact live telemetry, list search/category/sort controls, per-aircraft watch alerts, session activity, and categorized settings search.
+- Added four checked-in ImageGen design studies under `assets/mockups/` as the visual reference for the mobile implementation.
+
+### Changed
+- Reworked the phone layout around a midnight-navy aviation console with teal emphasis, clearer hierarchy, touch-sized controls, responsive portrait/landscape behavior, and local VIPTrack branding.
+- Bumped the web/PWA cache schema and Android TWA metadata for the 0.3.0 release.
+
+### Security
+- Kept Trusted Types enforcement compatible with Leaflet by registering a constrained default policy backed by the pinned DOMPurify sanitizer and same-origin/approved-CDN script URL validation.
+
 ## [v0.2.0] - 2026-08-08
 
 ### Added

@@ -14,15 +14,14 @@
         worker-src 'self' blob: https://cdn.jsdelivr.net;
         frame-src 'self';
         manifest-src 'self' blob:;
-        frame-ancestors 'self';
         base-uri 'self';
         form-action 'self';
-        trusted-types viptrack;
+        trusted-types viptrack default dompurify;
         require-trusted-types-for 'script';
     ">
-    <title>VIPTrack v0.2.0 - Military & VIP Flight Tracker</title>
+    <title>VIPTrack v0.3.0 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1a1a2e">
+    <meta name="theme-color" content="#07111f">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1447,6 +1446,7 @@
             *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
         }
     </style>
+    <link rel="stylesheet" href="assets/viptrack-ui.css">
 <script>
 // Inline PWA manifest for direct file:// deployment. HTTP(S) uses the stable
 // manifest.json so installed PWAs and Trusted Web Activity tooling can inspect it.
@@ -1502,7 +1502,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.18';
+const SW_CACHE_SCHEMA = '4.21';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -1540,7 +1540,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png" alt="VIPTrack">
-            <span>VIPTrack<span class="version">v0.2.0</span></span>
+            <span>VIPTrack<span class="version">v0.3.0</span></span>
         </div>
         <div class="spinner"></div>
         <div class="loading-status" id="loadingStatus" data-i18n="loading.initializing">Initializing...</div>
@@ -2344,9 +2344,36 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
     </div>
     <div class="toast" id="toast"></div>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js" integrity="sha512-+i8mrQ8cOtQsGMptbrNDq1NvbsE8eHze20WOt0b5LKX1xZmIC7FDAAYhUFD3eRs78C+GUYHYYoF2oiQiOBRJ+g==" crossorigin="anonymous"></script>
+    <script>
+    // Third-party renderers use native HTML sinks internally. Keep Trusted
+    // Types enforcement enabled while routing those strings through the same
+    // pinned sanitizer used by VIPTrack's own named policy. Dynamic script URLs
+    // remain restricted to same-origin and the two pinned dependency CDNs.
+    if (window.trustedTypes && typeof window.trustedTypes.createPolicy === 'function') {
+        try {
+            window.trustedTypes.createPolicy('default', {
+                createHTML: input => window.DOMPurify.sanitize(String(input ?? ''), {
+                    FORBID_TAGS: ['script', 'style', 'template', 'iframe', 'object', 'embed'],
+                    FORBID_ATTR: ['srcdoc'],
+                    RETURN_TRUSTED_TYPE: false
+                }),
+                createScriptURL: input => {
+                    const url = new URL(String(input ?? ''), document.baseURI);
+                    const allowed = url.origin === location.origin ||
+                        url.origin === 'https://cdnjs.cloudflare.com' ||
+                        url.origin === 'https://cdn.jsdelivr.net';
+                    if (!allowed) throw new TypeError('Dynamic script URL is not allowlisted');
+                    return url.href;
+                }
+            });
+        } catch (error) {
+            console.warn('Trusted Types compatibility policy unavailable', error);
+        }
+    }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js" integrity="sha512-+i8mrQ8cOtQsGMptbrNDq1NvbsE8eHze20WOt0b5LKX1xZmIC7FDAAYhUFD3eRs78C+GUYHYYoF2oiQiOBRJ+g==" crossorigin="anonymous"></script>
     <script>
     // ============ L8: LOCALIZED UI CATALOG ============
     // Locale files are same-origin, schema-versioned, and never evaluated as code.
@@ -3810,6 +3837,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         watchlist: new Map(),
         namedWatchlists: new Map(),
         alertHistory: new Set(),
+        recentActivity: [],
         militaryAlertRadius: 50,
         userLocation: null,
         lastAlertTime: {},
@@ -4012,7 +4040,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         addToWatchlist(hex, name = '', notes = '') {
             const upperHex = hex.toUpperCase();
-            const entry = { hex: upperHex, name: name || hex, notes, addedAt: Date.now() };
+            const entry = { hex: upperHex, name: name || hex, notes, alertsEnabled: true, addedAt: Date.now() };
             this.watchlist.set(upperHex, entry);
             this.saveWatchlist();
             this.updateWatchlistUI();
@@ -4033,6 +4061,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         isWatched(hex) { return this.watchlist.has(hex?.toUpperCase()); },
         getWatchedEntry(hex) { return this.watchlist.get(hex?.toUpperCase()); },
+
+        toggleWatchAlerts(hex) {
+            const entry = this.getWatchedEntry(hex);
+            if (!entry) return false;
+            entry.alertsEnabled = entry.alertsEnabled === false;
+            this.saveWatchlist();
+            this.updateWatchlistUI();
+            toast((entry.alertsEnabled ? 'Enabled' : 'Paused') + ' alerts for ' + entry.name);
+            return entry.alertsEnabled;
+        },
         
         checkAircraft(ac) {
             if (!this.enabled || !ac?.hex) return;
@@ -4043,7 +4081,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             
             if (this.isWatched(ac.hex)) {
                 const entry = this.getWatchedEntry(ac.hex);
-                this.triggerAlert(ac, 'WATCHLIST', entry.name + ' is active');
+                if (entry.alertsEnabled !== false) this.triggerAlert(ac, 'WATCHLIST', entry.name + ' is active');
             }
 
             try { geofenceManager.checkAircraft(ac); } catch (e) {}
@@ -4084,7 +4122,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 callsign: safeAircraft.flight || safeAircraft.hex || 'unknown',
                 timestamp: Date.now()
             };
+            this.recentActivity.unshift({ type, message, callsign: alert.callsign, timestamp: alert.timestamp });
+            this.recentActivity = this.recentActivity.slice(0, 50);
             this.showAlert(alert);
+            if (typeof mobileSupport !== 'undefined' && mobileSupport.isMobile && mobileSupport.activePanel === 'watchlist') {
+                mobileSupport.updateWatchlistSheet();
+            }
         },
         
         showAlert(alert) {
@@ -11324,6 +11367,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         isTouchDevice: false,
         screenSize: 'desktop',
         orientation: 'landscape',
+        activePanel: 'map',
+        listCategory: 'mil-vip',
+        listQuery: '',
+        watchView: 'aircraft',
         
         init() {
             this.detect();
@@ -11411,22 +11458,38 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
         
         initMobileUI() {
+            if (!document.querySelector('.mobile-app-bar')) {
+                this.createAppBar();
+            }
             if (!document.querySelector('.mobile-bottom-nav')) {
                 this.createBottomNav();
             }
             if (!document.querySelector('.mobile-fab')) {
                 this.createFAB();
             }
+            if (!document.querySelector('.mobile-map-stats')) {
+                this.createMapChrome();
+            }
             this.convertPanelsToSheets();
+            this.setActivePanel(this.activePanel || 'map');
+            this.updateMapChrome();
         },
         
         removeMobileUI() {
+            document.querySelector('.mobile-app-bar')?.remove();
             document.querySelector('.mobile-bottom-nav')?.remove();
             document.querySelector('.mobile-fab')?.remove();
             document.querySelector('.quick-actions-menu')?.remove();
+            document.querySelector('.mobile-map-stats')?.remove();
+            document.querySelector('.mobile-map-tools')?.remove();
+            document.querySelector('.mobile-map-peek')?.remove();
             document.querySelectorAll('.bottom-sheet').forEach(sheet => {
                 sheet.classList.remove('bottom-sheet', 'collapsed', 'half', 'expanded', 'peek');
             });
+            document.getElementById('aircraftListSheet')?.remove();
+            document.getElementById('watchlistSheet')?.remove();
+            document.querySelectorAll('#settingsPanel > .settings-section').forEach(section => { section.hidden = false; });
+            document.body.classList.remove('mobile-panel-map', 'mobile-panel-list', 'mobile-panel-watchlist', 'mobile-panel-settings');
             // Remove sidebar drag handle added for mobile
             const sbwHandle = _el('sidebarWrapper')?.querySelector('.sheet-handle');
             if (sbwHandle) sbwHandle.remove();
@@ -11598,25 +11661,202 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             sheet.classList.remove('collapsed', 'half', 'peek');
             sheet.classList.add('expanded');
         },
+
+        createAppBar() {
+            const bar = document.createElement('header');
+            bar.className = 'mobile-app-bar';
+            bar.innerHTML = safeHTML(`
+                <div class="mobile-brand" aria-label="VIPTrack">
+                    <img src="assets/logo/SkyTrack_Logo-48x48.png" alt="">
+                    <span><strong>VIP</strong>Track</span>
+                </div>
+                <div class="mobile-live-status" id="mobileLiveStatus" role="status" aria-live="polite">LIVE</div>
+                <button class="mobile-app-utility" id="mobileAppUtility" type="button" aria-label="Open settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20c.6-4 3-6 6.5-6s5.9 2 6.5 6"/><circle cx="12" cy="12" r="10"/></svg>
+                </button>
+            `);
+            document.body.appendChild(bar);
+            bar.querySelector('#mobileAppUtility')?.addEventListener('click', () => {
+                document.querySelector('.nav-item[data-panel="settings"]')?.click();
+            });
+        },
+
+        createMapChrome() {
+            const stats = document.createElement('div');
+            stats.className = 'mobile-map-stats';
+            stats.innerHTML = safeHTML('<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 16v-2l8-5V3.5a1.5 1.5 0 013 0V9l8 5v2l-8-2.5V18l2 1.5V21l-3.5-1-3.5 1v-1.5l2-1.5v-4.5L2 16z"/></svg><strong id="mobileMapCount">0</strong><span>airborne</span>');
+            document.body.appendChild(stats);
+
+            const tools = document.createElement('div');
+            tools.className = 'mobile-map-tools';
+            tools.innerHTML = safeHTML(`
+                <button class="mobile-map-tool" type="button" data-map-action="layers" aria-label="Map and overlay settings" title="Map and overlays"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3L3 8l9 5 9-5-9-5z"/><path d="M3 12l9 5 9-5M3 16l9 5 9-5"/></svg></button>
+                <button class="mobile-map-tool" type="button" data-map-action="weather" aria-label="Toggle weather radar" title="Weather radar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16a4 4 0 01.8-7.9A6 6 0 0118.5 10 3.5 3.5 0 0118 17H7"/><path d="M8 20l1-2m4 2l1-2m4 2l1-2"/></svg></button>
+                <button class="mobile-map-tool" type="button" data-map-action="locate" aria-label="Go to my location" title="My location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg></button>
+            `);
+            document.body.appendChild(tools);
+            tools.addEventListener('click', event => {
+                const button = event.target.closest('[data-map-action]');
+                if (!button) return;
+                if (button.dataset.mapAction === 'layers') {
+                    document.querySelector('.nav-item[data-panel="settings"]')?.click();
+                    setTimeout(() => document.querySelector('.mobile-settings-category[data-settings-group="map"]')?.click(), 0);
+                } else if (button.dataset.mapAction === 'weather') {
+                    if (typeof toggleNexrad === 'function') toggleNexrad();
+                    button.classList.toggle('active', Boolean(_nexradLayer));
+                } else {
+                    document.getElementById('locateBtn')?.click();
+                }
+                haptics.light();
+            });
+
+            const peek = document.createElement('article');
+            peek.className = 'mobile-map-peek is-empty';
+            peek.setAttribute('aria-live', 'polite');
+            peek.innerHTML = safeHTML(this.emptyMapPeekMarkup());
+            document.body.appendChild(peek);
+            peek.addEventListener('click', event => {
+                const watchButton = event.target.closest('.mobile-peek-watch');
+                const hex = peek.dataset.hex;
+                if (watchButton && hex) {
+                    event.stopPropagation();
+                    const ac = aircraftCache[hex];
+                    if (alertSystem.isWatched(hex)) alertSystem.removeFromWatchlist(hex);
+                    else alertSystem.addToWatchlist(hex, ac?.flight?.trim() || getDisplayRegistration(ac) || hex);
+                    this.updateMapChrome();
+                    return;
+                }
+                if (hex && aircraftCache[hex]) {
+                    selectAircraft(hex);
+                    this.showInfoPanel();
+                }
+            });
+        },
+
+        emptyMapPeekMarkup() {
+            return '<div class="mobile-peek-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 16v-2l8-5V3.5a1.5 1.5 0 013 0V9l8 5v2l-8-2.5V18l2 1.5V21l-3.5-1-3.5 1v-1.5l2-1.5v-4.5L2 16z"/></svg></div><div class="mobile-peek-identity"><div class="mobile-peek-callsign">Select an aircraft</div><div class="mobile-peek-route">Tap a marker or open List for live details</div></div>';
+        },
+
+        aircraftCategory(ac) {
+            const interestingCategory = String(ac?.interestingInfo?.category || ac?.interesting?.category || ac?.category || '').toLowerCase();
+            if (interestingCategory.includes('medical') || interestingCategory.includes('medevac')) return { key: 'medical', label: 'Medical', color: '#ff5364' };
+            if (interestingCategory.includes('police') || interestingCategory.includes('law')) return { key: 'police', label: 'Police', color: '#60a5fa' };
+            if (interestingCategory.includes('government') || interestingCategory.includes('gov')) return { key: 'government', label: 'Government', color: '#a17af5' };
+            if (ac?.militaryInfo || ac?.militaryRangeInfo || interestingCategory.includes('military')) return { key: 'military', label: 'Military', color: '#31d7bb' };
+            if (ac?.isVIP || ac?.vipInfo || (typeof badgersBestDB !== 'undefined' && badgersBestDB.isVIP?.(ac?.hex))) return { key: 'vip', label: 'VIP', color: '#fbbf24' };
+            return { key: 'aircraft', label: 'Aircraft', color: '#82a3c7' };
+        },
+
+        aircraftIconMarkup(category) {
+            if (category === 'medical') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v16M4 12h16"/><circle cx="12" cy="12" r="9"/></svg>';
+            return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 16v-2l8-5V3.5a1.5 1.5 0 013 0V9l8 5v2l-8-2.5V18l2 1.5V21l-3.5-1-3.5 1v-1.5l2-1.5v-4.5L2 16z"/></svg>';
+        },
+
+        formatAltitude(ac) {
+            if (ac?.alt_baro === 'ground') return 'GND';
+            const altitude = Number(ac?.alt_baro ?? ac?.alt_geom);
+            return Number.isFinite(altitude) ? Math.round(altitude).toLocaleString() + ' ft' : '--- ft';
+        },
+
+        formatRoute(ac) {
+            const origin = ac?.from || ac?.origin || ac?.route?.from || ac?.route?.origin;
+            const destination = ac?.to || ac?.destination || ac?.route?.to || ac?.route?.destination;
+            if (origin && destination) return origin + ' → ' + destination;
+            if (destination) return 'En route to ' + destination;
+            if (origin) return 'Departed ' + origin;
+            return 'Live position';
+        },
+
+        cardinalHeading(track) {
+            const value = Number(track);
+            if (!Number.isFinite(value)) return '---';
+            const points = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            return points[Math.round(value / 45) % 8] + ' ' + String(Math.round(value)).padStart(3, '0') + '°';
+        },
+
+        updateMapChrome() {
+            const live = document.getElementById('mobileLiveStatus');
+            if (live) {
+                const dot = document.querySelector('#connectivityIndicator .connectivity-dot');
+                const state = !navigator.onLine || dot?.classList.contains('offline') ? 'offline' : dot?.classList.contains('stale') ? 'stale' : 'online';
+                live.classList.toggle('offline', state === 'offline');
+                live.classList.toggle('stale', state === 'stale');
+                live.textContent = state === 'offline' ? 'OFFLINE' : state === 'stale' ? 'STALE' : 'LIVE';
+            }
+
+            const aircraft = Object.values(aircraftCache || {}).filter(ac => Number.isFinite(ac?.lat) && Number.isFinite(ac?.lon));
+            const count = document.getElementById('mobileMapCount');
+            if (count) count.textContent = aircraft.length.toLocaleString();
+            const peek = document.querySelector('.mobile-map-peek');
+            if (!peek) return;
+            const featured = (selectedHex && aircraftCache[selectedHex]) || aircraft.find(ac => alertSystem.isWatched(ac.hex)) || aircraft[0];
+            if (!featured) {
+                peek.classList.add('is-empty');
+                delete peek.dataset.hex;
+                peek.innerHTML = safeHTML(this.emptyMapPeekMarkup());
+                return;
+            }
+
+            const category = this.aircraftCategory(featured);
+            const callsign = featured.flight?.trim() || getDisplayRegistration(featured) || featured.hex;
+            const operator = featured.militaryInfo?.operator || featured.ownOp || featured.airline?.name || category.label;
+            const type = featured.t || featured.type || 'Aircraft';
+            const watched = alertSystem.isWatched(featured.hex);
+            peek.classList.remove('is-empty');
+            peek.dataset.hex = featured.hex;
+            peek.innerHTML = safeHTML(`
+                <div class="mobile-peek-icon">${this.aircraftIconMarkup(category.key)}</div>
+                <div class="mobile-peek-identity">
+                    <div class="mobile-peek-callsign">${callsign}</div>
+                    <div class="mobile-peek-meta">${operator} • ${type}</div>
+                    <div class="mobile-peek-route">${this.formatRoute(featured)}</div>
+                </div>
+                <button class="mobile-peek-watch${watched ? ' watched' : ''}" type="button" aria-label="${watched ? 'Remove from' : 'Add to'} watchlist"><svg viewBox="0 0 24 24" fill="${watched ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3z"/></svg></button>
+                <div class="mobile-peek-metrics">
+                    <div class="mobile-peek-metric"><strong>${this.formatAltitude(featured)}</strong><span>ALT</span></div>
+                    <div class="mobile-peek-metric"><strong>${Number.isFinite(Number(featured.gs)) ? Math.round(Number(featured.gs)) + ' kt' : '--- kt'}</strong><span>GS</span></div>
+                    <div class="mobile-peek-metric"><strong>${this.cardinalHeading(featured.track)}</strong><span>HDG</span></div>
+                </div>
+            `);
+        },
+
+        setActivePanel(panelName) {
+            const panel = panelName === 'watchlist' ? 'watchlist' : ['map', 'list', 'settings'].includes(panelName) ? panelName : 'map';
+            this.activePanel = panel;
+            document.body.classList.remove('mobile-panel-map', 'mobile-panel-list', 'mobile-panel-watchlist', 'mobile-panel-settings');
+            document.body.classList.add('mobile-panel-' + panel);
+            const nav = document.querySelector('.mobile-bottom-nav');
+            nav?.querySelectorAll('.nav-item').forEach(item => {
+                const active = item.dataset.panel === panel;
+                item.classList.toggle('active', active);
+                item.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            if (panel === 'map') {
+                setTimeout(() => map?.invalidateSize?.(), 80);
+                this.updateMapChrome();
+            }
+        },
         
         createBottomNav() {
             const nav = document.createElement('nav');
             nav.className = 'mobile-bottom-nav';
+            nav.setAttribute('aria-label', 'Primary navigation');
+            nav.setAttribute('role', 'tablist');
             nav.innerHTML = safeHTML(`
-                <button class="nav-item active" data-panel="map">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+                <button class="nav-item active" data-panel="map" type="button" role="tab" aria-selected="true">
+                    <svg viewBox="0 0 24 24"><path d="M20 10c0 5.5-8 11-8 11S4 15.5 4 10a8 8 0 1116 0z"/><circle cx="12" cy="10" r="2.5"/></svg>
                     <span>Map</span>
                 </button>
-                <button class="nav-item" data-panel="list">
-                    <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                <button class="nav-item" data-panel="list" type="button" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
                     <span>List</span>
                 </button>
-                <button class="nav-item" data-panel="watchlist">
-                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <button class="nav-item" data-panel="watchlist" type="button" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="3 2"/><path d="M12 7.2l1.5 3 3.3.5-2.4 2.3.6 3.3-3-1.5-3 1.5.6-3.3-2.4-2.3 3.3-.5 1.5-3z"/></svg>
                     <span>Watch</span>
                 </button>
-                <button class="nav-item" data-panel="settings">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <button class="nav-item" data-panel="settings" type="button" role="tab" aria-selected="false">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h6m4 0h6M4 12h10m4 0h2M4 18h3m4 0h9"/><circle cx="12" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg>
                     <span>Settings</span>
                 </button>
             `);
@@ -11625,8 +11865,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // Handle nav clicks
             nav.querySelectorAll('.nav-item').forEach(item => {
                 item.addEventListener('click', () => {
-                    nav.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
                     this.showMobilePanel(item.dataset.panel);
                     haptics.light();
                 });
@@ -11636,44 +11874,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         createFAB() {
             const fab = document.createElement('button');
             fab.className = 'mobile-fab';
-            fab.innerHTML = safeHTML('<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>');
-            fab.title = 'Quick Actions';
+            fab.type = 'button';
+            fab.innerHTML = safeHTML('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>');
+            fab.title = 'My Location';
+            fab.setAttribute('aria-label', 'Go to my location');
             fab.addEventListener('click', () => {
-                this.toggleQuickActions();
+                document.getElementById('locateBtn')?.click();
                 haptics.medium();
             });
             document.body.appendChild(fab);
-            
-            // Create quick actions menu
-            const menu = document.createElement('div');
-            menu.className = 'quick-actions-menu';
-            menu.innerHTML = safeHTML(`
-                <button class="quick-action-item" data-action="locate">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-                    My Location
-                </button>
-                <button class="quick-action-item" data-action="search">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    Search
-                </button>
-            `);
-            document.body.appendChild(menu);
-            
-            menu.querySelectorAll('.quick-action-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const action = item.dataset.action;
-                    this.handleQuickAction(action);
-                    menu.classList.remove('show');
-                    haptics.light();
-                });
-            });
-            
-            // Close menu on tap elsewhere
-            document.addEventListener('click', (e) => {
-                if (!e.target.closest('.mobile-fab') && !e.target.closest('.quick-actions-menu')) {
-                    menu.classList.remove('show');
-                }
-            });
         },
         
         toggleQuickActions() {
@@ -11718,6 +11927,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
             // Convert settings panel to bottom sheet
             const settingsPanel = _el('settingsPanel');
+            // The legacy single-file markup nests panels under the filter bar.
+            // A fixed mobile workspace must not disappear when that map-only
+            // toolbar is hidden, so promote Settings to a body-level surface.
+            if (settingsPanel && settingsPanel.parentElement !== document.body) {
+                document.body.appendChild(settingsPanel);
+            }
             if (settingsPanel && !settingsPanel.classList.contains('bottom-sheet')) {
                 settingsPanel.classList.add('bottom-sheet', 'collapsed');
                 if (!settingsPanel.querySelector('.sheet-handle')) {
@@ -11727,9 +11942,94 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     settingsPanel.insertBefore(handle, settingsPanel.firstChild);
                 }
             }
+            this.enhanceSettingsPanel();
+        },
+
+        enhanceSettingsPanel() {
+            const panel = _el('settingsPanel');
+            if (!panel) return;
+            if (panel.dataset.mobileEnhanced === 'true') {
+                this.applySettingsVisibility(panel);
+                return;
+            }
+            panel.dataset.mobileEnhanced = 'true';
+            const hero = document.createElement('div');
+            hero.className = 'mobile-settings-hero';
+            hero.innerHTML = safeHTML(`
+                <div class="mobile-page-title">Settings</div>
+                <div class="mobile-page-subtitle">Make VIPTrack work your way</div>
+                <label class="mobile-settings-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                    <input id="mobileSettingsSearch" type="search" placeholder="Search settings" autocomplete="off" aria-label="Search settings">
+                </label>
+                <div class="mobile-settings-categories" role="tablist" aria-label="Settings categories">
+                    <button class="mobile-settings-category active" type="button" role="tab" aria-selected="true" data-settings-group="general">General</button>
+                    <button class="mobile-settings-category" type="button" role="tab" aria-selected="false" data-settings-group="map">Map</button>
+                    <button class="mobile-settings-category" type="button" role="tab" aria-selected="false" data-settings-group="alerts">Alerts</button>
+                    <button class="mobile-settings-category" type="button" role="tab" aria-selected="false" data-settings-group="data">Data</button>
+                    <button class="mobile-settings-category" type="button" role="tab" aria-selected="false" data-settings-group="advanced">Advanced</button>
+                </div>
+            `);
+            const handle = panel.querySelector(':scope > .sheet-handle');
+            if (handle) handle.after(hero);
+            else panel.prepend(hero);
+
+            const settingsSections = Array.from(panel.querySelectorAll(':scope > .settings-section'));
+            settingsSections.forEach(section => {
+                const title = (section.querySelector('.settings-section-title')?.textContent || '').toLowerCase();
+                let group = 'general';
+                if (/alert|watchlist|webhook|notification/.test(title)) group = 'alerts';
+                else if (/data source|statistics|receiver|opensky|historical|storage/.test(title)) group = 'data';
+                else if (/trail display|map|airspace|geofence|overlay|faa|openaip|pattern template/.test(title)) group = 'map';
+                else if (/plugin|analyst|osint/.test(title)) group = 'advanced';
+                section.dataset.settingsGroup = group;
+            });
+            const displaySection = settingsSections.find(section => /display options/i.test(section.querySelector('.settings-section-title')?.textContent || ''));
+            const firstSection = settingsSections[0];
+            if (displaySection && firstSection && displaySection !== firstSection) panel.insertBefore(displaySection, firstSection);
+
+            const privacy = document.createElement('div');
+            privacy.className = 'mobile-settings-privacy';
+            privacy.innerHTML = safeHTML('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.8-2.8 8-7 10-4.2-2-7-5.2-7-10V6l7-3z"/></svg><span>Local-first • credentials stay on this device</span>');
+            panel.appendChild(privacy);
+
+            this.settingsCategory = 'general';
+            const apply = () => this.applySettingsVisibility(panel);
+            panel.querySelectorAll('.mobile-settings-category').forEach(button => {
+                button.addEventListener('click', () => {
+                    this.settingsCategory = button.dataset.settingsGroup;
+                    panel.querySelectorAll('.mobile-settings-category').forEach(item => {
+                        const active = item === button;
+                        item.classList.toggle('active', active);
+                        item.setAttribute('aria-selected', active ? 'true' : 'false');
+                    });
+                    const search = panel.querySelector('#mobileSettingsSearch');
+                    if (search) search.value = '';
+                    apply();
+                    panel.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            });
+            panel.querySelector('#mobileSettingsSearch')?.addEventListener('input', apply);
+            apply();
+        },
+
+        applySettingsVisibility(panel = _el('settingsPanel')) {
+            if (!panel) return;
+            const query = (panel.querySelector('#mobileSettingsSearch')?.value || '').trim().toLowerCase();
+            panel.querySelectorAll(':scope > .settings-section').forEach(section => {
+                const categoryMatch = query || section.dataset.settingsGroup === this.settingsCategory;
+                const queryMatch = !query || section.textContent.toLowerCase().includes(query);
+                section.hidden = !(categoryMatch && queryMatch);
+            });
         },
         
         showMobilePanel(panelName) {
+            this.setActivePanel(panelName);
+            if (panelName !== 'map') {
+                const sidebar = _el('sidebarWrapper');
+                if (sidebar) sidebar.style.display = 'none';
+                _el('infoPanel')?.classList.remove('show');
+            }
             switch (panelName) {
                 case 'map':
                     this.hideAllPanels();
@@ -11758,32 +12058,70 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (!list) {
                 list = this.createAircraftListSheet();
             }
-            this.halfExpandSheet(list);
+            this.expandSheet(list);
             this.updateAircraftList();
         },
         
         createAircraftListSheet() {
             const sheet = document.createElement('div');
             sheet.id = 'aircraftListSheet';
-            sheet.className = 'bottom-sheet collapsed';
+            sheet.className = 'bottom-sheet mobile-page-panel collapsed';
+            sheet.setAttribute('role', 'tabpanel');
+            sheet.setAttribute('aria-label', 'Aircraft list');
             sheet.innerHTML = safeHTML(`
                 <div class="sheet-handle"><div class="handle-bar"></div></div>
-                <div class="sheet-header">
-                    <span class="sheet-title">Aircraft (<span id="listCount">0</span>)</span>
-                    <div class="sheet-sort">
-                        <select id="listSort">
-                            <option value="distance">Distance</option>
-                            <option value="altitude">Altitude</option>
-                            <option value="speed">Speed</option>
-                            <option value="callsign">Callsign</option>
-                        </select>
+                <div class="mobile-page-heading">
+                    <div class="mobile-page-title">Aircraft</div>
+                    <div class="mobile-page-count"><span id="listCount">0</span> airborne</div>
+                    <div class="mobile-page-updated" id="mobileListUpdated">Updated now</div>
+                    <div class="mobile-search-row">
+                        <label class="mobile-search-control">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                            <input type="search" id="mobileListSearch" placeholder="Search aircraft" autocomplete="off" aria-label="Search aircraft list">
+                        </label>
+                        <button class="mobile-filter-square" id="mobileListReset" type="button" title="Reset list filters" aria-label="Reset list filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h6m4 0h6M4 12h10m4 0h2M4 18h3m4 0h9"/><circle cx="12" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg></button>
                     </div>
+                    <div class="mobile-filter-chips" role="group" aria-label="Aircraft list categories">
+                        <button class="mobile-filter-chip active" type="button" data-list-category="mil-vip">All</button>
+                        <button class="mobile-filter-chip" type="button" data-list-category="military">Military</button>
+                        <button class="mobile-filter-chip" type="button" data-list-category="vip">VIP</button>
+                        <button class="mobile-filter-chip" type="button" data-list-category="curated">Curated</button>
+                    </div>
+                </div>
+                <div class="mobile-list-sortbar">
+                    <select id="listSort" aria-label="Sort aircraft list">
+                        <option value="distance">Nearest first</option>
+                        <option value="altitude">Highest altitude</option>
+                        <option value="speed">Fastest first</option>
+                        <option value="callsign">Callsign A–Z</option>
+                    </select>
+                    <span>ALT</span><span>SPEED</span>
                 </div>
                 <div class="sheet-content" id="aircraftListContent"></div>
             `);
             document.body.appendChild(sheet);
-            
-            document.getElementById('listSort').addEventListener('change', () => this.updateAircraftList());
+            sheet.querySelector('#listSort')?.addEventListener('change', () => this.updateAircraftList());
+            sheet.querySelector('#mobileListSearch')?.addEventListener('input', event => {
+                this.listQuery = event.target.value;
+                this.updateAircraftList();
+            });
+            sheet.querySelectorAll('[data-list-category]').forEach(button => {
+                button.addEventListener('click', () => {
+                    this.listCategory = button.dataset.listCategory;
+                    sheet.querySelectorAll('[data-list-category]').forEach(item => item.classList.toggle('active', item === button));
+                    this.updateAircraftList();
+                });
+            });
+            sheet.querySelector('#mobileListReset')?.addEventListener('click', () => {
+                this.listCategory = 'mil-vip';
+                this.listQuery = '';
+                const input = sheet.querySelector('#mobileListSearch');
+                if (input) input.value = '';
+                sheet.querySelectorAll('[data-list-category]').forEach(item => item.classList.toggle('active', item.dataset.listCategory === 'mil-vip'));
+                const sort = sheet.querySelector('#listSort');
+                if (sort) sort.value = 'distance';
+                this.updateAircraftList();
+            });
             
             return sheet;
         },
@@ -11791,18 +12129,25 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         updateAircraftList() {
             const content = document.getElementById('aircraftListContent');
             if (!content) return;
-            
             const sortBy = document.getElementById('listSort')?.value || 'distance';
-            
-            let aircraft = Object.values(aircraftCache).filter(ac => ac.lat !== undefined);
-            
-            // Calculate distances
-            const center = map.getCenter();
+            const query = String(this.listQuery || '').trim().toLowerCase();
+            const categoryFilter = this.listCategory || 'mil-vip';
+            let aircraft = Object.values(aircraftCache || {}).filter(ac => Number.isFinite(ac?.lat) && Number.isFinite(ac?.lon));
+            const center = map?.getCenter?.() || { lat: 0, lng: 0 };
             aircraft.forEach(ac => {
                 ac._distance = haversineDistance(center.lat, center.lng, ac.lat, ac.lon);
+                ac._distanceNm = ac._distance * 0.539957;
             });
-            
-            // Sort
+            aircraft = aircraft.filter(ac => {
+                let categoryMatch = true;
+                if (categoryFilter === 'military') categoryMatch = Boolean(ac.militaryInfo || ac.militaryRangeInfo);
+                else if (categoryFilter === 'vip') categoryMatch = Boolean(ac.isVIP || ac.vipInfo || badgersBestDB.isVIP?.(ac.hex));
+                else if (categoryFilter === 'curated') categoryMatch = isCuratedAircraft(ac);
+                if (!categoryMatch) return false;
+                if (!query) return true;
+                return [ac.flight, getDisplayRegistration(ac), ac.hex, ac.t, ac.ownOp, ac.airline?.name, ac.from, ac.to]
+                    .filter(Boolean).some(value => String(value).toLowerCase().includes(query));
+            });
             switch (sortBy) {
                 case 'distance':
                     aircraft.sort((a, b) => a._distance - b._distance);
@@ -11817,64 +12162,59 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     aircraft.sort((a, b) => (a.flight || '').localeCompare(b.flight || ''));
                     break;
             }
-            
             const listCountEl = document.getElementById('listCount');
             if (listCountEl) listCountEl.textContent = aircraft.length;
-            
-            const getIconClass = (ac) => {
-                if (ac.militaryInfo) return 'military';
-                if (ac.interestingInfo?.category === 'Government') return 'gov';
-                if (ac.interestingInfo?.category === 'Police') return 'police';
-                if (ac.interestingInfo?.category === 'Medical') return 'medical';
-                if (ac.vipInfo) return 'vip';
-                return '';
-            };
-            
-            const getIconSymbol = (ac) => {
-                if (ac.militaryInfo) return '#';
-                if (ac.interestingInfo?.category === 'Government') return 'G';
-                if (ac.interestingInfo?.category === 'Police') return 'P';
-                if (ac.interestingInfo?.category === 'Medical') return '+';
-                if (ac.vipInfo) return '*';
-                return '>';
-            };
-            
-            content.innerHTML = safeHTML(aircraft.slice(0, 100).map(ac => `
-                <div class="list-aircraft-item" data-hex="${ac.hex}">
-                    <div class="list-ac-icon ${getIconClass(ac)}">${getIconSymbol(ac)}</div>
+            const updated = document.getElementById('mobileListUpdated');
+            if (updated) updated.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            if (!aircraft.length) {
+                content.innerHTML = safeHTML('<div class="mobile-list-empty"><strong>No aircraft match</strong>Try another category, search, or move the map.</div><div class="mobile-list-note">Showing aircraft in the current map area</div>');
+                return;
+            }
+            content.innerHTML = safeHTML(aircraft.slice(0, 100).map(ac => {
+                const category = this.aircraftCategory(ac);
+                const callsign = ac.flight?.trim() || getDisplayRegistration(ac) || ac.hex;
+                const operator = ac.militaryInfo?.operator || ac.ownOp || ac.airline?.name || category.label;
+                const watched = alertSystem.isWatched(ac.hex);
+                return `
+                <article class="list-aircraft-item category-${category.key}" data-hex="${ac.hex}" tabindex="0">
+                    <div class="list-ac-icon">${this.aircraftIconMarkup(category.key)}</div>
                     <div class="list-ac-info">
-                    <div class="list-ac-callsign">${ac.flight?.trim() || getDisplayRegistration(ac) || ac.hex}</div>
-                        <div class="list-ac-detail">${ac.t || '---'} | ${ac.ownOp || ac.airline?.name || '---'}</div>
+                        <div class="list-ac-title-row"><div class="list-ac-callsign">${callsign}</div>${watched ? '<span class="list-ac-watch-badge">WATCHED</span>' : ''}</div>
+                        <div class="list-ac-detail">${operator} • ${ac.t || ac.type || 'Aircraft'}</div>
+                        <div class="list-ac-route">${this.formatRoute(ac)}</div>
+                        <div class="list-ac-distance">⌖ ${Math.round(ac._distanceNm)} nm</div>
                     </div>
                     <div class="list-ac-data">
-                        <div class="list-ac-alt">${ac.alt_baro === 'ground' ? 'GND' : ((ac.alt_baro || 0) / 1000).toFixed(1) + 'k'}</div>
-                        <div class="list-ac-speed">${ac.gs || '---'} kt</div>
+                        <div class="list-ac-alt">${this.formatAltitude(ac)}</div>
+                        <div class="list-ac-speed">${Number.isFinite(Number(ac.gs)) ? Math.round(Number(ac.gs)) : '---'} kt</div>
                     </div>
-                </div>
-            `).join(''));
-            
+                    <span class="list-ac-chevron" aria-hidden="true">›</span>
+                </article>`;
+            }).join('') + '<div class="mobile-list-note">Showing aircraft in the current map area</div>');
             content.querySelectorAll('.list-aircraft-item').forEach(item => {
-                item.addEventListener('click', () => {
+                const open = () => {
                     selectAircraft(item.dataset.hex);
                     this.showInfoPanel();
                     haptics.medium();
+                };
+                item.addEventListener('click', open);
+                item.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        open();
+                    }
                 });
             });
         },
         
         showInfoPanel() {
             this.hideAllPanels();
+            this.setActivePanel('map');
             // Sidebar wrapper is styled as bottom sheet on mobile via CSS
             const sbw = _el('sidebarWrapper');
             if (sbw) sbw.style.display = 'block';
             const infoPanel = _el('infoPanel');
             if (infoPanel) infoPanel.classList.add('show');
-            // Update nav state
-            const nav = document.querySelector('.mobile-bottom-nav');
-            if (nav) {
-                nav.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                nav.querySelector('[data-panel="map"]')?.classList.add('active');
-            }
         },
         
         showWatchlistSheet() {
@@ -11883,61 +12223,160 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (!sheet) {
                 sheet = this.createWatchlistSheet();
             }
-            this.halfExpandSheet(sheet);
+            this.expandSheet(sheet);
             this.updateWatchlistSheet();
         },
         
         createWatchlistSheet() {
             const sheet = document.createElement('div');
             sheet.id = 'watchlistSheet';
-            sheet.className = 'bottom-sheet collapsed';
+            sheet.className = 'bottom-sheet mobile-page-panel collapsed';
+            sheet.setAttribute('role', 'tabpanel');
+            sheet.setAttribute('aria-label', 'Watch dashboard');
             sheet.innerHTML = safeHTML(`
                 <div class="sheet-handle"><div class="handle-bar"></div></div>
-                <div class="sheet-header">
-                    <span class="sheet-title">Watchlist (<span id="watchlistSheetCount">0</span>)</span>
+                <div class="mobile-page-heading">
+                    <div class="mobile-page-title">Watch</div>
+                    <div class="mobile-page-subtitle">Saved aircraft &amp; alert activity</div>
+                    <div class="watch-overview" aria-label="Watch overview">
+                        <div class="watch-stat"><strong id="watchMetricTotal">0</strong><span>Watched</span></div>
+                        <div class="watch-stat"><strong id="watchMetricAirborne">0</strong><span>Airborne</span></div>
+                        <div class="watch-stat alert"><strong id="watchMetricAlerts">0</strong><span>New alert</span></div>
+                    </div>
+                    <div class="watch-segmented" role="tablist" aria-label="Watch views">
+                        <button class="watch-segment active" type="button" role="tab" aria-selected="true" data-watch-view="aircraft">Aircraft</button>
+                        <button class="watch-segment" type="button" role="tab" aria-selected="false" data-watch-view="alerts">Alerts</button>
+                    </div>
                 </div>
                 <div class="sheet-content" id="watchlistSheetContent">
-                    <div class="watchlist-items"></div>
+                    <section data-watch-section="aircraft">
+                        <div class="watch-section-heading"><h2>Watched aircraft</h2><button class="mobile-outline-btn" id="mobileWatchAdd" type="button">+ Add</button></div>
+                        <div class="watchlist-items"></div>
+                    </section>
+                    <section data-watch-section="activity">
+                        <div class="watch-section-heading"><h2>Recent activity</h2></div>
+                        <div class="watch-activity-card" id="mobileWatchActivity"></div>
+                    </section>
+                    <div class="mobile-privacy-note">⌾ Watch data stays on this device</div>
                 </div>
             `);
             document.body.appendChild(sheet);
+            sheet.querySelectorAll('[data-watch-view]').forEach(button => {
+                button.addEventListener('click', () => {
+                    this.watchView = button.dataset.watchView;
+                    sheet.querySelectorAll('[data-watch-view]').forEach(item => {
+                        const active = item === button;
+                        item.classList.toggle('active', active);
+                        item.setAttribute('aria-selected', active ? 'true' : 'false');
+                    });
+                    this.applyWatchView();
+                });
+            });
+            sheet.querySelector('#mobileWatchAdd')?.addEventListener('click', () => {
+                if (selectedHex && aircraftCache[selectedHex]) {
+                    const ac = aircraftCache[selectedHex];
+                    if (!alertSystem.isWatched(selectedHex)) alertSystem.addToWatchlist(selectedHex, ac.flight?.trim() || getDisplayRegistration(ac) || selectedHex);
+                    this.updateWatchlistSheet();
+                } else {
+                    this.showMobilePanel('list');
+                    setTimeout(() => document.getElementById('mobileListSearch')?.focus(), 0);
+                }
+            });
             return sheet;
+        },
+
+        applyWatchView() {
+            const sheet = document.getElementById('watchlistSheet');
+            if (!sheet) return;
+            const aircraftSection = sheet.querySelector('[data-watch-section="aircraft"]');
+            if (aircraftSection) aircraftSection.hidden = this.watchView === 'alerts';
         },
         
         updateWatchlistSheet() {
             const content = document.querySelector('#watchlistSheetContent .watchlist-items');
-            const count = document.getElementById('watchlistSheetCount');
             if (!content) return;
-            
-            const watchedItems = Object.values(aircraftCache).filter(ac => ac.watched);
-            if (count) count.textContent = watchedItems.length;
-            
-            if (watchedItems.length === 0) {
-                content.innerHTML = safeHTML('<div class="watchlist-empty" style="padding: 20px; text-align: center; color: var(--text-muted);">No watched aircraft</div>');
-                return;
-            }
-            
-            content.innerHTML = safeHTML(watchedItems.map(ac => `
-                <div class="list-aircraft-item" data-hex="${ac.hex}">
-                    <div class="list-ac-icon" style="color: var(--accent);">*</div>
-                    <div class="list-ac-info">
-                    <div class="list-ac-callsign">${ac.flight?.trim() || getDisplayRegistration(ac) || ac.hex}</div>
-                        <div class="list-ac-detail">${ac.t || '---'}</div>
-                    </div>
-                    <div class="list-ac-data">
-                        <div class="list-ac-alt">${ac.alt_baro === 'ground' ? 'GND' : ((ac.alt_baro || 0) / 1000).toFixed(1) + 'k'}</div>
-                        <div class="list-ac-speed">${ac.gs || '---'} kt</div>
-                    </div>
-                </div>
-            `).join(''));
-            
-            content.querySelectorAll('.list-aircraft-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    selectAircraft(item.dataset.hex);
-                    this.showInfoPanel();
-                    haptics.medium();
+            const entries = Array.from(alertSystem.watchlist.values()).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+            const airborneCount = entries.filter(entry => Boolean(aircraftCache[entry.hex])).length;
+            const recent = Array.isArray(alertSystem.recentActivity) ? alertSystem.recentActivity : [];
+            const setMetric = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+            setMetric('watchMetricTotal', entries.length);
+            setMetric('watchMetricAirborne', airborneCount);
+            setMetric('watchMetricAlerts', recent.filter(item => Date.now() - item.timestamp < 86400000).length);
+
+            if (!entries.length) {
+                content.innerHTML = safeHTML('<div class="mobile-list-empty"><strong>No watched aircraft</strong>Select an aircraft on the map or in List, then tap the star.</div>');
+            } else {
+                content.innerHTML = safeHTML(entries.map(entry => {
+                    const ac = aircraftCache[entry.hex];
+                    const category = this.aircraftCategory(ac || {});
+                    const name = ac?.flight?.trim() || entry.name || getDisplayRegistration(ac) || entry.hex;
+                    const operator = ac?.militaryInfo?.operator || ac?.ownOp || ac?.airline?.name || category.label;
+                    const alertOn = entry.alertsEnabled !== false;
+                    return `
+                    <article class="watch-card" data-hex="${entry.hex}" style="--watch-color:${category.color}">
+                        <div class="watch-card-icon">${this.aircraftIconMarkup(category.key)}</div>
+                        <div class="watch-card-main">
+                            <div class="watch-card-name">${name}</div>
+                            <div class="watch-card-detail">${operator} • ${ac?.t || ac?.type || 'Aircraft'}</div>
+                            <span class="watch-card-status${ac ? '' : ' offline'}">${ac ? 'AIRBORNE' : 'NOT IN VIEW'}</span>
+                            <div class="watch-card-route">${ac ? this.formatRoute(ac) : 'Saved locally • ' + entry.hex}</div>
+                        </div>
+                        <div class="watch-card-actions">
+                            <button class="watch-remove-btn" type="button" data-watch-action="remove" aria-label="Remove ${name} from watchlist" title="Remove from watchlist"><svg viewBox="0 0 24 24"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3z"/></svg></button>
+                            <button class="watch-alert-toggle${alertOn ? '' : ' off'}" type="button" data-watch-action="alerts" aria-label="Turn alerts ${alertOn ? 'off' : 'on'} for ${name}"></button>
+                            <span class="watch-toggle-label">Alerts ${alertOn ? 'on' : 'off'}</span>
+                        </div>
+                        <div class="watch-card-metrics">
+                            <span>${ac ? this.formatAltitude(ac) : '--- ft'}</span>
+                            <span>${Number.isFinite(Number(ac?.gs)) ? Math.round(Number(ac.gs)) + ' kt' : '--- kt'}</span>
+                            <span>${ac ? '▁▂▃▂▄▅▄▆▅▇' : '──────────'}</span>
+                        </div>
+                    </article>`;
+                }).join(''));
+                content.querySelectorAll('.watch-card').forEach(card => {
+                    card.addEventListener('click', event => {
+                        const action = event.target.closest('[data-watch-action]')?.dataset.watchAction;
+                        const hex = card.dataset.hex;
+                        if (action === 'remove') {
+                            alertSystem.removeFromWatchlist(hex);
+                            this.updateWatchlistSheet();
+                            this.updateMapChrome();
+                            return;
+                        }
+                        if (action === 'alerts') {
+                            alertSystem.toggleWatchAlerts(hex);
+                            this.updateWatchlistSheet();
+                            return;
+                        }
+                        if (aircraftCache[hex]) {
+                            selectAircraft(hex);
+                            this.showInfoPanel();
+                            haptics.medium();
+                        } else {
+                            toast('Aircraft not currently visible');
+                        }
+                    });
                 });
-            });
+            }
+
+            const activity = document.getElementById('mobileWatchActivity');
+            if (activity) {
+                const timeAgo = timestamp => {
+                    const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+                    if (minutes < 1) return 'now';
+                    if (minutes < 60) return minutes + ' min ago';
+                    const hours = Math.round(minutes / 60);
+                    return hours < 24 ? hours + 'h ago' : Math.round(hours / 24) + 'd ago';
+                };
+                activity.innerHTML = safeHTML(recent.length ? recent.slice(0, 8).map(item => `
+                    <div class="watch-activity-item" style="--activity-color:${item.type === 'EMERGENCY' ? '#ff5364' : item.type === 'WATCHLIST' ? '#fbbf24' : '#21d4b4'}">
+                        <div class="watch-activity-icon">${item.type === 'EMERGENCY' ? '!' : '⌁'}</div>
+                        <div class="watch-activity-copy"><strong>${item.callsign}</strong> ${item.message}</div>
+                        <div class="watch-activity-time">${timeAgo(item.timestamp)}</div>
+                    </div>
+                `).join('') : '<div class="mobile-list-empty"><strong>No recent alerts</strong>Watch activity will appear here during this session.</div>');
+            }
+            this.applyWatchView();
         },
         
         showSettingsSheet() {
@@ -11945,7 +12384,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const settings = _el('settingsPanel');
             if (settings) {
                 settings.classList.add('bottom-sheet');
+                settings.classList.remove('show');
                 this.expandSheet(settings);
+                settings.scrollTop = 0;
             }
         }
     };
@@ -12043,6 +12484,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     const newLatLng = map.containerPointToLatLng(newPoint);
                     map.panTo(newLatLng, { animate: true, duration: 0.3 });
                 }
+                mobileSupport.updateMapChrome();
             }
         };
     }
@@ -12058,12 +12500,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     
     // Phase 15: Update aircraft list periodically on mobile
     _setPausableInterval(() => {
-        if (mobileSupport.isMobile && document.getElementById('aircraftListSheet')?.classList.contains('half')) {
+        if (mobileSupport.isMobile && mobileSupport.activePanel === 'list' && document.getElementById('aircraftListSheet')?.classList.contains('expanded')) {
             mobileSupport.updateAircraftList();
         }
-        if (mobileSupport.isMobile && document.getElementById('watchlistSheet')?.classList.contains('half')) {
+        if (mobileSupport.isMobile && mobileSupport.activePanel === 'watchlist' && document.getElementById('watchlistSheet')?.classList.contains('expanded')) {
             mobileSupport.updateWatchlistSheet();
         }
+        if (mobileSupport.isMobile) mobileSupport.updateMapChrome();
     }, 5000, 'mobileList');
     
     // ============ PHASE 16: INITIALIZE RELIABILITY SYSTEMS ============

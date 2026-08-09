@@ -24,6 +24,8 @@ SERVICE_WORKER = ROOT / "sw.js"
 TWA_DIR = ROOT / "android"
 TYPE_PHOTO_DOWNLOADER = ROOT / "download-type-photos.py"
 TYPE_PHOTO_WORKFLOW = ROOT / "tools" / "run_type_photo_enrichment.ps1"
+UI_STYLES = ROOT / "assets" / "viptrack-ui.css"
+UI_MOCKUPS = ROOT / "assets" / "mockups"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -460,15 +462,15 @@ class VipTrackContracts(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (TWA_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
         twa_manifest = json.loads((TWA_DIR / "twa-manifest.json").read_text(encoding="utf-8"))
-        self.assertIn("<title>VIPTrack v0.2.0", self.source)
-        self.assertIn('class="version">v0.2.0', self.source)
-        self.assertIn("version-0.2.0-blue", readme)
-        self.assertIn("## [v0.2.0] - 2026-08-08", changelog)
-        self.assertIn('versionName "0.2.0"', build_gradle)
-        self.assertIn('versionCode 2', build_gradle)
-        self.assertEqual(twa_manifest["appVersionName"], "0.2.0")
-        self.assertEqual(twa_manifest["appVersion"], "0.2.0")
-        self.assertEqual(twa_manifest["appVersionCode"], 2)
+        self.assertIn("<title>VIPTrack v0.3.0", self.source)
+        self.assertIn('class="version">v0.3.0', self.source)
+        self.assertIn("version-0.3.0-blue", readme)
+        self.assertIn("## [v0.3.0] - 2026-08-08", changelog)
+        self.assertIn('versionName "0.3.0"', build_gradle)
+        self.assertIn('versionCode 3', build_gradle)
+        self.assertEqual(twa_manifest["appVersionName"], "0.3.0")
+        self.assertEqual(twa_manifest["appVersion"], "0.3.0")
+        self.assertEqual(twa_manifest["appVersionCode"], 3)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -821,7 +823,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.19'",
+            "const CACHE_SCHEMA_VERSION = '4.21'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -836,6 +838,7 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.21'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)
@@ -845,6 +848,43 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("Blob([swCode]", worker)
         self.assertNotIn("keys.length > 600", worker)
         self.assertNotIn("keys.length - 500", worker)
+
+    def test_mobile_operations_ui_has_mockup_parity_contracts(self) -> None:
+        styles = UI_STYLES.read_text(encoding="utf-8")
+        worker = SERVICE_WORKER.read_text(encoding="utf-8")
+        for marker in (
+            'href="assets/viptrack-ui.css"',
+            "createAppBar()",
+            "createMapChrome()",
+            "mobile-map-peek",
+            "mobile-page-panel",
+            "mobileListSearch",
+            "watch-overview",
+            "toggleWatchAlerts(hex)",
+            "mobileSettingsSearch",
+            "data-settings-group",
+            "Local-first • credentials stay on this device",
+            "trustedTypes.createPolicy('default'",
+            "RETURN_TRUSTED_TYPE: false",
+        ):
+            self.assertIn(marker, self.source)
+        for marker in (
+            "--accent: #21d4b4",
+            ".mobile-app-bar",
+            ".mobile-bottom-nav",
+            ".mobile-map-peek",
+            ".list-aircraft-item",
+            ".watch-card",
+            ".mobile-settings-categories",
+            "@media (max-width: 767.98px)",
+        ):
+            self.assertIn(marker, styles)
+        self.assertIn("'assets/viptrack-ui.css'", worker)
+        self.assertLess(self.source.index('dompurify@3.4.13'), self.source.index('leaflet/1.9.4/leaflet.js', self.source.index('<body>')))
+        for page in ("map", "list", "watch", "settings"):
+            mockup = UI_MOCKUPS / f"viptrack-{page}.png"
+            self.assertTrue(mockup.is_file(), mockup)
+            self.assertGreater(mockup.stat().st_size, 100_000)
 
     def test_periodic_background_sync_refreshes_public_reference_data_only(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")

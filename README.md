@@ -1,6 +1,6 @@
 # VIPTrack
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Web-4285F4)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES2020+-F7DF1E?logo=javascript&logoColor=black)
@@ -42,6 +42,10 @@ The Settings panel includes a language selector. Locale catalogs live in `data/i
 The optional `android/` project is a Bubblewrap-generated Trusted Web Activity shell for `https://sysadmindoc.github.io/VIPTrack/`. With JDK 17 and the Android SDK configured, build unsigned release artifacts with `gradlew.bat assembleRelease` and `gradlew.bat bundleRelease` from that directory. The project deliberately contains no release signing key; Play Console publication and the matching Digital Asset Links certificate are operator-controlled release steps.
 
 ## Features
+
+### Mobile Operations Workspace
+
+Phones get a purpose-built four-page workspace inspired by the checked-in design studies in `assets/mockups/`: a full-screen live Map with quick filters and selected-aircraft telemetry, a searchable/sortable Aircraft list, a Watch dashboard with per-aircraft alert controls and session activity, and categorized Settings with local search. The raised bottom navigation keeps all four pages one tap away, while tablet and desktop layouts retain the established map-first interface.
 
 ### Global Aircraft Loading
 All military, VIP, and PIA aircraft load worldwide on page open. No viewport-based lazy loading — every tracked aircraft appears immediately regardless of where you're looking on the map.
