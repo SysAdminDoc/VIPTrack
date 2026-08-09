@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import struct
 import unittest
 from pathlib import Path
 
@@ -424,7 +425,16 @@ class VipTrackContracts(unittest.TestCase):
         self.assertEqual(manifest["share_target"]["method"], "GET")
         self.assertEqual(manifest["share_target"]["params"], {"title": "title", "text": "text", "url": "url"})
         for icon in manifest["icons"]:
-            self.assertTrue((ROOT / icon["src"]).is_file(), icon["src"])
+            icon_path = ROOT / icon["src"]
+            self.assertTrue(icon_path.is_file(), icon["src"])
+            png = icon_path.read_bytes()
+            self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+            expected_size = int(icon["sizes"].split("x", 1)[0])
+            self.assertEqual(struct.unpack(">II", png[16:24]), (expected_size, expected_size))
+        self.assertEqual({icon["sizes"] for icon in manifest["icons"]}, {"192x192", "512x512"})
+        self.assertTrue(all("maskable" in icon["purpose"] for icon in manifest["icons"]))
+        self.assertTrue((ROOT / "assets" / "logo" / "VIPTrack_Mark.svg").is_file())
+        self.assertNotIn("SkyTrack_Logo", self.source + SERVICE_WORKER.read_text(encoding="utf-8") + WEB_MANIFEST.read_text(encoding="utf-8"))
         for marker in (
             '<link rel="manifest" href="manifest.json">',
             "location.protocol === 'file:'",
@@ -444,6 +454,7 @@ class VipTrackContracts(unittest.TestCase):
         activity = (ANDROID_DIR / "app" / "src" / "main" / "java" / "com" / "sysadmindoc" / "viptrack" / "LauncherActivity.java").read_text(encoding="utf-8")
         navigation = (ANDROID_DIR / "app" / "src" / "main" / "java" / "com" / "sysadmindoc" / "viptrack" / "VipTrackNavigation.java").read_text(encoding="utf-8")
         navigation_test = ANDROID_DIR / "app" / "src" / "test" / "java" / "com" / "sysadmindoc" / "viptrack" / "VipTrackNavigationTest.java"
+        resources = ANDROID_DIR / "app" / "src" / "main" / "res"
         for marker in (
             "androidx.webkit:webkit:1.16.0",
             "syncVipTrackWebAssets",
@@ -460,6 +471,7 @@ class VipTrackContracts(unittest.TestCase):
             'android.permission.ACCESS_NETWORK_STATE',
             'android:usesCleartextTraffic="false"',
             'android:allowBackup="false"',
+            'android:roundIcon="@mipmap/ic_launcher_round"',
             'android:pathPrefix="/VIPTrack"',
             'android:scheme="https"',
         ):
@@ -486,6 +498,19 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("androidbrowserhelper", build_gradle + manifest + activity)
         self.assertNotIn("signingConfig", build_gradle)
         self.assertNotIn("debug.keystore", build_gradle)
+        adaptive_icon = (resources / "mipmap-anydpi-v26" / "ic_launcher.xml").read_text(encoding="utf-8")
+        themed_icon = (resources / "mipmap-anydpi-v33" / "ic_launcher.xml").read_text(encoding="utf-8")
+        foreground = (resources / "drawable-anydpi" / "ic_launcher_foreground.xml").read_text(encoding="utf-8")
+        legacy_icon = (resources / "mipmap-anydpi" / "ic_launcher.xml").read_text(encoding="utf-8")
+        self.assertIn("<adaptive-icon", adaptive_icon)
+        self.assertIn('@drawable/ic_launcher_foreground', adaptive_icon)
+        self.assertIn('<monochrome android:drawable="@drawable/ic_launcher_monochrome"', themed_icon)
+        self.assertIn('android:rotation="35"', foreground)
+        self.assertIn('@drawable/ic_launcher_legacy_background', legacy_icon)
+        self.assertFalse(any(resources.glob("mipmap-*/ic_launcher.png")))
+        store_icon = (ANDROID_DIR / "store_icon.png").read_bytes()
+        self.assertEqual(store_icon[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(struct.unpack(">II", store_icon[16:24]), (512, 512))
         self.assertIn("CONFIG.isAndroidApp && source.key !== 'airplaneslive'", self.source)
         self.assertIn("const androidSourceOrder={airplaneslive:0", self.source)
         self.assertIn("const VIPTRACK_ANDROID_QA_MODE = IS_VIPTRACK_ANDROID_APP", self.source)
@@ -494,12 +519,12 @@ class VipTrackContracts(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("<title>VIPTrack v0.4.0", self.source)
-        self.assertIn('class="version">v0.4.0', self.source)
-        self.assertIn("version-0.4.0-blue", readme)
-        self.assertIn("## [v0.4.0] - 2026-08-08", changelog)
-        self.assertIn("versionName '0.4.0'", build_gradle)
-        self.assertIn("versionCode 4", build_gradle)
+        self.assertIn("<title>VIPTrack v0.4.1", self.source)
+        self.assertIn('class="version">v0.4.1', self.source)
+        self.assertIn("version-0.4.1-blue", readme)
+        self.assertIn("## [v0.4.1] - 2026-08-08", changelog)
+        self.assertIn("versionName '0.4.1'", build_gradle)
+        self.assertIn("versionCode 5", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -852,7 +877,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.22'",
+            "const CACHE_SCHEMA_VERSION = '4.23'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -867,7 +892,7 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.22'", self.source)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.23'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)

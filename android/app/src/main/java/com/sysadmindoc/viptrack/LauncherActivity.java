@@ -192,6 +192,7 @@ public final class LauncherActivity extends Activity {
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.mipmap.ic_launcher);
+        logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         logo.setContentDescription(null);
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(86), dp(86));
         logoParams.bottomMargin = dp(18);

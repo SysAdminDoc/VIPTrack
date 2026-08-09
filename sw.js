@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_SCHEMA_VERSION = '4.22';
+const CACHE_SCHEMA_VERSION = '4.23';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',
@@ -8,20 +8,17 @@ const STATIC_ASSETS = [
     'cesium-frame.html',
     'manifest.json',
     'assets/viptrack-ui.css',
-    'assets/logo/SkyTrack_Logo-16x16.png',
-    'assets/logo/SkyTrack_Logo-32x32.png',
-    'assets/logo/SkyTrack_Logo-48x48.png',
-    'assets/logo/SkyTrack_Logo-128x128.png',
+    'assets/logo/VIPTrack_Mark-16x16.png',
+    'assets/logo/VIPTrack_Mark-32x32.png',
+    'assets/logo/VIPTrack_Mark-48x48.png',
+    'assets/logo/VIPTrack_Mark-128x128.png',
+    'assets/logo/VIPTrack_Mark-192x192.png',
+    'assets/logo/VIPTrack_Mark-512x512.png',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
     'https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js',
     'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/aircraft.png',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo.ico',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo-16x16.png',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo-32x32.png',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo-48x48.png',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/logo/SkyTrack_Logo-128x128.png',
     'data/aircraft/registrations.json',
     'workers/registration-opfs-worker.js'
 ];

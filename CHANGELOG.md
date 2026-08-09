@@ -6,6 +6,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.1] - 2026-08-08
+
+### Changed
+- Replaced the text-heavy square Android artwork with a text-free adaptive radar/aircraft icon, including legacy-round, Android 13 themed, native splash, Play-store, PWA, favicon, notification, and in-app brand variants.
+- Removed obsolete duplicate raster launcher, notification, and splash resources; Android launcher lint now validates the canonical vector icon system without shape or duplicate warnings.
+- Bumped the web/PWA cache schema and synchronized web, README, changelog, and Android metadata for the 0.4.1 release.
+
 ## [v0.4.0] - 2026-08-08
 
 ### Added

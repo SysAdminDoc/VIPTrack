@@ -93,7 +93,8 @@
         width: 34px;
         height: 34px;
         object-fit: contain;
-        filter: hue-rotate(112deg) saturate(1.45) brightness(1.08) drop-shadow(0 0 10px rgba(33, 212, 180, 0.18));
+        border-radius: 10px;
+        filter: drop-shadow(0 0 10px rgba(33, 212, 180, 0.18));
     }
 
     .mobile-brand strong {
