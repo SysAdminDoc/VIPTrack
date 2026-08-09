@@ -519,12 +519,12 @@ class VipTrackContracts(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("<title>VIPTrack v0.4.1", self.source)
-        self.assertIn('class="version">v0.4.1', self.source)
-        self.assertIn("version-0.4.1-blue", readme)
-        self.assertIn("## [v0.4.1] - 2026-08-08", changelog)
-        self.assertIn("versionName '0.4.1'", build_gradle)
-        self.assertIn("versionCode 5", build_gradle)
+        self.assertIn("<title>VIPTrack v0.4.2", self.source)
+        self.assertIn('class="version">v0.4.2', self.source)
+        self.assertIn("version-0.4.2-blue", readme)
+        self.assertIn("## [v0.4.2] - 2026-08-08", changelog)
+        self.assertIn("versionName '0.4.2'", build_gradle)
+        self.assertIn("versionCode 6", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -877,7 +877,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.23'",
+            "const CACHE_SCHEMA_VERSION = '4.24'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -892,7 +892,7 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.23'", self.source)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.24'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)
@@ -930,9 +930,19 @@ class VipTrackContracts(unittest.TestCase):
             ".list-aircraft-item",
             ".watch-card",
             ".mobile-settings-categories",
-            "@media (max-width: 767.98px)",
+            "@media (max-width: 767.98px), (pointer: coarse) and (max-height: 767.98px)",
+            "--mobile-safe-bottom: max(var(--mobile-nav-gap), env(safe-area-inset-bottom, 0px))",
+            "--mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-safe-bottom) + var(--mobile-nav-gap))",
         ):
             self.assertIn(marker, styles)
+        for marker in (
+            "const isPhoneViewport = window.matchMedia(",
+            "(max-width: 767.98px), (pointer: coarse) and (max-height: 767.98px)",
+            "this.isMobile = false",
+            "this.isTablet = false",
+            'assets/logo/VIPTrack_Mark-128x128.png',
+        ):
+            self.assertIn(marker, self.source)
         self.assertIn("'assets/viptrack-ui.css'", worker)
         self.assertLess(self.source.index('dompurify@3.4.13'), self.source.index('leaflet/1.9.4/leaflet.js', self.source.index('<body>')))
         for page in ("map", "list", "watch", "settings"):

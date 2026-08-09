@@ -38,12 +38,14 @@
     display: none;
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 767.98px), (pointer: coarse) and (max-height: 767.98px) {
     :root {
         --mobile-app-bar-height: 58px;
         --mobile-map-toolbar-height: 104px;
         --mobile-nav-height: 78px;
         --mobile-nav-gap: 8px;
+        --mobile-safe-bottom: max(var(--mobile-nav-gap), env(safe-area-inset-bottom, 0px));
+        --mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-safe-bottom) + var(--mobile-nav-gap));
     }
 
     html,
@@ -301,7 +303,7 @@
     body.mobile-view #globe3d {
         top: calc(var(--mobile-app-bar-height) + var(--mobile-map-toolbar-height)) !important;
         right: 0 !important;
-        bottom: calc(var(--mobile-nav-height) + 2 * var(--mobile-nav-gap)) !important;
+        bottom: var(--mobile-nav-clearance) !important;
         left: 0 !important;
     }
 
@@ -391,7 +393,7 @@
     body.mobile-view .mobile-map-peek {
         position: fixed;
         right: 12px;
-        bottom: calc(var(--mobile-nav-height) + 2 * var(--mobile-nav-gap) + 10px);
+        bottom: calc(var(--mobile-nav-clearance) + 10px);
         left: 12px;
         z-index: 1380;
         min-height: 112px;
@@ -531,7 +533,7 @@
     body.mobile-view .mobile-bottom-nav {
         position: fixed;
         right: 10px;
-        bottom: max(var(--mobile-nav-gap), env(safe-area-inset-bottom));
+        bottom: var(--mobile-safe-bottom);
         left: 10px;
         z-index: 2700;
         width: auto;
@@ -593,7 +595,7 @@
 
     body.mobile-view .mobile-fab {
         right: 18px;
-        bottom: calc(var(--mobile-nav-height) + 2 * var(--mobile-nav-gap) + 132px) !important;
+        bottom: calc(var(--mobile-nav-clearance) + 132px) !important;
         z-index: 1390;
         width: 46px;
         height: 46px;
@@ -616,7 +618,7 @@
     body.mobile-view .bottom-sheet.mobile-page-panel,
     body.mobile-view #settingsPanel.bottom-sheet {
         position: fixed !important;
-        inset: var(--mobile-app-bar-height) 0 calc(var(--mobile-nav-height) + 2 * var(--mobile-nav-gap)) 0 !important;
+        inset: var(--mobile-app-bar-height) 0 var(--mobile-nav-clearance) 0 !important;
         z-index: 1800 !important;
         width: 100% !important;
         height: auto !important;
@@ -1572,15 +1574,16 @@
     }
 
     body.mobile-view .toast {
-        bottom: calc(var(--mobile-nav-height) + 2 * var(--mobile-nav-gap) + 8px) !important;
+        bottom: calc(var(--mobile-nav-clearance) + 8px) !important;
     }
 
     body.mobile-view .ethics-disclaimer {
-        bottom: calc(var(--mobile-nav-height) + 2 * var(--mobile-nav-gap) + 8px);
+        bottom: calc(var(--mobile-nav-clearance) + 8px);
     }
 }
 
-@media (max-width: 767.98px) and (orientation: landscape) {
+@media (max-width: 767.98px) and (orientation: landscape),
+       (pointer: coarse) and (max-height: 767.98px) and (orientation: landscape) {
     :root {
         --mobile-nav-height: 64px;
     }
@@ -1588,7 +1591,7 @@
     body.mobile-view .mobile-bottom-nav {
         top: auto;
         right: 8px;
-        bottom: 8px;
+        bottom: var(--mobile-safe-bottom);
         left: 8px;
         width: auto;
         height: var(--mobile-nav-height);
@@ -1610,23 +1613,23 @@
     body.mobile-view #webglMap,
     body.mobile-view #globe3d {
         right: 0 !important;
-        bottom: calc(var(--mobile-nav-height) + 16px) !important;
+        bottom: var(--mobile-nav-clearance) !important;
     }
 
     body.mobile-view .bottom-sheet.mobile-page-panel,
     body.mobile-view #settingsPanel.bottom-sheet {
-        inset: var(--mobile-app-bar-height) 0 calc(var(--mobile-nav-height) + 16px) 0 !important;
+        inset: var(--mobile-app-bar-height) 0 var(--mobile-nav-clearance) 0 !important;
     }
 
     body.mobile-view .mobile-map-peek {
         right: 76px;
-        bottom: calc(var(--mobile-nav-height) + 22px);
+        bottom: calc(var(--mobile-nav-clearance) + 6px);
         left: 12px;
     }
 
     body.mobile-view .mobile-fab {
         right: 18px;
-        bottom: calc(var(--mobile-nav-height) + 150px) !important;
+        bottom: calc(var(--mobile-nav-clearance) + 134px) !important;
     }
 }
 

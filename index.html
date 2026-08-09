@@ -19,7 +19,7 @@
         trusted-types viptrack default dompurify;
         require-trusted-types-for 'script';
     ">
-    <title>VIPTrack v0.4.1 - Military & VIP Flight Tracker</title>
+    <title>VIPTrack v0.4.2 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#07111f">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1508,7 +1508,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.23';
+const SW_CACHE_SCHEMA = '4.24';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -1546,7 +1546,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="assets/logo/VIPTrack_Mark-128x128.png" alt="VIPTrack">
-            <span>VIPTrack<span class="version">v0.4.1</span></span>
+            <span>VIPTrack<span class="version">v0.4.2</span></span>
         </div>
         <div class="spinner"></div>
         <div class="loading-status" id="loadingStatus" data-i18n="loading.initializing">Initializing...</div>
@@ -11429,17 +11429,22 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // Check for touch support
             this.isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             
-            // Check screen size
+            // Treat a coarse-pointer viewport with a phone-sized short side as
+            // mobile in either orientation. Landscape phones often exceed the
+            // portrait width breakpoint even though they still need phone UI.
             const width = window.innerWidth;
-            if (width < 768) {
+            const isPhoneViewport = window.matchMedia(
+                '(max-width: 767.98px), (pointer: coarse) and (max-height: 767.98px)'
+            ).matches;
+            this.isMobile = false;
+            this.isTablet = false;
+            if (isPhoneViewport) {
                 this.isMobile = true;
                 this.screenSize = 'mobile';
             } else if (width < 1024) {
                 this.isTablet = true;
                 this.screenSize = 'tablet';
             } else {
-                this.isMobile = false;
-                this.isTablet = false;
                 this.screenSize = 'desktop';
             }
             
@@ -11703,7 +11708,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             bar.className = 'mobile-app-bar';
             bar.innerHTML = safeHTML(`
                 <div class="mobile-brand" aria-label="VIPTrack">
-                    <img src="assets/logo/VIPTrack_Mark-48x48.png" alt="">
+                    <img src="assets/logo/VIPTrack_Mark-128x128.png" alt="">
                     <span><strong>VIP</strong>Track</span>
                 </div>
                 <div class="mobile-live-status" id="mobileLiveStatus" role="status" aria-live="polite">LIVE</div>

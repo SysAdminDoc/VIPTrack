@@ -6,6 +6,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-08-08
+
+### Fixed
+- Kept the phone workspace active in landscape by detecting coarse-pointer devices from their short side instead of portrait width alone.
+- Reserved the real bottom safe-area inset for maps, panels, aircraft details, floating controls, notices, and navigation so gesture bars cannot cover content.
+- Switched the in-app header to the high-resolution brand mark for sharper rendering on dense Android displays.
+
 ## [v0.4.1] - 2026-08-08
 
 ### Changed
