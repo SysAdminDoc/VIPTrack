@@ -6,6 +6,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-08-08
+
+### Added
+- Added a first-party Android application for the mockup-derived Map, List, Watch, and Settings workspace, with a branded native launch/offline surface, HTTPS app links, Android text sharing, local-state file import, and permission-on-demand location handling.
+- Added a secure AndroidX WebKit asset host and deterministic Gradle sync/verification lane that packages the UI shell, local catalogs, compact registration index, worker, and type photos into the APK.
+- Added local JVM coverage for Android URL allowlisting, hosted-link remapping, share-target encoding, and external-scheme rejection.
+
+### Changed
+- Replaced the Bubblewrap/Chrome Trusted Web Activity with a Chrome-independent WebView host while retaining the same mobile workspace, service-worker caching, and canonical public share links.
+- Kept the Android bundle compact by excluding the bulk aircraft-photo catalog and FAA shards; those datasets continue loading on demand over HTTPS.
+- Prioritized the CORS-compatible Airplanes.live feed in the Android runtime to eliminate failed legacy probes and shorten clean startup.
+- Bumped the web/PWA cache schema and synchronized web, README, changelog, and Android metadata for the 0.4.0 release.
+
+### Security
+- Disabled cleartext traffic, file/content access, universal file URLs, third-party cookies, app-data backup, and untrusted top-level WebView navigation; the APK remains unsigned by policy.
+
 ## [v0.3.0] - 2026-08-08
 
 ### Added

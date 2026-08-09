@@ -1,54 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Copyright 2021 Google Inc. All Rights Reserved.
-
-     Licensed under the Apache License, Version 2.0 (the "License");
-     you may not use this file except in compliance with the License.
-     You may obtain a copy of the License at
-
-         http://www.apache.org/licenses/LICENSE-2.0
-
-     Unless required by applicable law or agreed to in writing, software
-     distributed under the License is distributed on an "AS IS" BASIS,
-     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     See the License for the specific language governing permissions and
-     limitations under the License.
--->
 <resources>
-  
-
-  <!--
-    The "fullscreen" and "fullscreen-sticky" TWA manifest values correspond to "immersive" and "sticky-immersive"
-    AndroidManifest values.
-  -->
-  
-    <string-array name="display_override">
-    
-      
-        <item>window-controls-overlay</item>
-      
-    
-      
-        <item>standalone</item>
-      
-    
-    </string-array>
-  
-
-  <!--
-    This variable below expresses the relationship between the app and the site,
-    as documented in the TWA documentation at
-    https://developers.google.com/web/updates/2017/10/using-twa#set_up_digital_asset_links_in_an_android_app
-    and is injected into the AndroidManifest.xml
-  -->
-  <string name="assetStatements">
-    [{
-        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
-        \"target\": {
-            \"namespace\": \"web\",
-            \"site\": \"https://sysadmindoc.github.io\"
-        }
-    }]
-    
-  </string>  
+    <string name="app_name">VIPTrack</string>
+    <string name="launch_title">VIPTrack</string>
+    <string name="launch_subtitle">Military &amp; VIP flight intelligence</string>
+    <string name="launch_status">Connecting to live airspace…</string>
+    <string name="offline_title">Airspace unavailable</string>
+    <string name="offline_message">VIPTrack could not finish loading. Check your connection and try again.</string>
+    <string name="retry">Retry</string>
+    <string name="share_with">Share VIPTrack flight</string>
 </resources>

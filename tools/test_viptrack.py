@@ -21,7 +21,7 @@ I18N_DIR = ROOT / "data" / "i18n"
 OPFS_WORKER = ROOT / "workers" / "registration-opfs-worker.js"
 WEB_MANIFEST = ROOT / "manifest.json"
 SERVICE_WORKER = ROOT / "sw.js"
-TWA_DIR = ROOT / "android"
+ANDROID_DIR = ROOT / "android"
 TYPE_PHOTO_DOWNLOADER = ROOT / "download-type-photos.py"
 TYPE_PHOTO_WORKFLOW = ROOT / "tools" / "run_type_photo_enrichment.ps1"
 UI_STYLES = ROOT / "assets" / "viptrack-ui.css"
@@ -414,7 +414,7 @@ class VipTrackContracts(unittest.TestCase):
             self.assertIn(marker, self.source)
         self.assertNotIn("createSyncAccessHandle()", self.source)
 
-    def test_static_manifest_supports_pwa_twa_and_share_target(self) -> None:
+    def test_static_manifest_supports_pwa_and_share_target(self) -> None:
         manifest = json.loads(WEB_MANIFEST.read_text(encoding="utf-8"))
         self.assertEqual(manifest["id"], "./")
         self.assertEqual(manifest["scope"], "./")
@@ -436,41 +436,70 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
-    def test_twa_project_is_production_scoped_and_unsigned_by_default(self) -> None:
-        twa_manifest = json.loads((TWA_DIR / "twa-manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(twa_manifest["packageId"], "com.sysadmindoc.viptrack")
-        self.assertEqual(twa_manifest["host"], "sysadmindoc.github.io")
-        self.assertEqual(twa_manifest["startUrl"], "/VIPTrack/index.html")
-        self.assertEqual(twa_manifest["webManifestUrl"], "https://sysadmindoc.github.io/VIPTrack/manifest.json")
-        self.assertEqual(twa_manifest["fullScopeUrl"], "https://sysadmindoc.github.io/VIPTrack/")
-        self.assertEqual(twa_manifest["signingKey"], {"path": "", "alias": ""})
-        self.assertEqual(twa_manifest["shareTarget"]["action"], "https://sysadmindoc.github.io/VIPTrack/index.html")
-        self.assertTrue((TWA_DIR / "gradlew.bat").is_file())
-        build_gradle = (TWA_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
+    def test_native_android_app_bundles_the_mobile_shell_and_stays_unsigned(self) -> None:
+        self.assertTrue((ANDROID_DIR / "gradlew.bat").is_file())
+        self.assertFalse((ANDROID_DIR / "twa-manifest.json").exists())
+        build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
+        manifest = (ANDROID_DIR / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+        activity = (ANDROID_DIR / "app" / "src" / "main" / "java" / "com" / "sysadmindoc" / "viptrack" / "LauncherActivity.java").read_text(encoding="utf-8")
+        navigation = (ANDROID_DIR / "app" / "src" / "main" / "java" / "com" / "sysadmindoc" / "viptrack" / "VipTrackNavigation.java").read_text(encoding="utf-8")
+        navigation_test = ANDROID_DIR / "app" / "src" / "test" / "java" / "com" / "sysadmindoc" / "viptrack" / "VipTrackNavigationTest.java"
         for marker in (
-            "hostName: 'sysadmindoc.github.io'",
-            "launchUrl: '/VIPTrack/index.html'",
-            "https://sysadmindoc.github.io/VIPTrack/manifest.json",
-            "https://sysadmindoc.github.io/VIPTrack/index.html",
+            "androidx.webkit:webkit:1.16.0",
+            "syncVipTrackWebAssets",
+            "verifyVipTrackWebAssets",
+            "include 'type_photos/**'",
+            "Bulk aircraft photos must not be packaged",
+            "FAA shards must remain an on-demand HTTPS dataset",
+            "minSdk 24",
+            "targetSdk 36",
         ):
             self.assertIn(marker, build_gradle)
-        self.assertNotIn("127.0.0.1", build_gradle)
+        for marker in (
+            'android.permission.INTERNET',
+            'android.permission.ACCESS_NETWORK_STATE',
+            'android:usesCleartextTraffic="false"',
+            'android:allowBackup="false"',
+            'android:pathPrefix="/VIPTrack"',
+            'android:scheme="https"',
+        ):
+            self.assertIn(marker, manifest)
+        for marker in (
+            "WebViewAssetLoader",
+            "MIXED_CONTENT_NEVER_ALLOW",
+            "setAllowFileAccess(false)",
+            "setAcceptThirdPartyCookies(webView, false)",
+            'addJavascriptInterface(new AndroidBridge(this), "VIPTrackAndroid")',
+            "ServiceWorkerController",
+            "buildAssetShareUrl",
+            "return BuildConfig.DEBUG",
+        ):
+            self.assertIn(marker, activity)
+        for marker in (
+            "sysadmindoc.github.io",
+            'APP_SCOPE_PATH = "/VIPTrack/"',
+            "isSafeExternalUrl",
+            "MAX_QUERY_LENGTH",
+        ):
+            self.assertIn(marker, navigation)
+        self.assertTrue(navigation_test.is_file())
+        self.assertNotIn("androidbrowserhelper", build_gradle + manifest + activity)
+        self.assertNotIn("signingConfig", build_gradle)
         self.assertNotIn("debug.keystore", build_gradle)
+        self.assertIn("CONFIG.isAndroidApp && source.key !== 'airplaneslive'", self.source)
+        self.assertIn("const androidSourceOrder={airplaneslive:0", self.source)
+        self.assertIn("const VIPTRACK_ANDROID_QA_MODE = IS_VIPTRACK_ANDROID_APP", self.source)
 
-    def test_release_version_is_synchronized_across_shell_docs_and_twa(self) -> None:
+    def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        build_gradle = (TWA_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        twa_manifest = json.loads((TWA_DIR / "twa-manifest.json").read_text(encoding="utf-8"))
-        self.assertIn("<title>VIPTrack v0.3.0", self.source)
-        self.assertIn('class="version">v0.3.0', self.source)
-        self.assertIn("version-0.3.0-blue", readme)
-        self.assertIn("## [v0.3.0] - 2026-08-08", changelog)
-        self.assertIn('versionName "0.3.0"', build_gradle)
-        self.assertIn('versionCode 3', build_gradle)
-        self.assertEqual(twa_manifest["appVersionName"], "0.3.0")
-        self.assertEqual(twa_manifest["appVersion"], "0.3.0")
-        self.assertEqual(twa_manifest["appVersionCode"], 3)
+        build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
+        self.assertIn("<title>VIPTrack v0.4.0", self.source)
+        self.assertIn('class="version">v0.4.0', self.source)
+        self.assertIn("version-0.4.0-blue", readme)
+        self.assertIn("## [v0.4.0] - 2026-08-08", changelog)
+        self.assertIn("versionName '0.4.0'", build_gradle)
+        self.assertIn("versionCode 4", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -823,7 +852,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.21'",
+            "const CACHE_SCHEMA_VERSION = '4.22'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -838,7 +867,7 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.21'", self.source)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.22'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)

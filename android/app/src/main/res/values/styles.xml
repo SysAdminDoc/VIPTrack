@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.VIPTrack" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@color/viptrack_navy_deep</item>
+        <item name="android:colorAccent">@color/viptrack_teal</item>
+        <item name="android:statusBarColor">@color/viptrack_navy_deep</item>
+        <item name="android:navigationBarColor">@color/viptrack_navy_deep</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.VIPTrack.Starting" parent="Theme.VIPTrack" />
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.VIPTrack.Starting" parent="Theme.VIPTrack">
+        <item name="android:windowSplashScreenBackground">@color/viptrack_navy_deep</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/viptrack_navy</item>
+    </style>
+</resources>

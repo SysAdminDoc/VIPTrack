@@ -19,7 +19,7 @@
         trusted-types viptrack default dompurify;
         require-trusted-types-for 'script';
     ">
-    <title>VIPTrack v0.3.0 - Military & VIP Flight Tracker</title>
+    <title>VIPTrack v0.4.0 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#07111f">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1449,7 +1449,22 @@
     <link rel="stylesheet" href="assets/viptrack-ui.css">
 <script>
 // Inline PWA manifest for direct file:// deployment. HTTP(S) uses the stable
-// manifest.json so installed PWAs and Trusted Web Activity tooling can inspect it.
+// manifest.json so installed PWAs and the native Android shell can inspect it.
+const VIPTRACK_PUBLIC_START_URL = 'https://sysadmindoc.github.io/VIPTrack/index.html';
+const VIPTRACK_ANDROID_ASSET_HOST = 'appassets.androidplatform.net';
+const IS_VIPTRACK_ANDROID_APP = /(?:^|\s)VIPTrackAndroid\/\d/.test(navigator.userAgent) ||
+    (location.protocol === 'https:' &&
+        location.hostname === VIPTRACK_ANDROID_ASSET_HOST &&
+        location.pathname.startsWith('/assets/www/'));
+const VIPTRACK_ANDROID_QA_MODE = IS_VIPTRACK_ANDROID_APP &&
+    (new URLSearchParams(location.search)).has('qa') &&
+    (() => {
+        try { return window.VIPTrackAndroid?.isDebugBuild?.() === true; }
+        catch (e) { return false; }
+    })();
+const VIPTRACK_REFERENCE_BASE_URL = IS_VIPTRACK_ANDROID_APP
+    ? new URL('./', VIPTRACK_PUBLIC_START_URL).href
+    : document.baseURI;
 const manifest = {
     name: 'VIPTrack - Military & VIP Flight Tracker',
     short_name: 'VIPTrack',
@@ -1502,7 +1517,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.21';
+const SW_CACHE_SCHEMA = '4.22';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -1540,7 +1555,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/logo/SkyTrack_Logo-128x128.png" alt="VIPTrack">
-            <span>VIPTrack<span class="version">v0.3.0</span></span>
+            <span>VIPTrack<span class="version">v0.4.0</span></span>
         </div>
         <div class="spinner"></div>
         <div class="loading-status" id="loadingStatus" data-i18n="loading.initializing">Initializing...</div>
@@ -2501,6 +2516,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
         ],
         isLocalFile: window.location.protocol === 'file:',
+        isAndroidApp: IS_VIPTRACK_ANDROID_APP,
         // Self-hosted asset URLs
         silhouetteUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
         airlineBannerUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
@@ -2990,9 +3006,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         async checkConnection() {
             try {
+                const probeUrl = CONFIG.isAndroidApp
+                    ? 'https://api.airplanes.live/v2/point/0/0/1'
+                    : 'https://api.adsb.one/v2/point/0/0/1';
                 const response = CONFIG.isLocalFile
-                    ? await fetchWithProxy('https://api.adsb.one/v2/point/0/0/1')
-                    : await fetch('https://api.adsb.one/v2/point/0/0/1', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+                    ? await fetchWithProxy(probeUrl)
+                    : await fetch(probeUrl, { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
 
                 if (response?.ok && !this.isOnline) {
                     this.handleOnline();
@@ -3153,7 +3172,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         async checkAllSources() {
             for (const source of this.sources) {
-                if (source.cors === false && location.hostname.includes('github.io')) { source.status = 'degraded'; source.latency = 9999; continue; }
+                if (CONFIG.isAndroidApp && source.key !== 'airplaneslive') {
+                    source.status = 'degraded';
+                    source.latency = 9999;
+                    continue;
+                }
+                if (!CONFIG.isAndroidApp && source.cors === false && location.hostname.includes('github.io')) { source.status = 'degraded'; source.latency = 9999; continue; }
                 await this.checkSource(source);
             }
             
@@ -3997,7 +4021,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             this.enabled = settings.enabled !== false;
             this.soundEnabled = settings.soundEnabled !== false;
             this.militaryAlertRadius = settings.militaryAlertRadius || 50;
-            this.notificationsEnabled = settings.notificationsEnabled && Notification.permission === 'granted';
+            this.notificationsEnabled = settings.notificationsEnabled &&
+                'Notification' in window && Notification.permission === 'granted';
             
             this.startLocationTracking();
             _dbg('Alert system initialized:', this.watchlist.size, 'watched aircraft and', this.namedWatchlists.size, 'named watchlists');
@@ -5714,7 +5739,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (this.requests.has(letter)) return this.requests.get(letter);
             if (CONFIG.isLocalFile) return null;
             const request = (async () => {
-                const url = new URL('data/faa/master-' + letter + '.json', document.baseURI).href;
+                const url = new URL('data/faa/master-' + letter + '.json', VIPTRACK_REFERENCE_BASE_URL).href;
                 const response = await fetchWithTimeout(url, { cache: 'force-cache' }, 15000);
                 if (!response.ok) throw new Error('FAA shard HTTP ' + response.status);
                 const data = await response.json();
@@ -8442,6 +8467,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         setLoadingProgress(100, 'Ready!');
         setTimeout(() => document.getElementById('loading').classList.add('hidden'), 300);
+        try { window.VIPTrackAndroid?.appReady?.(); } catch (e) { console.warn('Android ready signal failed:', e); }
         
         _startFetchInterval();
         _setPausableInterval(saveAircraftCache, 30000, 'saveCache');
@@ -8483,7 +8509,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         const statsStartedAt = Date.now();
         gridFetch.inProgress=true;fetchInProgress=true;
         try{
-            const allSrc=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
+            const eligibleSources=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
+            const androidSourceOrder={airplaneslive:0,adsbone:1,adsblol:2,adsbfi:3};
+            const allSrc=CONFIG.isAndroidApp
+                ? [...eligibleSources].sort((a,b)=>(androidSourceOrder[a.key]??99)-(androidSourceOrder[b.key]??99))
+                : eligibleSources;
             if(!allSrc.length){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();return;}
             let success=false;
             const attemptedSources = [];
@@ -10758,7 +10788,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
             params.set('zoom', map.getZoom());
             if (settings.filter !== 'all') params.set('filter', settings.filter);
-            return window.location.origin + window.location.pathname + '?' + params.toString();
+            const baseUrl = IS_VIPTRACK_ANDROID_APP
+                ? VIPTRACK_PUBLIC_START_URL
+                : window.location.origin + window.location.pathname;
+            return baseUrl + '?' + params.toString();
         },
 
         _collectTrailPoints(hex) {
@@ -10865,6 +10898,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         return;
                     }
                 } catch (e) { if (e.name !== 'AbortError') console.warn('Trail share failed:', e); }
+            }
+            if (window.VIPTrackAndroid?.shareText) {
+                try {
+                    window.VIPTrackAndroid.shareText(title, 'VIPTrack trail for ' + label, link);
+                    return;
+                } catch (e) { console.warn('Android share failed:', e); }
             }
             if (!blob) toast('Trail image unavailable; sharing link instead');
             await this.copyToClipboard(link);
@@ -11471,7 +11510,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 this.createMapChrome();
             }
             this.convertPanelsToSheets();
-            this.setActivePanel(this.activePanel || 'map');
+            const requestedPanel = new URLSearchParams(location.search).get('panel');
+            const normalizedPanel = requestedPanel === 'watch' ? 'watchlist' : requestedPanel;
+            if (['list', 'watchlist', 'settings'].includes(normalizedPanel)) {
+                this.showMobilePanel(normalizedPanel);
+            } else {
+                this.setActivePanel(this.activePanel || 'map');
+            }
             this.updateMapChrome();
         },
         
@@ -12580,6 +12625,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
     // ============ N6: ETHICAL-USE DISCLAIMER ============
     (function ethicsInit(){
+        if (VIPTRACK_ANDROID_QA_MODE) {
+            localStorage.setItem('viptrack_ethics_ack', '1');
+            return;
+        }
         if (localStorage.getItem('viptrack_ethics_ack') === '1') return;
         const el = document.getElementById('ethicsDisclaimer');
         if (!el) return;
@@ -15112,6 +15161,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         }
         
         // --- Onboarding ---
+        if (VIPTRACK_ANDROID_QA_MODE) localStorage.setItem('viptrack_onboarded', '1');
         if (!localStorage.getItem('viptrack_onboarded')) {
             const overlay = document.getElementById('onboardOverlay');
             if (overlay) {
