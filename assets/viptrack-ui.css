@@ -1655,3 +1655,688 @@
         left: 8px !important;
     }
 }
+
+/* ============ IMAGEGEN FLIGHT DECK V2 ============
+ * Implementation target: assets/mockups/viptrack-flightdeck-v2-board.png
+ * The reference favors compact telemetry, squared instrument surfaces, and a
+ * shared command/navigation frame across all four mobile workspaces.
+ */
+@media (max-width: 767.98px), (pointer: coarse) and (max-height: 767.98px) {
+    :root {
+        --mobile-app-bar-height: 56px;
+        --mobile-map-toolbar-height: 98px;
+        --mobile-nav-height: 66px;
+        --mobile-nav-gap: 6px;
+        --deck-bg: #06111d;
+        --deck-surface: rgba(8, 25, 42, 0.96);
+        --deck-surface-raised: rgba(10, 30, 49, 0.98);
+        --deck-line: rgba(114, 157, 199, 0.25);
+        --deck-line-strong: rgba(122, 173, 220, 0.4);
+        --deck-cyan: #28dfc1;
+        --deck-amber: #ffb83f;
+        --deck-violet: #a77cff;
+        --deck-radius: 8px;
+    }
+
+    body.mobile-view {
+        background: var(--deck-bg);
+        font-feature-settings: 'tnum' 1, 'ss01' 1;
+    }
+
+    body.mobile-view::after {
+        background:
+            linear-gradient(rgba(66, 117, 158, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(66, 117, 158, 0.035) 1px, transparent 1px),
+            radial-gradient(circle at 10% -5%, rgba(40, 223, 193, 0.09), transparent 27%),
+            radial-gradient(circle at 100% 72%, rgba(52, 103, 161, 0.08), transparent 34%);
+        background-size: 28px 28px, 28px 28px, auto, auto;
+        opacity: 0.9;
+    }
+
+    .mobile-app-bar {
+        height: var(--mobile-app-bar-height);
+        padding: max(7px, env(safe-area-inset-top)) 13px 7px;
+        gap: 9px;
+        background: linear-gradient(90deg, rgba(3, 14, 25, 0.99), rgba(5, 20, 34, 0.98));
+        border-bottom-color: var(--deck-line);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(14px) saturate(125%);
+    }
+
+    .mobile-brand {
+        gap: 7px;
+        font-size: 18px;
+        font-weight: 790;
+        letter-spacing: -0.035em;
+    }
+
+    .mobile-brand img {
+        width: 32px;
+        height: 32px;
+        border-radius: 5px;
+        filter: drop-shadow(0 0 8px rgba(40, 223, 193, 0.2));
+    }
+
+    .mobile-brand strong {
+        color: #f8fbff;
+    }
+
+    .mobile-live-status {
+        padding: 4px 6px;
+        color: #55efa0;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 9px;
+        letter-spacing: 0.09em;
+    }
+
+    .mobile-live-status::before {
+        width: 6px;
+        height: 6px;
+        box-shadow: 0 0 8px rgba(86, 239, 143, 0.78);
+    }
+
+    .mobile-app-utility {
+        width: 34px;
+        height: 34px;
+        min-width: 34px !important;
+        min-height: 34px !important;
+        border-color: var(--deck-line-strong);
+        background: rgba(8, 26, 44, 0.78);
+    }
+
+    body.mobile-view .filter-bar {
+        height: var(--mobile-map-toolbar-height) !important;
+        padding: 8px 12px 8px !important;
+        grid-template-rows: 40px 32px !important;
+        gap: 7px !important;
+        background: rgba(4, 16, 28, 0.97) !important;
+        border-bottom-color: var(--deck-line) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+        backdrop-filter: blur(14px) saturate(125%);
+    }
+
+    body.mobile-view .filter-bar .search-input-wrapper,
+    .mobile-search-control,
+    .mobile-settings-search {
+        height: 40px;
+        border-color: var(--deck-line);
+        border-radius: var(--deck-radius);
+        background: linear-gradient(90deg, rgba(11, 30, 49, 0.97), rgba(7, 24, 41, 0.97));
+        box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    body.mobile-view .filter-bar .search-box,
+    body.mobile-view .filter-bar .search-box:focus {
+        height: 38px;
+        font-size: 12px;
+    }
+
+    body.mobile-view .filter-bar .search-filter-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        border-radius: 6px;
+    }
+
+    body.mobile-view .filter-bar .search-clear-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        color: var(--text-dim);
+        background: rgba(112, 137, 166, 0.2);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 10px;
+    }
+
+    body.mobile-view .filter-bar > [role='radiogroup'] {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        overflow: visible;
+    }
+
+    body.mobile-view .filter-bar .filter-btn {
+        width: 100%;
+        height: 32px;
+        min-height: 32px !important;
+        padding: 0 4px !important;
+        border-color: var(--deck-line) !important;
+        border-radius: 6px !important;
+        background: rgba(7, 23, 40, 0.9) !important;
+        font-size: 9px !important;
+        font-weight: 690;
+    }
+
+    body.mobile-view .filter-bar .filter-btn.active {
+        color: #dffff8 !important;
+        border-color: rgba(40, 223, 193, 0.64) !important;
+        background: rgba(17, 112, 102, 0.58) !important;
+        box-shadow: inset 3px 0 var(--deck-cyan) !important;
+    }
+
+    body.mobile-view .filter-bar .filter-btn.government-btn:not(.active) {
+        color: #c1aaff !important;
+    }
+
+    body.mobile-view .filter-bar .filter-btn .count {
+        display: none;
+    }
+
+    body.mobile-view .mobile-map-stats {
+        top: calc(var(--mobile-app-bar-height) + var(--mobile-map-toolbar-height) + 10px);
+        left: 10px;
+        height: 32px;
+        padding: 0 10px;
+        border-color: var(--deck-line-strong);
+        border-radius: 6px;
+        background: rgba(5, 22, 38, 0.94);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    body.mobile-view #map .leaflet-tile-pane {
+        filter: brightness(0.56) saturate(0.62) sepia(0.12) hue-rotate(155deg) contrast(1.14);
+    }
+
+    .mobile-map-stats strong {
+        color: var(--deck-cyan);
+        font-size: 13px;
+    }
+
+    body.mobile-view .mobile-map-tools {
+        top: calc(var(--mobile-app-bar-height) + var(--mobile-map-toolbar-height) + 50px);
+        right: 10px;
+        padding: 3px;
+        border-color: var(--deck-line-strong);
+        border-radius: 7px;
+        background: rgba(5, 22, 38, 0.95);
+        box-shadow: 0 9px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .mobile-map-tool {
+        width: 36px;
+        height: 36px;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        border-radius: 5px;
+    }
+
+    body.mobile-view .mobile-map-peek {
+        right: 10px;
+        bottom: calc(var(--mobile-nav-clearance) + 8px);
+        left: 10px;
+        min-height: 108px;
+        padding: 12px;
+        gap: 8px 10px;
+        border-color: var(--deck-line-strong);
+        border-radius: var(--deck-radius);
+        background: linear-gradient(90deg, rgba(7, 26, 44, 0.98), rgba(4, 18, 32, 0.99));
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.44), inset 3px 0 rgba(40, 223, 193, 0.58);
+        backdrop-filter: blur(12px) saturate(120%);
+    }
+
+    .mobile-map-peek.is-empty {
+        min-height: 64px;
+    }
+
+    .mobile-peek-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+    }
+
+    .mobile-peek-callsign {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 15px;
+        letter-spacing: 0.01em;
+    }
+
+    .mobile-peek-meta,
+    .mobile-peek-route {
+        font-size: 9px;
+    }
+
+    .mobile-peek-metrics {
+        padding-top: 7px;
+    }
+
+    .mobile-peek-metric strong {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 11px;
+    }
+
+    body.mobile-view .mobile-bottom-nav {
+        right: 8px;
+        left: 8px;
+        height: var(--mobile-nav-height);
+        padding: 4px;
+        gap: 2px;
+        border-color: var(--deck-line-strong);
+        border-radius: var(--deck-radius);
+        background: linear-gradient(90deg, rgba(8, 26, 44, 0.99), rgba(4, 18, 32, 0.99));
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.025);
+        backdrop-filter: blur(16px) saturate(130%);
+    }
+
+    body.mobile-view .nav-item {
+        height: 56px;
+        padding: 5px 2px;
+        gap: 2px;
+        border-radius: 5px;
+    }
+
+    body.mobile-view .nav-item.active {
+        color: var(--deck-cyan);
+        border-color: rgba(40, 223, 193, 0.22);
+        background: rgba(14, 92, 88, 0.36);
+        box-shadow: inset 0 2px var(--deck-cyan);
+    }
+
+    body.mobile-view .nav-item svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    body.mobile-view .nav-item span {
+        font-size: 9px;
+        font-weight: 680;
+    }
+
+    body.mobile-view .mobile-fab {
+        right: 15px;
+        bottom: calc(var(--mobile-nav-clearance) + 122px) !important;
+        width: 42px;
+        height: 42px;
+        min-width: 42px !important;
+        min-height: 42px !important;
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px rgba(40, 223, 193, 0.07), 0 10px 24px rgba(0, 0, 0, 0.36);
+    }
+
+    body.mobile-view .bottom-sheet.mobile-page-panel,
+    body.mobile-view #settingsPanel.bottom-sheet {
+        background: linear-gradient(180deg, rgba(4, 15, 27, 0.995), rgba(6, 19, 33, 0.995)) !important;
+    }
+
+    .mobile-page-heading {
+        padding: 18px 14px 9px;
+    }
+
+    .mobile-page-title {
+        font-size: clamp(23px, 7vw, 29px);
+        font-weight: 780;
+        letter-spacing: -0.04em;
+    }
+
+    .mobile-page-subtitle {
+        margin-top: 2px;
+        color: #94a6be;
+        font-size: 10px;
+    }
+
+    .mobile-page-count {
+        color: var(--deck-cyan);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .mobile-page-updated {
+        margin-top: 1px;
+        font-size: 9px;
+    }
+
+    .mobile-search-row {
+        margin-top: 12px;
+        gap: 7px;
+    }
+
+    .mobile-filter-square,
+    .mobile-outline-btn {
+        border-color: rgba(40, 223, 193, 0.5);
+        border-radius: 6px;
+        background: rgba(8, 27, 45, 0.84);
+    }
+
+    .mobile-filter-chips {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        overflow: visible;
+    }
+
+    .mobile-filter-chip {
+        min-width: 0 !important;
+        width: 100%;
+        height: 32px;
+        padding: 0 3px;
+        border-radius: 6px;
+        font-size: 9px;
+    }
+
+    .mobile-filter-chip.active {
+        border-color: rgba(40, 223, 193, 0.58);
+        background: rgba(17, 112, 102, 0.58);
+        box-shadow: inset 3px 0 var(--deck-cyan);
+    }
+
+    .mobile-list-sortbar {
+        min-height: 38px;
+        padding: 4px 14px;
+        grid-template-columns: minmax(118px, 1fr) 48px 42px 40px;
+        gap: 5px;
+        border-block: 1px solid rgba(114, 157, 199, 0.18);
+        background: rgba(5, 19, 33, 0.92);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 8px;
+        letter-spacing: 0.06em;
+    }
+
+    .mobile-list-sortbar select {
+        height: 29px;
+        border-radius: 5px;
+        font-size: 9px;
+    }
+
+    body.mobile-view .mobile-page-panel .sheet-content {
+        padding: 7px 10px 14px;
+    }
+
+    body.mobile-view .list-aircraft-item {
+        min-height: 79px;
+        margin-bottom: 2px;
+        padding: 9px 22px 9px 12px;
+        grid-template-columns: 42px minmax(0, 1fr) 72px;
+        gap: 9px;
+        border-color: rgba(114, 157, 199, 0.24);
+        border-radius: 5px;
+        background: linear-gradient(90deg, rgba(9, 29, 48, 0.97), rgba(5, 21, 37, 0.98));
+        box-shadow: none;
+    }
+
+    body.mobile-view .list-aircraft-item::before {
+        width: 3px;
+        border-radius: 3px 0 0 3px;
+    }
+
+    body.mobile-view .list-ac-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+    }
+
+    body.mobile-view .list-ac-callsign {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 13px;
+        letter-spacing: 0.01em;
+    }
+
+    .list-ac-watch-badge {
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-size: 6px;
+    }
+
+    body.mobile-view .list-ac-detail,
+    body.mobile-view .list-ac-route {
+        font-size: 9px;
+    }
+
+    body.mobile-view .list-ac-data {
+        display: grid;
+        grid-template-rows: repeat(3, auto);
+        gap: 3px;
+        align-content: center;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-align: right;
+    }
+
+    body.mobile-view .list-ac-alt,
+    body.mobile-view .list-ac-speed,
+    body.mobile-view .list-ac-distance {
+        margin: 0;
+        color: #eef5fb;
+        font-size: 9px;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    body.mobile-view .list-ac-distance {
+        color: var(--category-color, var(--deck-cyan));
+    }
+
+    .list-ac-chevron {
+        right: 7px;
+        font-size: 17px;
+    }
+
+    .mobile-list-note,
+    .mobile-privacy-note,
+    .mobile-settings-privacy {
+        min-height: 36px;
+        border-radius: 6px;
+        background: rgba(7, 24, 41, 0.76);
+        font-size: 9px;
+    }
+
+    .watch-overview {
+        margin-top: 13px;
+        padding: 11px 7px;
+        border-radius: 6px;
+        background: rgba(7, 25, 42, 0.9);
+    }
+
+    .watch-stat strong {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 19px;
+    }
+
+    .watch-stat span {
+        font-size: 8px;
+        text-transform: uppercase;
+    }
+
+    .watch-segmented {
+        margin-top: 8px;
+        padding: 3px;
+        border-radius: 6px;
+        background: rgba(6, 22, 38, 0.9);
+    }
+
+    .watch-segment {
+        min-height: 32px !important;
+        border-radius: 4px;
+        font-size: 10px;
+    }
+
+    .watch-segment.active {
+        border-color: rgba(40, 223, 193, 0.5);
+        background: rgba(17, 112, 102, 0.58);
+        box-shadow: inset 3px 0 var(--deck-cyan);
+    }
+
+    .watch-section-heading {
+        margin: 11px 2px 7px;
+    }
+
+    .watch-section-heading h2 {
+        font-size: 14px;
+    }
+
+    .watch-card {
+        min-height: 111px;
+        margin-bottom: 5px;
+        padding: 10px;
+        grid-template-columns: 43px minmax(0, 1fr) auto;
+        gap: 8px 9px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, rgba(9, 29, 48, 0.97), rgba(5, 21, 37, 0.98));
+        box-shadow: inset 3px 0 color-mix(in srgb, var(--watch-color, var(--accent)) 72%, transparent);
+    }
+
+    .watch-card-icon {
+        width: 43px;
+        height: 43px;
+    }
+
+    .watch-card-name {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 13px;
+    }
+
+    .watch-card-detail,
+    .watch-card-route {
+        font-size: 9px;
+    }
+
+    .watch-card-metrics {
+        padding-top: 7px;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 9px;
+    }
+
+    .watch-activity-card {
+        border-radius: 6px;
+        background: rgba(7, 25, 42, 0.86);
+    }
+
+    .watch-activity-item {
+        min-height: 48px;
+        padding: 8px 10px;
+    }
+
+    body.mobile-view #settingsPanel.bottom-sheet {
+        padding: 0 10px 16px !important;
+    }
+
+    .mobile-settings-hero {
+        margin: 0 -10px 8px;
+        padding: 17px 14px 9px;
+        background: linear-gradient(180deg, #04101c 88%, rgba(4, 16, 28, 0));
+    }
+
+    .mobile-settings-search {
+        margin-top: 12px;
+    }
+
+    .mobile-settings-categories {
+        margin-top: 7px;
+        display: grid;
+        grid-template-columns: 1.08fr 0.72fr 0.88fr 0.72fr 1.22fr;
+        gap: 4px;
+        overflow: visible;
+    }
+
+    .mobile-settings-category {
+        width: 100%;
+        height: 30px;
+        padding: 0 3px;
+        border-radius: 5px;
+        font-size: 8px;
+    }
+
+    .mobile-settings-category.active {
+        border-color: rgba(40, 223, 193, 0.56);
+        background: rgba(17, 112, 102, 0.58);
+        box-shadow: inset 3px 0 var(--deck-cyan);
+    }
+
+    body.mobile-view #settingsPanel .settings-section {
+        margin-bottom: 6px;
+        padding: 9px 10px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, rgba(9, 29, 48, 0.96), rgba(6, 22, 38, 0.97));
+        box-shadow: none;
+    }
+
+    body.mobile-view #settingsPanel .settings-section-title {
+        min-height: 27px;
+        margin: 0 0 2px;
+        padding: 0 0 5px;
+        border-bottom-color: rgba(114, 157, 199, 0.16);
+        font-size: 11px;
+        font-weight: 740;
+    }
+
+    body.mobile-view #settingsPanel .settings-section-title::before {
+        display: none;
+    }
+
+    body.mobile-view #settingsPanel .setting-row {
+        min-height: 40px;
+        padding: 6px 1px;
+    }
+
+    body.mobile-view #settingsPanel .setting-label {
+        font-size: 10px;
+    }
+
+    body.mobile-view #settingsPanel .toggle {
+        width: 44px;
+        height: 44px;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.mobile-view #settingsPanel .toggle::before {
+        content: '';
+        position: absolute;
+        top: 11px;
+        left: 2px;
+        width: 40px !important;
+        height: 22px !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        border: 1px solid var(--deck-line-strong) !important;
+        border-radius: 12px !important;
+        background: rgba(111, 132, 159, 0.26) !important;
+        box-shadow: none !important;
+    }
+
+    body.mobile-view #settingsPanel .toggle::after {
+        top: 14px;
+        left: 5px;
+        width: 16px;
+        height: 16px;
+        transform: none;
+    }
+
+    body.mobile-view #settingsPanel .toggle.on {
+        background: transparent !important;
+    }
+
+    body.mobile-view #settingsPanel .toggle.on::before {
+        border-color: rgba(40, 223, 193, 0.58);
+        background: rgba(40, 223, 193, 0.74);
+    }
+
+    body.mobile-view #settingsPanel .toggle.on::after {
+        left: 23px;
+        transform: none;
+    }
+
+    body.mobile-view #settingsPanel .setting-select,
+    body.mobile-view #settingsPanel .settings-input,
+    body.mobile-view #settingsPanel input[type='text'],
+    body.mobile-view #settingsPanel input[type='password'],
+    body.mobile-view #settingsPanel input[type='number'],
+    body.mobile-view #settingsPanel input[type='date'],
+    body.mobile-view #settingsPanel input[type='time'],
+    body.mobile-view #settingsPanel input[type='datetime-local'] {
+        min-height: 34px;
+        border-radius: 5px !important;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 9px;
+    }
+}

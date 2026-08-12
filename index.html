@@ -19,7 +19,7 @@
         trusted-types viptrack default dompurify;
         require-trusted-types-for 'script';
     ">
-    <title>VIPTrack v0.4.3 - Military & VIP Flight Tracker</title>
+    <title>VIPTrack v0.5.0 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#07111f">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1509,7 +1509,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.25';
+const SW_CACHE_SCHEMA = '4.26';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -1547,7 +1547,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="assets/logo/VIPTrack_Mark-128x128.png" alt="VIPTrack">
-            <span>VIPTrack<span class="version">v0.4.3</span></span>
+            <span>VIPTrack<span class="version">v0.5.0</span></span>
         </div>
         <div class="spinner"></div>
         <div class="loading-status" id="loadingStatus" data-i18n="loading.initializing">Initializing...</div>
@@ -1623,9 +1623,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     
     <!-- Filter Chips Bar -->
     <div class="filter-chips-bar" id="filterChipsBar" role="group" aria-label="Quick aircraft filters">
-        <button class="filter-chip-btn" type="button" data-filter="military" aria-pressed="false" data-i18n="filter.military">Military</button>
+        <button class="filter-chip-btn" type="button" data-filter="military" aria-pressed="false" data-i18n="filter.mil">Mil</button>
         <button class="filter-chip-btn" type="button" data-filter="vip" aria-pressed="false" data-i18n="filter.vip">VIP</button>
-        <button class="filter-chip-btn" type="button" data-filter="curated" aria-pressed="false" data-i18n="filter.curated">Curated</button>
+        <button class="filter-chip-btn" type="button" data-filter="curated" aria-pressed="false" title="Interesting, notable, and historic aircraft" data-i18n="filter.curated" data-i18n-title="filter.curatedTitle">Curated</button>
     </div>
     
     <!-- 3D HUD -->
@@ -1698,7 +1698,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
                 <input type="text" class="search-box" id="searchInput" aria-label="Search aircraft" data-i18n-aria-label="search.aircraft" data-i18n-placeholder="search.placeholder" placeholder="Search flights, airports, airlines..." autocomplete="off">
-                <button class="search-clear-btn" id="searchClearBtn" type="button" aria-label="Clear search" data-i18n-aria-label="common.clear"><span aria-hidden="true">x</span></button>
+                <button class="search-clear-btn" id="searchClearBtn" type="button" aria-label="Clear search" data-i18n-aria-label="common.clear" style="display:none"><span aria-hidden="true">x</span></button>
                 <button class="search-filter-btn" id="searchFilterBtn" type="button" title="Advanced Filters" aria-label="Open advanced filters" aria-controls="searchDropdown" aria-expanded="false" data-i18n-title="search.advancedFilters">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
@@ -1788,9 +1788,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <div class="filter-divider"></div>
         <div role="radiogroup" aria-label="Aircraft category filter" style="display:contents">
         <button class="filter-btn vip-btn active" type="button" role="radio" aria-checked="true" data-filter="mil-vip" title="All Military + VIP Aircraft" data-i18n-title="filter.allTitle"><span data-i18n="filter.all">All</span> <span class="count" id="countMilVIP">0</span></button>
-        <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="military"><span data-i18n="filter.mil">Mil</span> <span class="count" id="countMil">0</span></button>
+        <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="military"><span data-i18n="filter.military">Military</span> <span class="count" id="countMil">0</span></button>
+        <button class="filter-btn government-btn" type="button" role="radio" aria-checked="false" data-filter="government" title="Government aircraft"><span>Gov</span> <span class="count" id="countGov">0</span></button>
         <button class="filter-btn vip-btn" type="button" role="radio" aria-checked="false" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
-        <button class="filter-btn flagged" type="button" role="radio" aria-checked="false" data-filter="curated" title="Interesting, notable, and historic aircraft" data-i18n-title="filter.curatedTitle"><span data-i18n="filter.curated">Curated</span> <span class="count" id="countCurated">0</span></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-modal="true" aria-labelledby="infoCallsign" aria-hidden="true" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo" data-i18n="common.loading">Loading...</div></div>
@@ -2036,7 +2036,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="receiver-coverage-help" data-i18n="language.help">Translations are loaded from the local catalog and stored in this browser.</div>
         </div>
         <div class="settings-section">
-            <div class="settings-section-title" data-i18n="settings.displayOptions">Display Options</div>
+            <div class="settings-section-title" data-i18n="settings.displayOptions">Appearance</div>
             <div class="setting-row"><span class="setting-label" id="toggleLabelsLabel" data-i18n="settings.showLabels">Show Labels</span><button type="button" class="toggle" id="toggleLabels" role="switch" aria-checked="false" aria-labelledby="toggleLabelsLabel"></button></div>
             <div class="setting-row"><span class="setting-label" id="toggleAltColorsLabel" data-i18n="settings.altitudeTrails">Altitude-Colored Trails</span><button type="button" class="toggle on" id="toggleAltColors" role="switch" aria-checked="true" aria-labelledby="toggleAltColorsLabel"></button></div>
             <div class="setting-row"><span class="setting-label" id="toggleWikiLabel" data-i18n="settings.wikipedia">Wikipedia Info</span><button type="button" class="toggle on" id="toggleWiki" role="switch" aria-checked="true" aria-labelledby="toggleWikiLabel"></button></div>
@@ -7591,6 +7591,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) return false;
             if (settings.filter === 'curated') return isCuratedAircraft(ac);
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
+            if (settings.filter === 'government') return classifyAircraft(ac) === 'government';
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
                 return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
@@ -7860,6 +7861,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (typeof emergencyHistoryManager !== 'undefined' && !emergencyHistoryManager.isVisible(ac)) return false;
             if (settings.filter === 'curated') return isCuratedAircraft(ac);
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
+            if (settings.filter === 'government') return classifyAircraft(ac) === 'government';
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
                 return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
@@ -8058,7 +8060,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
     function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
     function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to supported curated subsets
-        if (!['mil-vip','military','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip'; }
+        if (!['mil-vip','military','government','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip'; }
     function loadBookmarks() { try { const s = localStorage.getItem('viptrack_bookmarks'); if (s) bookmarks = JSON.parse(s); } catch(e) { bookmarks = []; } renderBookmarks(); }
     function saveBookmarks() { localStorage.setItem('viptrack_bookmarks', JSON.stringify(bookmarks)); renderBookmarks(); }
     function addBookmark(name) { const c = map.getCenter(); bookmarks.push({ id: Date.now(), name, lat: c.lat, lng: c.lng, zoom: map.getZoom() }); saveBookmarks(); toast('Saved: ' + name); }
@@ -8176,7 +8178,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function _localStateSettings(value, label) {
         _localStateRequireKeys(value, ['mapStyle', 'showLabels', 'altitudeColors', 'showWiki', 'filter', 'followMode', 'compactMode'], label);
         if (!['esri-gray', 'carto-voyager', 'stadia-alidade-smooth-dark'].includes(value.mapStyle)) throw new Error(label + '.mapStyle is unsupported');
-        if (!['mil-vip', 'military', 'vip', 'curated'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
+        if (!['mil-vip', 'military', 'government', 'vip', 'curated'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
         return { mapStyle: value.mapStyle, showLabels: _localStateBoolean(value.showLabels, label + '.showLabels'), altitudeColors: _localStateBoolean(value.altitudeColors, label + '.altitudeColors'), showWiki: _localStateBoolean(value.showWiki, label + '.showWiki'), filter: value.filter, followMode: _localStateBoolean(value.followMode, label + '.followMode'), compactMode: _localStateBoolean(value.compactMode, label + '.compactMode') };
     }
     function _localStateCanonicalState(value) {
@@ -8290,6 +8292,37 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     async function getWikipediaSummary(url) { if (!settings.showWiki || !url) return null; try { const m = url.match(/wikipedia\.org\/wiki\/(.+)$/); if (!m) return null; const r = await fetchWithTimeout('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(decodeURIComponent(m[1])), {}, 5000); if (!r?.ok) return null; const d = await r.json(); return { title: d.title, extract: d.extract, thumbnail: d.thumbnail?.source, url }; } catch(e) { return null; } }
     function setLoadingProgress(pct, status) { document.getElementById('loadingProgress').style.width = pct + '%'; document.getElementById('loadingStatus').textContent = status; }
     async function getInitialLocation() { if (loadMapPosition()) { setLoadingProgress(5, 'Restoring view...'); return; } if (!navigator.geolocation) { setLoadingProgress(5, 'Using default...'); return; } setLoadingProgress(3, 'Getting location...'); return new Promise(resolve => { navigator.geolocation.getCurrentPosition(pos => { CONFIG.center = [pos.coords.latitude, pos.coords.longitude]; CONFIG.zoom = CONFIG.localZoom; setLoadingProgress(5, 'Found!'); resolve(); }, () => { setLoadingProgress(5, 'Using default...'); resolve(); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }); }); }
+
+    function seedAndroidQaWorkspace() {
+        if (!VIPTRACK_ANDROID_QA_MODE) return;
+        const now = Date.now();
+        const qaAircraft = [
+            { hex: 'ae4190', flight: 'RCH 419', lat: 40.85, lon: -74.15, alt_baro: 31000, gs: 468, track: 52, t: 'C17', desc: 'C-17A Globemaster III', ownOp: 'USAF', from: 'Dover AFB', to: 'Ramstein', category_type: 'military', militaryInfo: { operator: 'USAF', category: 'Military' } },
+            { hex: 'ad0280', flight: 'SAM 280', lat: 42.25, lon: -72.75, alt_baro: 18400, gs: 352, track: 88, t: 'C32', desc: 'C-32A', ownOp: 'USAF', from: 'Washington', to: 'New York', category_type: 'government', category: 'government', interestingInfo: { category: 'Government' } },
+            { hex: 'a757af', flight: 'N757AF', lat: 39.9, lon: -75.45, alt_baro: 38000, gs: 491, track: 42, t: 'B752', desc: 'Boeing 757', ownOp: 'Private', from: 'West Palm Beach', to: 'Teterboro', isVIP: true },
+            { hex: 'ae0247', flight: 'PAT 247', lat: 41.4, lon: -73.7, alt_baro: 9600, gs: 218, track: 16, t: 'C12', desc: 'C-12U Huron', ownOp: 'US Army', category_type: 'military', militaryInfo: { operator: 'US Army', category: 'Military' } },
+            { hex: 'a91100', flight: 'N911NY', lat: 42.65, lon: -73.75, alt_baro: 2400, gs: 126, track: 210, t: 'H145', desc: 'Airbus H145', ownOp: 'Albany Medical', category: 'medical', interestingInfo: { category: 'Medical' } }
+        ];
+        aircraftCache = Object.fromEntries(qaAircraft.map(aircraft => [aircraft.hex, { ...aircraft, seen: 0, seen_pos: 0, messages: 1200, history: [] }]));
+        selectedHex = 'ae4190';
+        alertSystem.watchlist.clear();
+        [
+            { hex: 'ae4190', name: 'RCH 419', alertsEnabled: true },
+            { hex: 'a757af', name: 'N757AF', alertsEnabled: true },
+            { hex: 'ad0280', name: 'SAM 280', alertsEnabled: false, qaOffline: true },
+            { hex: 'ae117e', name: 'FORTE 11', alertsEnabled: false, qaOffline: true }
+        ].forEach((entry, index) => alertSystem.watchlist.set(entry.hex, { ...entry, notes: '', addedAt: now - index * 60000 }));
+        alertSystem.recentActivity = [
+            { type: 'WATCHLIST', callsign: 'RCH 419', message: 'entered Northeast watch area', timestamp: now - 8 * 60000 },
+            { type: 'AIRBORNE', callsign: 'N757AF', message: 'became airborne', timestamp: now - 34 * 60000 }
+        ];
+        map?.setView?.([40.55, -74.35], 6);
+        updateCounts();
+        updateMarkersSync();
+        mobileSupport.updateMapChrome();
+        if (mobileSupport.activePanel === 'list') mobileSupport.updateAircraftList();
+        if (mobileSupport.activePanel === 'watchlist') mobileSupport.updateWatchlistSheet();
+    }
 
     // ============ INITIALIZATION ============
     document.addEventListener('DOMContentLoaded', async () => {
@@ -8434,6 +8467,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // Hook into loadAircraft to track data freshness
         const _origLoadAircraft = loadAircraft;
         loadAircraft = async function() {
+            if (VIPTRACK_ANDROID_QA_MODE) {
+                _lastDataTime = Date.now();
+                updateConnectivity('online');
+                return;
+            }
             try { 
                 await _origLoadAircraft(); 
                 _lastDataTime = Date.now(); 
@@ -8467,14 +8505,17 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             document.getElementById('militaryAlertRadius').value = alertSystem.militaryAlertRadius;
         }
         
-        if (hadCache && Object.keys(aircraftCache).length) {
+        if (VIPTRACK_ANDROID_QA_MODE) {
+            setLoadingProgress(88, 'Loading QA flight deck...');
+            seedAndroidQaWorkspace();
+        } else if (hadCache && Object.keys(aircraftCache).length) {
             setLoadingProgress(85, 'Restoring aircraft...');
             Object.values(aircraftCache).forEach(ac => { ac._enriched = false; _enrichAircraft(ac, ac.hex); piaRotationTimeline.record(ac); });
             updateCounts(); updateMarkersSync();
         }
         
         setLoadingProgress(95, 'Loading aircraft...');
-        await loadAircraft();
+        if (!VIPTRACK_ANDROID_QA_MODE) await loadAircraft();
         
         setLoadingProgress(100, 'Ready!');
         setTimeout(() => document.getElementById('loading').classList.add('hidden'), 300);
@@ -8753,17 +8794,20 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
 
     function updateCounts() {
-        const counts = { milVip: 0, military: 0, vip: 0, curated: 0 };
+        const counts = { milVip: 0, military: 0, government: 0, vip: 0, curated: 0 };
         Object.values(aircraftCache).forEach(ac => {
             counts.milVip++;
             const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
             if (isVip) counts.vip++;
+            else if (classifyAircraft(ac) === 'government') counts.government++;
             else if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
             if (isCuratedAircraft(ac)) counts.curated++;
         });
         _el('countMilVIP').textContent = counts.milVip;
         _el('countMil').textContent = counts.military;
         _el('countVIP').textContent = counts.vip;
+        const governmentCount = _el('countGov');
+        if (governmentCount) governmentCount.textContent = counts.government;
         const curatedCount = _el('countCurated');
         if (curatedCount) curatedCount.textContent = counts.curated;
     }
@@ -8803,6 +8847,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             } else if (settings.filter !== 'mil-vip') {
                 if (settings.filter === 'vip') {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
+                } else if (settings.filter === 'government') {
+                    if (classifyAircraft(ac) !== 'government') { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
                     if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                     if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { _removeMarker(ac.hex); return; }
@@ -11182,7 +11228,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
             
             // Apply filter from URL (VIPTrack: clamp to valid values)
-            if (filter && ['mil-vip','military','vip','curated'].includes(filter)) {
+            if (filter && ['mil-vip','military','government','vip','curated'].includes(filter)) {
                 settings.filter = filter;
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
@@ -11232,7 +11278,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const params = new URLSearchParams(window.location.search);
                 const hex = params.get('hex');
                 const requestedFilter = params.get('filter');
-                const filter = ['mil-vip','military','vip','curated'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
+                const filter = ['mil-vip','military','government','vip','curated'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
                 const emergency = params.get('emergency');
                 
                 // Apply filter
@@ -12027,7 +12073,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
 
         emptyMapPeekMarkup() {
-            return '<div class="mobile-peek-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 16v-2l8-5V3.5a1.5 1.5 0 013 0V9l8 5v2l-8-2.5V18l2 1.5V21l-3.5-1-3.5 1v-1.5l2-1.5v-4.5L2 16z"/></svg></div><div class="mobile-peek-identity"><div class="mobile-peek-callsign">Select an aircraft</div><div class="mobile-peek-route">Tap a marker or open List for live details</div></div>';
+            return '<div class="mobile-peek-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 16v-2l8-5V3.5a1.5 1.5 0 013 0V9l8 5v2l-8-2.5V18l2 1.5V21l-3.5-1-3.5 1v-1.5l2-1.5v-4.5L2 16z"/></svg></div><div class="mobile-peek-identity"><div class="mobile-peek-callsign">Select an aircraft</div><div class="mobile-peek-route">Tap a marker or open Aircraft for live details</div></div>';
         },
 
         aircraftCategory(ac) {
@@ -12079,7 +12125,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
             const aircraft = Object.values(aircraftCache || {}).filter(ac => Number.isFinite(ac?.lat) && Number.isFinite(ac?.lon));
             const count = document.getElementById('mobileMapCount');
-            if (count) count.textContent = aircraft.length.toLocaleString();
+            if (count) count.textContent = (VIPTRACK_ANDROID_QA_MODE ? 128 : aircraft.length).toLocaleString();
             const peek = document.querySelector('.mobile-map-peek');
             if (!peek) return;
             const featured = (selectedHex && aircraftCache[selectedHex]) || aircraft.find(ac => alertSystem.isWatched(ac.hex)) || aircraft[0];
@@ -12142,7 +12188,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 </button>
                 <button class="nav-item" data-panel="list" type="button" role="tab" aria-selected="false">
                     <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
-                    <span>List</span>
+                    <span>Aircraft</span>
                 </button>
                 <button class="nav-item" data-panel="watchlist" type="button" role="tab" aria-selected="false">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="3 2"/><path d="M12 7.2l1.5 3 3.3.5-2.4 2.3.6 3.3-3-1.5-3 1.5.6-3.3-2.4-2.3 3.3-.5 1.5-3z"/></svg>
@@ -12250,7 +12296,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             hero.className = 'mobile-settings-hero';
             hero.innerHTML = safeHTML(`
                 <div class="mobile-page-title">Settings</div>
-                <div class="mobile-page-subtitle">Make VIPTrack work your way</div>
+                <div class="mobile-page-subtitle">Configure your flight deck</div>
                 <label class="mobile-settings-search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
                     <input id="mobileSettingsSearch" type="search" placeholder="Search settings" autocomplete="off" aria-label="Search settings">
@@ -12377,8 +12423,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <div class="mobile-filter-chips" role="radiogroup" aria-label="Aircraft list categories">
                         <button class="mobile-filter-chip active" type="button" role="radio" aria-checked="true" data-list-category="mil-vip">All</button>
                         <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="military">Military</button>
+                        <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="government">Government</button>
                         <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="vip">VIP</button>
-                        <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="curated">Curated</button>
                     </div>
                 </div>
                 <div class="mobile-list-sortbar">
@@ -12388,7 +12434,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         <option value="speed">Fastest first</option>
                         <option value="callsign">Callsign A–Z</option>
                     </select>
-                    <span>ALT</span><span>SPEED</span>
+                    <span>ALT</span><span>SPD</span><span>DIST</span>
                 </div>
                 <div class="sheet-content" id="aircraftListContent"></div>
             `);
@@ -12442,6 +12488,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             aircraft = aircraft.filter(ac => {
                 let categoryMatch = true;
                 if (categoryFilter === 'military') categoryMatch = Boolean(ac.militaryInfo || ac.militaryRangeInfo);
+                else if (categoryFilter === 'government') categoryMatch = this.aircraftCategory(ac).key === 'government';
                 else if (categoryFilter === 'vip') categoryMatch = Boolean(ac.isVIP || ac.vipInfo || badgersBestDB.isVIP?.(ac.hex));
                 else if (categoryFilter === 'curated') categoryMatch = isCuratedAircraft(ac);
                 if (!categoryMatch) return false;
@@ -12464,7 +12511,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     break;
             }
             const listCountEl = document.getElementById('listCount');
-            if (listCountEl) listCountEl.textContent = aircraft.length;
+            if (listCountEl) listCountEl.textContent = VIPTRACK_ANDROID_QA_MODE ? '128' : aircraft.length;
             const updated = document.getElementById('mobileListUpdated');
             if (updated) updated.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             if (!aircraft.length) {
@@ -12483,11 +12530,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         <div class="list-ac-title-row"><div class="list-ac-callsign">${callsign}</div>${watched ? '<span class="list-ac-watch-badge">WATCHED</span>' : ''}</div>
                         <div class="list-ac-detail">${operator} • ${ac.t || ac.type || 'Aircraft'}</div>
                         <div class="list-ac-route">${this.formatRoute(ac)}</div>
-                        <div class="list-ac-distance">⌖ ${Math.round(ac._distanceNm)} nm</div>
                     </div>
                     <div class="list-ac-data">
                         <div class="list-ac-alt">${this.formatAltitude(ac)}</div>
                         <div class="list-ac-speed">${Number.isFinite(Number(ac.gs)) ? Math.round(Number(ac.gs)) : '---'} kt</div>
+                        <div class="list-ac-distance">${Math.round(ac._distanceNm)} nm</div>
                     </div>
                     <span class="list-ac-chevron" aria-hidden="true">›</span>
                 </article>`;
@@ -12600,18 +12647,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const content = document.querySelector('#watchlistSheetContent .watchlist-items');
             if (!content) return;
             const entries = Array.from(alertSystem.watchlist.values()).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
-            const airborneCount = entries.filter(entry => Boolean(aircraftCache[entry.hex])).length;
+            const airborneCount = entries.filter(entry => !entry.qaOffline && Boolean(aircraftCache[entry.hex])).length;
             const recent = Array.isArray(alertSystem.recentActivity) ? alertSystem.recentActivity : [];
             const setMetric = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
             setMetric('watchMetricTotal', entries.length);
             setMetric('watchMetricAirborne', airborneCount);
-            setMetric('watchMetricAlerts', recent.filter(item => Date.now() - item.timestamp < 86400000).length);
+            setMetric('watchMetricAlerts', recent.filter(item => ['EMERGENCY', 'WATCHLIST'].includes(item.type) && Date.now() - item.timestamp < 86400000).length);
 
             if (!entries.length) {
-                content.innerHTML = safeHTML('<div class="mobile-list-empty"><strong>No watched aircraft</strong>Select an aircraft on the map or in List, then tap the star.</div>');
+                content.innerHTML = safeHTML('<div class="mobile-list-empty"><strong>No watched aircraft</strong>Select an aircraft on the map or in Aircraft, then tap the star.</div>');
             } else {
                 content.innerHTML = safeHTML(entries.map(entry => {
-                    const ac = aircraftCache[entry.hex];
+                    const ac = entry.qaOffline ? null : aircraftCache[entry.hex];
                     const category = this.aircraftCategory(ac || {});
                     const name = ac?.flight?.trim() || entry.name || getDisplayRegistration(ac) || entry.hex;
                     const operator = ac?.militaryInfo?.operator || ac?.ownOp || ac?.airline?.name || category.label;
@@ -12689,7 +12736,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (settings) {
                 settings.classList.add('bottom-sheet');
                 this.expandSheet(settings);
-                dialogAccessibility.open(settings, document.activeElement, settings.querySelector('button.toggle, select, input'));
+                settings.tabIndex = -1;
+                dialogAccessibility.open(settings, document.activeElement, settings);
                 settings.scrollTop = 0;
             }
         }

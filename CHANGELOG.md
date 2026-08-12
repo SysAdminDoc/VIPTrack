@@ -4,6 +4,20 @@ All notable changes to VIPTrack will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.5.0] - 2026-08-12
+
+### Added
+- Added a coordinated ImageGen flight-deck reference board for the Map, Aircraft, Watch, and Settings mobile workspaces.
+- Added deterministic Android debug-QA aircraft, watchlist, and activity fixtures so every mobile page can be rendered and compared without depending on live ADS-B availability.
+
+### Changed
+- Re-imagined the mobile interface as a compact midnight flight deck with squared instrument surfaces, monospaced telemetry, technical grid texture, flatter navigation, denser aircraft manifests, and a shared command frame across all pages.
+- Renamed the mobile List destination to Aircraft, promoted Government to a first-class functional filter, and aligned mockup-facing counts, routes, category colors, settings copy, and navigation order.
+- Bumped the web/PWA cache schema to 4.26 and synchronized the web title/about surface, README badge, Android metadata, and release tests for v0.5.0.
+
+### Fixed
+- Prevented Settings from opening the software keyboard on entry, kept search clear controls compact and hidden when empty, and preserved compact switch visuals inside full-size touch targets.
+
 ## [v0.4.3] - 2026-08-12
 
 ### Accessibility

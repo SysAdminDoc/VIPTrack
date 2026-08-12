@@ -615,12 +615,12 @@ class VipTrackContracts(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("<title>VIPTrack v0.4.3", self.source)
-        self.assertIn('class="version">v0.4.3', self.source)
-        self.assertIn("version-0.4.3-blue", readme)
-        self.assertIn("## [v0.4.3] - 2026-08-12", changelog)
-        self.assertIn("versionName '0.4.3'", build_gradle)
-        self.assertIn("versionCode 7", build_gradle)
+        self.assertIn("<title>VIPTrack v0.5.0", self.source)
+        self.assertIn('class="version">v0.5.0', self.source)
+        self.assertIn("version-0.5.0-blue", readme)
+        self.assertIn("## [v0.5.0] - 2026-08-12", changelog)
+        self.assertIn("versionName '0.5.0'", build_gradle)
+        self.assertIn("versionCode 8", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -973,7 +973,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.25'",
+            "const CACHE_SCHEMA_VERSION = '4.26'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -988,7 +988,7 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.25'", self.source)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.26'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)
@@ -1009,11 +1009,16 @@ class VipTrackContracts(unittest.TestCase):
             "mobile-map-peek",
             "mobile-page-panel",
             "mobileListSearch",
+            'data-list-category="government"',
+            "<span>Aircraft</span>",
             "watch-overview",
             "toggleWatchAlerts(hex)",
             "mobileSettingsSearch",
             "data-settings-group",
             "Local-first • credentials stay on this device",
+            "Configure your flight deck",
+            "function seedAndroidQaWorkspace()",
+            "Loading QA flight deck...",
             "trustedTypes.createPolicy('default'",
             "RETURN_TRUSTED_TYPE: false",
         ):
@@ -1026,6 +1031,8 @@ class VipTrackContracts(unittest.TestCase):
             ".list-aircraft-item",
             ".watch-card",
             ".mobile-settings-categories",
+            "IMAGEGEN FLIGHT DECK V2",
+            "--deck-cyan: #28dfc1",
             "@media (max-width: 767.98px), (pointer: coarse) and (max-height: 767.98px)",
             "--mobile-safe-bottom: max(var(--mobile-nav-gap), env(safe-area-inset-bottom, 0px))",
             "--mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-safe-bottom) + var(--mobile-nav-gap))",
@@ -1045,6 +1052,9 @@ class VipTrackContracts(unittest.TestCase):
             mockup = UI_MOCKUPS / f"viptrack-{page}.png"
             self.assertTrue(mockup.is_file(), mockup)
             self.assertGreater(mockup.stat().st_size, 100_000)
+        imagegen_board = UI_MOCKUPS / "viptrack-flightdeck-v2-board.png"
+        self.assertTrue(imagegen_board.is_file(), imagegen_board)
+        self.assertGreater(imagegen_board.stat().st_size, 1_000_000)
 
     def test_periodic_background_sync_refreshes_public_reference_data_only(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
