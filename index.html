@@ -1602,8 +1602,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         <!-- Map Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger" aria-label="Map and layers menu" data-i18n-aria-label="nav.mapMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span data-i18n="nav.map">Map</span><span class="hv2-dd-badge" style="display:none"></span></button>
-            <div class="hv2-panel">
+            <button class="hv2-dropdown-trigger" id="mapMenuBtn" type="button" aria-label="Map and layers menu" aria-controls="mapMenuPanel" aria-expanded="false" data-i18n-aria-label="nav.mapMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span data-i18n="nav.map">Map</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <div class="hv2-panel" id="mapMenuPanel" role="region" aria-label="Map and layers" hidden>
                 <div class="hv2-panel-title" data-i18n="nav.mapLayers">Map &amp; Layers</div>
                 <div class="hv2-item" data-btn="labelBtn"><div class="hv2-item-icon"><button class="header-btn" id="labelBtn" title="Labels" aria-label="Toggle Labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button></div><div class="hv2-item-label" data-i18n="nav.labels">Labels</div><div class="hv2-item-status" data-i18n="common.off">OFF</div></div>
             </div>
@@ -1611,8 +1611,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         <!-- Tools Dropdown -->
         <div class="hv2-dropdown">
-            <button class="hv2-dropdown-trigger" aria-label="Tools menu" data-i18n-aria-label="nav.toolsMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span data-i18n="nav.tools">Tools</span><span class="hv2-dd-badge" style="display:none"></span></button>
-            <div class="hv2-panel">
+            <button class="hv2-dropdown-trigger" id="toolsMenuBtn" type="button" aria-label="Tools menu" aria-controls="toolsMenuPanel" aria-expanded="false" data-i18n-aria-label="nav.toolsMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span data-i18n="nav.tools">Tools</span><span class="hv2-dd-badge" style="display:none"></span></button>
+            <div class="hv2-panel" id="toolsMenuPanel" role="region" aria-label="Tools" hidden>
                 <div class="hv2-panel-title" data-i18n="nav.tools">Tools</div>
                 <div class="hv2-item" data-btn="followBtn"><div class="hv2-item-icon"><button class="header-btn" id="followBtn" title="Follow" aria-label="Follow Aircraft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><path d="M12 8v8M8 12h8" stroke-dasharray="2 2"/></svg></button></div><div class="hv2-item-label" data-i18n="nav.followAircraft">Follow Aircraft</div></div>
                 <div class="hv2-item" data-btn="panelsBtn"><div class="hv2-item-icon"><button class="header-btn" id="panelsBtn" title="Saved & Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button></div><div class="hv2-item-label" data-i18n="nav.savedWatchlist">Saved &amp; Watchlist</div></div>
@@ -15345,25 +15345,54 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
     (function initUIOverhaul() {
         
         // --- Dropdown Menus ---
+        const closeDropdowns = restoreTrigger => {
+            document.querySelectorAll('.hv2-panel').forEach(panel => {
+                panel.classList.remove('show');
+                panel.hidden = true;
+                const trigger = panel.previousElementSibling;
+                trigger?.classList.remove('open');
+                trigger?.setAttribute('aria-expanded', 'false');
+            });
+            restoreTrigger?.focus?.();
+        };
         document.querySelectorAll('.hv2-dropdown-trigger').forEach(trigger => {
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const panel = trigger.nextElementSibling;
-                const wasOpen = panel.classList.contains('show');
-                // Close all
-                document.querySelectorAll('.hv2-panel.show').forEach(p => p.classList.remove('show'));
-                document.querySelectorAll('.hv2-dropdown-trigger.open').forEach(t => t.classList.remove('open'));
-                if (!wasOpen) {
-                    panel.classList.add('show');
-                    trigger.classList.add('open');
+            const panel = trigger.nextElementSibling;
+            if (!panel) return;
+            panel.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+            const open = focusFirst => {
+                closeDropdowns();
+                panel.hidden = false;
+                panel.classList.add('show');
+                trigger.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+                if (focusFirst) panel.querySelector('button, [href], input, select, textarea')?.focus();
+            };
+            trigger.addEventListener('click', event => {
+                event.stopPropagation();
+                if (panel.classList.contains('show')) closeDropdowns();
+                else open(false);
+            });
+            trigger.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && panel.classList.contains('show')) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeDropdowns(trigger);
+                } else if (event.key === 'ArrowDown' && !panel.classList.contains('show')) {
+                    event.preventDefault();
+                    open(true);
                 }
             });
+            panel.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeDropdowns(trigger);
+                }
+            });
+            panel.addEventListener('click', event => event.stopPropagation());
         });
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.hv2-panel.show').forEach(p => p.classList.remove('show'));
-            document.querySelectorAll('.hv2-dropdown-trigger.open').forEach(t => t.classList.remove('open'));
-        });
-        document.querySelectorAll('.hv2-panel').forEach(p => p.addEventListener('click', e => e.stopPropagation()));
+        document.addEventListener('click', () => closeDropdowns());
         
         // Wire dropdown items to original button handlers
         document.querySelectorAll('.hv2-item[data-btn]').forEach(item => {

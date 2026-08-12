@@ -11,6 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added consistent dialog semantics, focus return, Escape/Tab handling, and mobile bottom-sheet state for aircraft details, settings, onboarding, bookmarks, ethics, and keyboard help.
 - Added tab, radio-filter, and toggle-button semantics with synchronized selection state, arrow-key tab navigation, and expanded-state feedback for search and mobile controls.
 - Normalized action controls with explicit button types, labels for dynamic dismiss/remove actions, and synchronized watchlist pressed state.
+- Added expanded/hidden state, Escape handling, and ArrowDown focus entry for the desktop Map and Tools dropdowns.
 
 ## [v0.4.2] - 2026-08-08
 

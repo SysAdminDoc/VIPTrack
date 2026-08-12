@@ -158,6 +158,20 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
+    def test_toolbar_dropdowns_expose_keyboard_state(self) -> None:
+        for marker in (
+            'id="mapMenuBtn" type="button" aria-label="Map and layers menu" aria-controls="mapMenuPanel" aria-expanded="false"',
+            'id="mapMenuPanel" role="region" aria-label="Map and layers" hidden',
+            'id="toolsMenuBtn" type="button" aria-label="Tools menu" aria-controls="toolsMenuPanel" aria-expanded="false"',
+            'id="toolsMenuPanel" role="region" aria-label="Tools" hidden',
+            'const closeDropdowns = restoreTrigger =>',
+            "panel.hidden = true",
+            "trigger.setAttribute('aria-expanded', 'true')",
+            "event.key === 'ArrowDown'",
+            "closeDropdowns(trigger)",
+        ):
+            self.assertIn(marker, self.source)
+
     def test_privacy_data_precedes_registration_enrichment(self) -> None:
         privacy_marker = self.source.index("Resolve privacy protection before registration enrichment")
         registration_marker = self.source.index("// Registration DB", privacy_marker)
