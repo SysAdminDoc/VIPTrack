@@ -120,6 +120,27 @@ class VipTrackContracts(unittest.TestCase):
             self.assertIn(marker, self.source)
         self.assertNotIn('onclick="document.getElementById(\'helpOverlay\')', self.source)
 
+    def test_tabs_and_filters_expose_selection_state(self) -> None:
+        for marker in (
+            'role="tablist" aria-label="Search views"',
+            'id="searchTabResults" type="button" role="tab" aria-selected="true" aria-controls="tabResults"',
+            'role="tabpanel" aria-labelledby="searchTabFilters"',
+            'role="tablist" aria-label="Aircraft detail sections"',
+            'id="infoTabOverview" type="button" role="tab" aria-selected="true" aria-controls="tabOverview"',
+            'role="tabpanel" aria-labelledby="infoTabRoute"',
+            'role="radiogroup" aria-label="Aircraft category filter"',
+            'type="button" role="radio" aria-checked="true" data-filter="mil-vip"',
+            'role="radiogroup" aria-label="Aircraft list categories"',
+            'function syncFilterButtonAria()',
+            'function activateInfoTab(tabName)',
+            'function handleTabKeydown(event, selector, activate)',
+            "t.setAttribute('aria-selected'",
+            "p.setAttribute('aria-hidden'",
+            "button.setAttribute('aria-pressed'",
+            "searchFilterBtn')?.setAttribute('aria-expanded'",
+        ):
+            self.assertIn(marker, self.source)
+
     def test_privacy_data_precedes_registration_enrichment(self) -> None:
         privacy_marker = self.source.index("Resolve privacy protection before registration enrichment")
         registration_marker = self.source.index("// Registration DB", privacy_marker)

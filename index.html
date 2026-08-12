@@ -1622,10 +1622,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     </header>
     
     <!-- Filter Chips Bar -->
-    <div class="filter-chips-bar" id="filterChipsBar">
-        <button class="filter-chip-btn" data-filter="military" data-i18n="filter.military">Military</button>
-        <button class="filter-chip-btn" data-filter="vip" data-i18n="filter.vip">VIP</button>
-        <button class="filter-chip-btn" data-filter="curated" data-i18n="filter.curated">Curated</button>
+    <div class="filter-chips-bar" id="filterChipsBar" role="group" aria-label="Quick aircraft filters">
+        <button class="filter-chip-btn" type="button" data-filter="military" aria-pressed="false" data-i18n="filter.military">Military</button>
+        <button class="filter-chip-btn" type="button" data-filter="vip" aria-pressed="false" data-i18n="filter.vip">VIP</button>
+        <button class="filter-chip-btn" type="button" data-filter="curated" aria-pressed="false" data-i18n="filter.curated">Curated</button>
     </div>
     
     <!-- 3D HUD -->
@@ -1665,7 +1665,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <div class="onboard-tip"><span class="onboard-tip-num">3</span><span data-i18n="onboarding.tip3">Use the search bar to find flights by callsign, registration, or ICAO hex</span></div>
                 <div class="onboard-tip"><span class="onboard-tip-num">4</span><span data-i18n="onboarding.tip4">Use the filter buttons to narrow by Military, Gov, or VIP</span></div>
             </div>
-            <button class="onboard-btn" id="onboardDismiss" data-i18n="onboarding.start">Start Tracking</button>
+            <button class="onboard-btn" id="onboardDismiss" type="button" data-i18n="onboarding.start">Start Tracking</button>
         </div>
     </div>
     
@@ -1698,31 +1698,31 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
                 <input type="text" class="search-box" id="searchInput" aria-label="Search aircraft" data-i18n-aria-label="search.aircraft" data-i18n-placeholder="search.placeholder" placeholder="Search flights, airports, airlines..." autocomplete="off">
-                <button class="search-clear-btn" id="searchClearBtn" style="display:none;">x</button>
-                <button class="search-filter-btn" id="searchFilterBtn" title="Advanced Filters" data-i18n-title="search.advancedFilters">
+                <button class="search-clear-btn" id="searchClearBtn" type="button" aria-label="Clear search" data-i18n-aria-label="common.clear"><span aria-hidden="true">x</span></button>
+                <button class="search-filter-btn" id="searchFilterBtn" type="button" title="Advanced Filters" aria-label="Open advanced filters" aria-controls="searchDropdown" aria-expanded="false" data-i18n-title="search.advancedFilters">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
                     </svg>
                     <span class="filter-badge" id="filterBadge" style="display:none;">0</span>
                 </button>
             </div>
-            <div class="search-dropdown" id="searchDropdown">
-                <div class="search-tabs">
-                    <button class="search-tab active" data-tab="results" data-i18n="search.results">Results</button>
-                    <button class="search-tab" data-tab="filters" data-i18n="search.filters">Filters</button>
-                    <button class="search-tab" data-tab="history" data-i18n="search.history">History</button>
+            <div class="search-dropdown" id="searchDropdown" role="region" aria-label="Aircraft search">
+                <div class="search-tabs" role="tablist" aria-label="Search views">
+                    <button class="search-tab active" id="searchTabResults" type="button" role="tab" aria-selected="true" aria-controls="tabResults" data-tab="results" data-i18n="search.results">Results</button>
+                    <button class="search-tab" id="searchTabFilters" type="button" role="tab" aria-selected="false" aria-controls="tabFilters" data-tab="filters" data-i18n="search.filters">Filters</button>
+                    <button class="search-tab" id="searchTabHistory" type="button" role="tab" aria-selected="false" aria-controls="tabHistory" data-tab="history" data-i18n="search.history">History</button>
                 </div>
                 <div class="search-content">
-                    <div class="search-tab-panel active" id="tabResults">
+                    <div class="search-tab-panel active" id="tabResults" role="tabpanel" aria-labelledby="searchTabResults" tabindex="0">
                         <div class="search-results" id="searchResults">
                             <div class="search-placeholder" data-i18n="search.startTyping">Start typing to search...</div>
                         </div>
                     </div>
-                    <div class="search-tab-panel" id="tabFilters">
+                    <div class="search-tab-panel" id="tabFilters" role="tabpanel" aria-labelledby="searchTabFilters" tabindex="0" hidden>
                         <div class="filter-section">
                             <div class="filter-label" data-i18n="search.aircraftType">Aircraft Type</div>
-                            <div class="filter-chips" id="filterTypeChips">
-                                <button class="filter-chip" data-type="military" data-i18n="filter.military">Military</button>
+                            <div class="filter-chips" id="filterTypeChips" role="group" aria-label="Aircraft type filters">
+                                <button class="filter-chip" type="button" data-type="military" aria-pressed="false" data-i18n="filter.military">Military</button>
                             </div>
                         </div>
                         <div class="filter-section">
@@ -1776,7 +1776,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                             <button class="adv-filter-btn primary" id="applyFiltersBtn" data-i18n="search.applyFilters">Apply Filters</button>
                         </div>
                     </div>
-                    <div class="search-tab-panel" id="tabHistory">
+                    <div class="search-tab-panel" id="tabHistory" role="tabpanel" aria-labelledby="searchTabHistory" tabindex="0" hidden>
                         <div class="search-history" id="searchHistory">
                             <div class="search-placeholder" data-i18n="search.noRecent">No recent searches</div>
                         </div>
@@ -1787,10 +1787,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="filter-divider"></div>
         <div role="radiogroup" aria-label="Aircraft category filter" style="display:contents">
-        <button class="filter-btn vip-btn active" data-filter="mil-vip" title="All Military + VIP Aircraft" data-i18n-title="filter.allTitle"><span data-i18n="filter.all">All</span> <span class="count" id="countMilVIP">0</span></button>
-        <button class="filter-btn" data-filter="military"><span data-i18n="filter.mil">Mil</span> <span class="count" id="countMil">0</span></button>
-        <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
-        <button class="filter-btn flagged" data-filter="curated" title="Interesting, notable, and historic aircraft" data-i18n-title="filter.curatedTitle"><span data-i18n="filter.curated">Curated</span> <span class="count" id="countCurated">0</span></button>
+        <button class="filter-btn vip-btn active" type="button" role="radio" aria-checked="true" data-filter="mil-vip" title="All Military + VIP Aircraft" data-i18n-title="filter.allTitle"><span data-i18n="filter.all">All</span> <span class="count" id="countMilVIP">0</span></button>
+        <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="military"><span data-i18n="filter.mil">Mil</span> <span class="count" id="countMil">0</span></button>
+        <button class="filter-btn vip-btn" type="button" role="radio" aria-checked="false" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
+        <button class="filter-btn flagged" type="button" role="radio" aria-checked="false" data-filter="curated" title="Interesting, notable, and historic aircraft" data-i18n-title="filter.curatedTitle"><span data-i18n="filter.curated">Curated</span> <span class="count" id="countCurated">0</span></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-modal="true" aria-labelledby="infoCallsign" aria-hidden="true" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo" data-i18n="common.loading">Loading...</div></div>
@@ -1817,12 +1817,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <button class="info-close" id="infoClose" aria-label="Close aircraft details" data-i18n-aria-label="common.close">&times;</button>
             </div>
         </div>
-        <div class="info-tabs">
-            <button class="tab-btn active" data-tab="overview" data-i18n="info.overview">Overview</button>
-            <button class="tab-btn" data-tab="aircraft" data-i18n="info.aircraft">Aircraft</button>
-            <button class="tab-btn" data-tab="route" data-i18n="info.route">Route</button>
+        <div class="info-tabs" role="tablist" aria-label="Aircraft detail sections">
+            <button class="tab-btn active" id="infoTabOverview" type="button" role="tab" aria-selected="true" aria-controls="tabOverview" data-tab="overview" data-i18n="info.overview">Overview</button>
+            <button class="tab-btn" id="infoTabAircraft" type="button" role="tab" aria-selected="false" aria-controls="tabAircraft" data-tab="aircraft" data-i18n="info.aircraft">Aircraft</button>
+            <button class="tab-btn" id="infoTabRoute" type="button" role="tab" aria-selected="false" aria-controls="tabRoute" data-tab="route" data-i18n="info.route">Route</button>
         </div>
-        <div class="tab-content active" id="tabOverview">
+        <div class="tab-content active" id="tabOverview" role="tabpanel" aria-labelledby="infoTabOverview" tabindex="0">
             <div class="info-section interesting-section" id="interestingSection" style="display:none;">
             <div class="interesting-header" id="interestingHeader"><span class="interesting-icon" id="interestingIcon">*</span><span class="interesting-title" id="interestingTitle" data-i18n="info.flaggedAircraft">Flagged Aircraft</span></div>
             <div class="info-row"><span class="info-label" data-i18n="info.category">Category</span><span class="info-value" id="interestingCategory">---</span></div>
@@ -1889,7 +1889,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <div class="provenance-help" data-i18n="info.provenanceHelp">Feed metadata is evidence, not a guarantee. Route predictions and track-shape hints are inferred locally.</div>
             </div>
         </div>
-        <div class="tab-content" id="tabAircraft">
+        <div class="tab-content" id="tabAircraft" role="tabpanel" aria-labelledby="infoTabAircraft" tabindex="0" hidden>
             <div class="info-section">
             <div class="info-row"><span class="info-label" data-i18n="info.manufacturer">Manufacturer</span><span class="info-value" id="acManufacturer">---</span></div>
             <div class="info-row"><span class="info-label" data-i18n="info.model">Model</span><span class="info-value" id="acModel">---</span></div>
@@ -1943,7 +1943,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 </div>
             </div>
         </div>
-        <div class="tab-content" id="tabRoute">
+        <div class="tab-content" id="tabRoute" role="tabpanel" aria-labelledby="infoTabRoute" tabindex="0" hidden>
             <div class="info-section">
                 <div class="route-display" style="margin-bottom:0;">
             <div class="route-airport"><div class="route-code" id="routeFromFull">---</div><div class="route-name" id="routeFromNameFull" data-i18n="route.departure">Departure</div></div>
@@ -9719,7 +9719,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // Phase 11: Update external tracking links
         updateExternalLinks(ac);
         
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelector('.tab-btn[data-tab="overview"]').classList.add('active'); document.getElementById('tabOverview').classList.add('active');
+        activateInfoTab('overview');
         dialogAccessibility.close(_el('settingsPanel'));
         // Move panel into sidebar wrapper and show
         const _sbw = _el('sidebarWrapper');
@@ -9749,6 +9749,48 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function syncToggleAria(toggle) {
         if (!toggle || !toggle.classList.contains('toggle')) return;
         toggle.setAttribute('aria-checked', toggle.classList.contains('on') ? 'true' : 'false');
+    }
+
+    function syncFilterButtonAria() {
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.setAttribute('aria-checked', button.classList.contains('active') ? 'true' : 'false');
+        });
+    }
+
+    function syncPressedState(selector) {
+        document.querySelectorAll(selector).forEach(button => {
+            button.setAttribute('aria-pressed', button.classList.contains('active') ? 'true' : 'false');
+        });
+    }
+
+    function activateInfoTab(tabName) {
+        const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+        const selected = tabs.find(tab => tab.dataset.tab === tabName);
+        if (!selected) return;
+        const panelId = selected.getAttribute('aria-controls') || ('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+        tabs.forEach(tab => {
+            const active = tab === selected;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            tab.tabIndex = active ? 0 : -1;
+        });
+        document.querySelectorAll('.tab-content').forEach(panel => {
+            const active = panel.id === panelId;
+            panel.classList.toggle('active', active);
+            panel.hidden = !active;
+            panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+        });
+    }
+
+    function handleTabKeydown(event, selector, activate) {
+        const tabs = Array.from(document.querySelectorAll(selector));
+        const index = tabs.indexOf(event.currentTarget);
+        if (index < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        const next = tabs[nextIndex];
+        activate(next.dataset.tab);
+        next.focus();
     }
 
     function initAccessibleToggles() {
@@ -9897,12 +9939,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         document.getElementById('cesiumPlaybackSlider')?.addEventListener('input', event => cesium3DManager.setPlaybackTime(event.target.value));
         document.getElementById('cesiumPlaybackSpeed')?.addEventListener('change', event => cesium3DManager.setPlaybackSpeed(event.target.value));
         document.getElementById('cesiumPlaybackClear')?.addEventListener('click', () => cesium3DManager.clearPlayback());
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); btn.classList.add('active'); document.getElementById('tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active'); }));
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => activateInfoTab(btn.dataset.tab));
+            btn.addEventListener('keydown', event => handleTabKeydown(event, '.tab-btn', activateInfoTab));
+        });
+        activateInfoTab('overview');
         document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === settings.filter));
+        syncFilterButtonAria();
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+                syncFilterButtonAria();
                 settings.filter = btn.dataset.filter;
                 updateMarkers();
                 shareManager.updateUrl();
@@ -10372,12 +10420,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // Tab switching
             document.querySelectorAll('.search-tab').forEach(tab => {
                 tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+                tab.addEventListener('keydown', event => handleTabKeydown(event, '.search-tab', tabName => this.switchTab(tabName)));
             });
             
             // Filter chips
             document.querySelectorAll('.filter-chip').forEach(chip => {
                 chip.addEventListener('click', () => {
                     chip.classList.toggle('active');
+                    syncPressedState('.filter-chip');
                 });
             });
             
@@ -10393,26 +10443,35 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 }
             });
             
+            this.switchTab(this.activeTab);
             this.renderHistory();
         },
         
         open() {
             this.isOpen = true;
             document.getElementById('searchDropdown')?.classList.add('show');
+            document.getElementById('searchFilterBtn')?.setAttribute('aria-expanded', 'true');
         },
         
         close() {
             this.isOpen = false;
             document.getElementById('searchDropdown')?.classList.remove('show');
+            document.getElementById('searchFilterBtn')?.setAttribute('aria-expanded', 'false');
         },
         
         switchTab(tab) {
             this.activeTab = tab;
             document.querySelectorAll('.search-tab').forEach(t => {
-                t.classList.toggle('active', t.dataset.tab === tab);
+                const active = t.dataset.tab === tab;
+                t.classList.toggle('active', active);
+                t.setAttribute('aria-selected', active ? 'true' : 'false');
+                t.tabIndex = active ? 0 : -1;
             });
             document.querySelectorAll('.search-tab-panel').forEach(p => {
-                p.classList.toggle('active', p.id === 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+                const active = p.id === 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1);
+                p.classList.toggle('active', active);
+                p.hidden = !active;
+                p.setAttribute('aria-hidden', active ? 'false' : 'true');
             });
         },
         
@@ -10730,6 +10789,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             
             // Clear UI
             document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            syncPressedState('.filter-chip');
             const altMinEl = document.getElementById('altMin');
             const altMaxEl = document.getElementById('altMax');
             const speedMinEl = document.getElementById('speedMin');
@@ -11105,6 +11165,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
                 });
+                syncFilterButtonAria();
                 updateMarkers();
             }
             if (typeof emergencyHistoryManager !== 'undefined') emergencyHistoryManager.applyUrlMode(emergency);
@@ -11158,6 +11219,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     document.querySelectorAll('.filter-btn').forEach(b => {
                         b.classList.toggle('active', b.dataset.filter === filter);
                     });
+                    syncFilterButtonAria();
                 }
                 if (typeof emergencyHistoryManager !== 'undefined') emergencyHistoryManager.applyUrlMode(emergency);
                 
@@ -12290,11 +12352,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         </label>
                         <button class="mobile-filter-square" id="mobileListReset" type="button" title="Reset list filters" aria-label="Reset list filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h6m4 0h6M4 12h10m4 0h2M4 18h3m4 0h9"/><circle cx="12" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg></button>
                     </div>
-                    <div class="mobile-filter-chips" role="group" aria-label="Aircraft list categories">
-                        <button class="mobile-filter-chip active" type="button" data-list-category="mil-vip">All</button>
-                        <button class="mobile-filter-chip" type="button" data-list-category="military">Military</button>
-                        <button class="mobile-filter-chip" type="button" data-list-category="vip">VIP</button>
-                        <button class="mobile-filter-chip" type="button" data-list-category="curated">Curated</button>
+                    <div class="mobile-filter-chips" role="radiogroup" aria-label="Aircraft list categories">
+                        <button class="mobile-filter-chip active" type="button" role="radio" aria-checked="true" data-list-category="mil-vip">All</button>
+                        <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="military">Military</button>
+                        <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="vip">VIP</button>
+                        <button class="mobile-filter-chip" type="button" role="radio" aria-checked="false" data-list-category="curated">Curated</button>
                     </div>
                 </div>
                 <div class="mobile-list-sortbar">
@@ -12317,7 +12379,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             sheet.querySelectorAll('[data-list-category]').forEach(button => {
                 button.addEventListener('click', () => {
                     this.listCategory = button.dataset.listCategory;
-                    sheet.querySelectorAll('[data-list-category]').forEach(item => item.classList.toggle('active', item === button));
+                    sheet.querySelectorAll('[data-list-category]').forEach(item => {
+                        const active = item === button;
+                        item.classList.toggle('active', active);
+                        item.setAttribute('aria-checked', active ? 'true' : 'false');
+                    });
                     this.updateAircraftList();
                 });
             });
@@ -12326,7 +12392,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 this.listQuery = '';
                 const input = sheet.querySelector('#mobileListSearch');
                 if (input) input.value = '';
-                sheet.querySelectorAll('[data-list-category]').forEach(item => item.classList.toggle('active', item.dataset.listCategory === 'mil-vip'));
+                sheet.querySelectorAll('[data-list-category]').forEach(item => {
+                    const active = item.dataset.listCategory === 'mil-vip';
+                    item.classList.toggle('active', active);
+                    item.setAttribute('aria-checked', active ? 'true' : 'false');
+                });
                 const sort = sheet.querySelector('#listSort');
                 if (sort) sort.value = 'distance';
                 this.updateAircraftList();
@@ -15306,10 +15376,12 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         document.querySelectorAll('.filter-chip-btn').forEach(chip => {
             chip.addEventListener('click', () => {
                 chip.classList.toggle('active');
+                syncPressedState('.filter-chip-btn');
                 applyChipFilters();
             });
         });
         function applyChipFilters() {
+            syncPressedState('.filter-chip-btn');
             const activeChips = [...document.querySelectorAll('.filter-chip-btn.active')].map(c => c.dataset.filter);
             // If no chips active, show all
             if (activeChips.length === 0) {
