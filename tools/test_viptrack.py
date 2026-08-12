@@ -615,12 +615,12 @@ class VipTrackContracts(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("<title>VIPTrack v0.4.2", self.source)
-        self.assertIn('class="version">v0.4.2', self.source)
-        self.assertIn("version-0.4.2-blue", readme)
-        self.assertIn("## [v0.4.2] - 2026-08-08", changelog)
-        self.assertIn("versionName '0.4.2'", build_gradle)
-        self.assertIn("versionCode 6", build_gradle)
+        self.assertIn("<title>VIPTrack v0.4.3", self.source)
+        self.assertIn('class="version">v0.4.3', self.source)
+        self.assertIn("version-0.4.3-blue", readme)
+        self.assertIn("## [v0.4.3] - 2026-08-12", changelog)
+        self.assertIn("versionName '0.4.3'", build_gradle)
+        self.assertIn("versionCode 7", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -973,7 +973,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.24'",
+            "const CACHE_SCHEMA_VERSION = '4.25'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -988,7 +988,7 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.24'", self.source)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.25'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)

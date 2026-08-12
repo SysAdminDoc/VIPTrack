@@ -1,6 +1,6 @@
 # VIPTrack
 
-![Version](https://img.shields.io/badge/version-0.4.2-blue)
+![Version](https://img.shields.io/badge/version-0.4.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Android-4285F4)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES2020+-F7DF1E?logo=javascript&logoColor=black)

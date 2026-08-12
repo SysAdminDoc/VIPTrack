@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_SCHEMA_VERSION = '4.24';
+const CACHE_SCHEMA_VERSION = '4.25';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',

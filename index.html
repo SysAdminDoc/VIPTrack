@@ -19,7 +19,7 @@
         trusted-types viptrack default dompurify;
         require-trusted-types-for 'script';
     ">
-    <title>VIPTrack v0.4.2 - Military & VIP Flight Tracker</title>
+    <title>VIPTrack v0.4.3 - Military & VIP Flight Tracker</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#07111f">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1509,7 +1509,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.24';
+const SW_CACHE_SCHEMA = '4.25';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -1547,7 +1547,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="assets/logo/VIPTrack_Mark-128x128.png" alt="VIPTrack">
-            <span>VIPTrack<span class="version">v0.4.2</span></span>
+            <span>VIPTrack<span class="version">v0.4.3</span></span>
         </div>
         <div class="spinner"></div>
         <div class="loading-status" id="loadingStatus" data-i18n="loading.initializing">Initializing...</div>

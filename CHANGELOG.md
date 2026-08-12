@@ -4,7 +4,7 @@ All notable changes to VIPTrack will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [v0.4.3] - 2026-08-12
 
 ### Accessibility
 - Converted settings toggles into keyboard-operable switch buttons with translated label associations, visible focus styling, and synchronized `aria-checked` state.
@@ -12,6 +12,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added tab, radio-filter, and toggle-button semantics with synchronized selection state, arrow-key tab navigation, and expanded-state feedback for search and mobile controls.
 - Normalized action controls with explicit button types, labels for dynamic dismiss/remove actions, and synchronized watchlist pressed state.
 - Added expanded/hidden state, Escape handling, and ArrowDown focus entry for the desktop Map and Tools dropdowns.
+
+### Changed
+- Drained the actionable roadmap after shipping the security/privacy, analyst, data-plumbing, mobile, export, offline, and accessibility work; operator-gated publication and deferred research remain in `Roadmap_Blocked.md`.
+- Bumped the web/PWA cache schema to 4.25 and synchronized the web title/about surface, README badge, Android metadata, and release tests for v0.4.3.
 
 ## [v0.4.2] - 2026-08-08
 
