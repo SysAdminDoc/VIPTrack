@@ -422,10 +422,11 @@
         .settings-title { font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
         .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
         .setting-label { font-size: 13px; }
-        .toggle { width: 44px; height: 24px; background: rgba(128,128,128,0.3); border-radius: 12px; position: relative; cursor: pointer; }
+        .toggle { width: 44px; height: 24px; padding: 0; border: 0; appearance: none; background: rgba(128,128,128,0.3); border-radius: 12px; position: relative; cursor: pointer; flex: 0 0 auto; }
         .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: transform 0.2s; }
         .toggle.on { background: var(--accent); }
         .toggle.on::after { transform: translateX(20px); }
+        .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
         .setting-select { padding: 6px 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; outline: none; cursor: pointer; min-width: 140px; }
         .setting-select option { background: var(--bg-panel); color: var(--text); padding: 8px; }
         .settings-section { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; }
@@ -2036,9 +2037,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.displayOptions">Display Options</div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.showLabels">Show Labels</span><div class="toggle" id="toggleLabels"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.altitudeTrails">Altitude-Colored Trails</span><div class="toggle on" id="toggleAltColors"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.wikipedia">Wikipedia Info</span><div class="toggle on" id="toggleWiki"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleLabelsLabel" data-i18n="settings.showLabels">Show Labels</span><button type="button" class="toggle" id="toggleLabels" role="switch" aria-checked="false" aria-labelledby="toggleLabelsLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleAltColorsLabel" data-i18n="settings.altitudeTrails">Altitude-Colored Trails</span><button type="button" class="toggle on" id="toggleAltColors" role="switch" aria-checked="true" aria-labelledby="toggleAltColorsLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleWikiLabel" data-i18n="settings.wikipedia">Wikipedia Info</span><button type="button" class="toggle on" id="toggleWiki" role="switch" aria-checked="true" aria-labelledby="toggleWikiLabel"></button></div>
             <div class="setting-row">
                 <span class="setting-label" data-i18n="settings.basemap">Basemap</span>
                 <select id="basemapStyle" class="setting-select">
@@ -2060,13 +2061,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <option value="solid" data-i18n="settings.solidColor">Solid Color</option>
                 </select>
             </div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.directionArrows">Show Direction Arrows</span><div class="toggle on" id="toggleTrailArrows"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleTrailArrowsLabel" data-i18n="settings.directionArrows">Show Direction Arrows</span><button type="button" class="toggle on" id="toggleTrailArrows" role="switch" aria-checked="true" aria-labelledby="toggleTrailArrowsLabel"></button></div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.alerts">Alerts</div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.enableAlerts">Enable Alerts</span><div class="toggle on" id="toggleAlerts"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.soundEffects">Sound Effects</span><div class="toggle on" id="toggleAlertSounds"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.browserNotifications">Browser Notifications</span><div class="toggle" id="toggleNotifications"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleAlertsLabel" data-i18n="settings.enableAlerts">Enable Alerts</span><button type="button" class="toggle on" id="toggleAlerts" role="switch" aria-checked="true" aria-labelledby="toggleAlertsLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleAlertSoundsLabel" data-i18n="settings.soundEffects">Sound Effects</span><button type="button" class="toggle on" id="toggleAlertSounds" role="switch" aria-checked="true" aria-labelledby="toggleAlertSoundsLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleNotificationsLabel" data-i18n="settings.browserNotifications">Browser Notifications</span><button type="button" class="toggle" id="toggleNotifications" role="switch" aria-checked="false" aria-labelledby="toggleNotificationsLabel"></button></div>
             <div class="setting-row">
                 <span class="setting-label" data-i18n="settings.alertRadius">Military Alert Radius</span>
                 <select id="militaryAlertRadius" class="setting-select">
@@ -2205,10 +2206,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.mapTools">Map &amp; Tools</div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLine">Direction-of-flight line (X8)</span><div class="toggle" id="toggleHeadingProj"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.nexrad">NEXRAD radar (US)</span><div class="toggle" id="toggleNexrad"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.tfr">FAA TFR polygons</span><div class="toggle" id="toggleTFR"></div></div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.heatmap">Heatmap (from trail history)</span><div class="toggle" id="toggleHeatmap"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleHeadingProjLabel" data-i18n="settings.headingLine">Direction-of-flight line (X8)</span><button type="button" class="toggle" id="toggleHeadingProj" role="switch" aria-checked="false" aria-labelledby="toggleHeadingProjLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleNexradLabel" data-i18n="settings.nexrad">NEXRAD radar (US)</span><button type="button" class="toggle" id="toggleNexrad" role="switch" aria-checked="false" aria-labelledby="toggleNexradLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleTFRLabel" data-i18n="settings.tfr">FAA TFR polygons</span><button type="button" class="toggle" id="toggleTFR" role="switch" aria-checked="false" aria-labelledby="toggleTFRLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleHeatmapLabel" data-i18n="settings.heatmap">Heatmap (from trail history)</span><button type="button" class="toggle" id="toggleHeatmap" role="switch" aria-checked="false" aria-labelledby="toggleHeatmapLabel"></button></div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLookahead">Heading lookahead</span>
                 <select id="headingLookahead" class="setting-select">
                     <option value="60">1 min</option>
@@ -2223,7 +2224,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.faaSuaTitle">FAA Special-Use Airspace (X23)</div>
             <div class="receiver-coverage-help" data-i18n="settings.faaSuaHelp">Manual, opt-in FAA NASR/ADDS polygons for restricted, prohibited, MOA, and warning areas. The source is refreshed on a 28-day cycle; expired cached data is never shown. Informational only — not for navigation or operational decisions.</div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.showFaaSua">Show FAA SUA polygons</span><div class="toggle" id="toggleFAASUA"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleFAASUALabel" data-i18n="settings.showFaaSua">Show FAA SUA polygons</span><button type="button" class="toggle" id="toggleFAASUA" role="switch" aria-checked="false" aria-labelledby="toggleFAASUALabel"></button></div>
             <div class="receiver-coverage-actions">
                 <button class="btn-secondary" id="faaSuaRefreshBtn" type="button" data-i18n="common.loadRefresh">Load / refresh</button>
                 <button class="btn-secondary" id="faaSuaClearBtn" type="button" data-i18n="common.clear">Clear</button>
@@ -2238,7 +2239,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <button class="btn-secondary" id="openAipSaveKeyBtn" type="button" data-i18n="settings.saveKey">Save key</button>
                 <button class="btn-secondary" id="openAipClearKeyBtn" type="button" data-i18n="settings.clearKey">Clear key</button>
             </div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.showClass">Show Class A–G</span><div class="toggle" id="toggleOpenAIP"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleOpenAIPLabel" data-i18n="settings.showClass">Show Class A–G</span><button type="button" class="toggle" id="toggleOpenAIP" role="switch" aria-checked="false" aria-labelledby="toggleOpenAIPLabel"></button></div>
             <div class="receiver-coverage-status" id="openAipStatus" role="status" aria-live="polite" data-i18n="settings.openAipOff">OpenAIP off · API key required</div>
         </div>
         <div class="settings-section">
@@ -2297,7 +2298,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.analyst">Analyst (X6 / OSINT)</div>
-            <div class="setting-row"><span class="setting-label" data-i18n="settings.coincidence">Coincidence detector</span><div class="toggle" id="toggleCoincidence"></div></div>
+            <div class="setting-row"><span class="setting-label" id="toggleCoincidenceLabel" data-i18n="settings.coincidence">Coincidence detector</span><button type="button" class="toggle" id="toggleCoincidence" role="switch" aria-checked="false" aria-labelledby="toggleCoincidenceLabel"></button></div>
             <button class="btn-secondary" id="osintReportBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.copyReport">Copy OSINT report (selected)</button>
             <button class="btn-secondary" id="viewportCsvBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.exportViewport">Export viewport as CSV</button>
         </div>
@@ -9745,7 +9746,32 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
 
     // ============ UI HANDLERS ============
+    function syncToggleAria(toggle) {
+        if (!toggle || !toggle.classList.contains('toggle')) return;
+        toggle.setAttribute('aria-checked', toggle.classList.contains('on') ? 'true' : 'false');
+    }
+
+    function initAccessibleToggles() {
+        document.querySelectorAll('button.toggle').forEach(toggle => {
+            const label = toggle.closest('.setting-row')?.querySelector('.setting-label');
+            if (label) {
+                if (!label.id) label.id = toggle.id + 'Label';
+                toggle.setAttribute('aria-labelledby', label.id);
+            }
+            syncToggleAria(toggle);
+        });
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                if (mutation.target instanceof Element && mutation.target.classList.contains('toggle')) {
+                    syncToggleAria(mutation.target);
+                }
+            });
+        });
+        observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
+
     function initUI() {
+        initAccessibleToggles();
         document.getElementById('infoClose').addEventListener('click', deselectAircraft);
         document.getElementById('cesiumPlaybackPlay')?.addEventListener('click', () => cesium3DManager.togglePlayback());
         document.getElementById('cesiumPlaybackStepBack')?.addEventListener('click', () => cesium3DManager.stepPlayback(-30));

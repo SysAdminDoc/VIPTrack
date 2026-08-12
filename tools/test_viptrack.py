@@ -76,6 +76,27 @@ class VipTrackContracts(unittest.TestCase):
             if ".bindPopup(" in line or ".bindTooltip(" in line or ".setContent(" in line:
                 self.assertIn("safeHTML", line, msg=line.strip())
 
+    def test_settings_toggles_are_keyboard_operable_switches(self) -> None:
+        toggles = re.findall(r'<button\b[^>]*class="toggle(?: on)?"[^>]*></button>', self.source)
+        self.assertEqual(len(toggles), 14)
+        self.assertNotIn('<div class="toggle', self.source)
+        for toggle in toggles:
+            self.assertIn('type="button"', toggle)
+            self.assertIn('role="switch"', toggle)
+            self.assertRegex(toggle, r'aria-checked="(?:true|false)"')
+            self.assertRegex(toggle, r'aria-labelledby="toggle[A-Za-z]+Label"')
+        for label_id in re.findall(r'aria-labelledby="([^"]+)"', '\n'.join(toggles)):
+            self.assertIn(f'id="{label_id}"', self.source)
+        for marker in (
+            "function syncToggleAria(toggle)",
+            "function initAccessibleToggles()",
+            "new MutationObserver",
+            "attributeFilter: ['class']",
+            "toggle.setAttribute('aria-checked'",
+            ".toggle:focus-visible",
+        ):
+            self.assertIn(marker, self.source)
+
     def test_privacy_data_precedes_registration_enrichment(self) -> None:
         privacy_marker = self.source.index("Resolve privacy protection before registration enrichment")
         registration_marker = self.source.index("// Registration DB", privacy_marker)
