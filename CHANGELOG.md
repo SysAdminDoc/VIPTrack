@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Accessibility
 - Converted settings toggles into keyboard-operable switch buttons with translated label associations, visible focus styling, and synchronized `aria-checked` state.
+- Added consistent dialog semantics, focus return, Escape/Tab handling, and mobile bottom-sheet state for aircraft details, settings, onboarding, bookmarks, ethics, and keyboard help.
 
 ## [v0.4.2] - 2026-08-08
 

@@ -1568,7 +1568,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <span class="paused-dot"></span><span data-i18n="status.paused">Paused — return to tab to resume</span>
     </div>
     <!-- N6: first-load ethical-use disclaimer -->
-    <div id="ethicsDisclaimer" class="ethics-disclaimer" role="dialog" aria-modal="false" aria-label="VIPTrack ethical-use notice" data-i18n-aria-label="ethics.title">
+    <div id="ethicsDisclaimer" class="ethics-disclaimer" role="dialog" aria-modal="false" aria-label="VIPTrack ethical-use notice" aria-hidden="true" data-i18n-aria-label="ethics.title">
         <div class="ethics-body">
             <strong data-i18n="ethics.publicOnly">VIPTrack uses public ADS-B data only.</strong>
             <span>Many aircraft use the FAA <a href="https://nbaa.org/aircraft-operations/security/privacy/privacy-icao-address-pia/" target="_blank" rel="noopener">Privacy ICAO Address (PIA)</a> or LADD opt-out. VIPTrack honours those programs and is not for operational or harassment use.</span>
@@ -1654,11 +1654,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     </div>
     
     <!-- Onboarding Overlay -->
-    <div class="onboard-overlay" id="onboardOverlay">
+    <div class="onboard-overlay" id="onboardOverlay" role="dialog" aria-modal="true" aria-labelledby="onboardTitle" aria-describedby="onboardDescription" aria-hidden="true">
         <div class="onboard-card">
             <div class="onboard-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><polyline points="21 12 17 8 21 12 17 16"/></svg></div>
-            <div class="onboard-title" data-i18n="onboarding.title">Welcome to VIPTrack</div>
-            <div class="onboard-desc" data-i18n="onboarding.description">Real-time military and VIP aircraft tracking with aviation intelligence.</div>
+            <div class="onboard-title" id="onboardTitle" data-i18n="onboarding.title">Welcome to VIPTrack</div>
+            <div class="onboard-desc" id="onboardDescription" data-i18n="onboarding.description">Real-time military and VIP aircraft tracking with aviation intelligence.</div>
             <div class="onboard-tips">
                 <div class="onboard-tip"><span class="onboard-tip-num">1</span><span data-i18n="onboarding.tip1">Only military, government, and VIP aircraft are shown</span></div>
                 <div class="onboard-tip"><span class="onboard-tip-num">2</span><span data-i18n="onboarding.tip2">Tap any aircraft on the map to see its details, route, and specs</span></div>
@@ -1792,7 +1792,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <button class="filter-btn vip-btn" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
         <button class="filter-btn flagged" data-filter="curated" title="Interesting, notable, and historic aircraft" data-i18n-title="filter.curatedTitle"><span data-i18n="filter.curated">Curated</span> <span class="count" id="countCurated">0</span></button>
     </div>
-    <div class="info-panel" id="infoPanel" role="dialog" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
+    <div class="info-panel" id="infoPanel" role="dialog" aria-modal="true" aria-labelledby="infoCallsign" aria-hidden="true" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo" data-i18n="common.loading">Loading...</div></div>
         <div class="airline-banner" id="airlineBanner" style="display:none;"><img src="" alt=""></div>
         <div class="info-quickglance" id="infoQuickGlance">
@@ -2018,8 +2018,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="data-source" id="dataSource">Connecting...</div>
     </div>
-    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings" data-i18n-aria-label="settings.title">
-        <div class="settings-title" data-i18n="settings.title">Settings</div>
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true" aria-label="Settings" data-i18n-aria-label="settings.title">
+        <div class="settings-title" id="settingsTitle" data-i18n="settings.title">Settings</div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="language.title">Language</div>
             <div class="setting-row">
@@ -2335,11 +2335,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="bookmarkModal">
+    <div class="modal-overlay" id="bookmarkModal" role="dialog" aria-modal="true" aria-labelledby="bookmarkModalTitle" aria-hidden="true" tabindex="-1">
         <div class="modal">
-            <div class="modal-title" data-i18n="bookmarks.saveLocation">Save Location</div>
+            <div class="modal-title" id="bookmarkModalTitle" data-i18n="bookmarks.saveLocation">Save Location</div>
             <input type="text" class="modal-input" id="bookmarkNameInput" placeholder="Enter location name..." data-i18n-placeholder="bookmarks.namePlaceholder">
-            <div class="modal-btns"><button class="modal-btn secondary" id="bookmarkCancelBtn" data-i18n="common.cancel">Cancel</button><button class="modal-btn primary" id="bookmarkSaveBtn" data-i18n="common.save">Save</button></div>
+            <div class="modal-btns"><button type="button" class="modal-btn secondary" id="bookmarkCancelBtn" data-i18n="common.cancel">Cancel</button><button type="button" class="modal-btn primary" id="bookmarkSaveBtn" data-i18n="common.save">Save</button></div>
         </div>
     </div>
     <div class="install-prompt" id="installPrompt">
@@ -8485,7 +8485,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             let drawing = false;
             try { drawing = geofenceManager?.active; } catch (e) {}
             if (drawing) return;
-            deselectAircraft(); _el('settingsPanel').classList.remove('show');
+            deselectAircraft(); dialogAccessibility.close(_el('settingsPanel'));
         });
     }
 
@@ -9720,11 +9720,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         updateExternalLinks(ac);
         
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelector('.tab-btn[data-tab="overview"]').classList.add('active'); document.getElementById('tabOverview').classList.add('active');
-        _el('settingsPanel').classList.remove('show');
+        dialogAccessibility.close(_el('settingsPanel'));
         // Move panel into sidebar wrapper and show
         const _sbw = _el('sidebarWrapper');
         const _pnl = _el('infoPanel');
-        _pnl.classList.add('show');
+        dialogAccessibility.open(_pnl, document.activeElement, _el('infoClose'));
         if (_pnl.parentElement !== _sbw) _sbw.appendChild(_pnl);
         _sbw.style.display = 'block';
         updateMarkers();
@@ -9737,7 +9737,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         selectedHex = null;
         trackHeuristicManager.render(null);
         const _pnl = _el('infoPanel');
-        _pnl.classList.remove('show');
+        dialogAccessibility.close(_pnl);
         _el('sidebarWrapper').style.display = 'none';
         // Move panel back to body so DOM queries still work
         if (_pnl.parentElement !== document.body) document.body.appendChild(_pnl);
@@ -9770,8 +9770,126 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
     }
 
+    const dialogAccessibility = (() => {
+        const previousFocus = new WeakMap();
+        const boundDialogs = new WeakSet();
+        const focusableSelector = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+        function isOpen(dialog) {
+            if (!dialog || dialog.classList.contains('collapsed')) return false;
+            if (dialog.classList.contains('bottom-sheet')) {
+                return ['expanded', 'half', 'peek'].some(state => dialog.classList.contains(state));
+            }
+            return dialog.classList.contains('show');
+        }
+
+        function focusableElements(dialog) {
+            return Array.from(dialog?.querySelectorAll(focusableSelector) || []).filter(element =>
+                !element.hidden && element.getAttribute('aria-hidden') !== 'true' &&
+                (element.offsetWidth || element.offsetHeight || element.getClientRects().length)
+            );
+        }
+
+        function sync(dialog) {
+            if (!dialog) return;
+            const hidden = isOpen(dialog) ? 'false' : 'true';
+            if (dialog.getAttribute('aria-hidden') !== hidden) dialog.setAttribute('aria-hidden', hidden);
+        }
+
+        function restoreFocus(dialog) {
+            const target = previousFocus.get(dialog);
+            previousFocus.delete(dialog);
+            if (!target || !target.isConnected || target.disabled || target.closest('[aria-hidden="true"]')) return;
+            setTimeout(() => target.focus(), 0);
+        }
+
+        function close(dialog) {
+            if (!dialog) return;
+            if (dialog.classList.contains('bottom-sheet')) {
+                dialog.classList.remove('show', 'expanded', 'half', 'peek');
+                dialog.classList.add('collapsed');
+            } else {
+                dialog.classList.remove('show');
+            }
+            sync(dialog);
+            restoreFocus(dialog);
+        }
+
+        function onKeydown(event) {
+            const dialog = event.currentTarget;
+            if (!isOpen(dialog)) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                close(dialog);
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const elements = focusableElements(dialog);
+            if (!elements.length) {
+                event.preventDefault();
+                dialog.focus?.();
+                return;
+            }
+            const first = elements[0];
+            const last = elements[elements.length - 1];
+            if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+
+        function bind(dialog) {
+            if (!dialog || boundDialogs.has(dialog)) return;
+            boundDialogs.add(dialog);
+            dialog.addEventListener('keydown', onKeydown);
+            sync(dialog);
+        }
+
+        function open(dialog, trigger, focusTarget) {
+            if (!dialog) return;
+            bind(dialog);
+            const anchor = trigger?.focus ? trigger : document.activeElement;
+            if (anchor && anchor !== dialog && !dialog.contains(anchor)) previousFocus.set(dialog, anchor);
+            if (dialog.classList.contains('bottom-sheet')) {
+                dialog.classList.remove('collapsed');
+                if (!['expanded', 'half', 'peek'].some(state => dialog.classList.contains(state))) dialog.classList.add('expanded');
+            }
+            dialog.classList.add('show');
+            sync(dialog);
+            setTimeout(() => {
+                const target = focusTarget || focusableElements(dialog)[0] || dialog;
+                target.focus?.();
+            }, 0);
+        }
+
+        function init() {
+            document.querySelectorAll('[role="dialog"]').forEach(bind);
+            const observer = new MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => {
+                            if (!(node instanceof Element)) return;
+                            if (node.matches('[role="dialog"]')) bind(node);
+                            node.querySelectorAll?.('[role="dialog"]').forEach(bind);
+                        });
+                    } else if (mutation.target instanceof Element && mutation.target.matches('[role="dialog"]')) {
+                        sync(mutation.target);
+                    }
+                });
+            });
+            observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+        }
+
+        return { close, init, isOpen, open, sync, toggle: (dialog, trigger, focusTarget) => isOpen(dialog) ? close(dialog) : open(dialog, trigger, focusTarget) };
+    })();
+
     function initUI() {
         initAccessibleToggles();
+        dialogAccessibility.init();
         document.getElementById('infoClose').addEventListener('click', deselectAircraft);
         document.getElementById('cesiumPlaybackPlay')?.addEventListener('click', () => cesium3DManager.togglePlayback());
         document.getElementById('cesiumPlaybackStepBack')?.addEventListener('click', () => cesium3DManager.stepPlayback(-30));
@@ -9803,7 +9921,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 if (ac?.lat !== undefined) map.panTo([ac.lat, ac.lon]);
             }
         });
-        document.getElementById('settingsBtn').addEventListener('click', () => { _el('settingsPanel').classList.toggle('show'); deselectAircraft(); });
+        document.getElementById('settingsBtn').addEventListener('click', function() {
+            const panel = _el('settingsPanel');
+            const wasOpen = dialogAccessibility.isOpen(panel);
+            deselectAircraft();
+            if (wasOpen) dialogAccessibility.close(panel);
+            else dialogAccessibility.open(panel, this);
+        });
         document.getElementById('toggleLabels').classList.toggle('on', settings.showLabels); document.getElementById('toggleLabels').addEventListener('click', function() { settings.showLabels = !settings.showLabels; this.classList.toggle('on', settings.showLabels); document.getElementById('labelBtn').classList.toggle('active', settings.showLabels); saveSettings(); updateMarkers(); });
         document.getElementById('toggleAltColors').classList.toggle('on', settings.altitudeColors); document.getElementById('toggleAltColors').addEventListener('click', function() { settings.altitudeColors = !settings.altitudeColors; this.classList.toggle('on', settings.altitudeColors); saveSettings(); if (selectedHex) loadTrail(selectedHex); });
         document.getElementById('toggleWiki').classList.toggle('on', settings.showWiki); document.getElementById('toggleWiki').addEventListener('click', function() { settings.showWiki = !settings.showWiki; this.classList.toggle('on', settings.showWiki); saveSettings(); });
@@ -9831,11 +9955,27 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 }
             });
         }
-        document.getElementById('addBookmarkBtn').addEventListener('click', () => { document.getElementById('bookmarkModal').classList.add('show'); document.getElementById('bookmarkNameInput').value = ''; document.getElementById('bookmarkNameInput').focus(); });
-        document.getElementById('bookmarkCancelBtn').addEventListener('click', () => document.getElementById('bookmarkModal').classList.remove('show'));
-        document.getElementById('bookmarkSaveBtn').addEventListener('click', () => { const name = document.getElementById('bookmarkNameInput').value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } else toast('Enter name'); });
-        document.getElementById('bookmarkNameInput').addEventListener('keypress', e => { if (e.key === 'Enter') { const name = e.target.value.trim(); if (name) { addBookmark(name); document.getElementById('bookmarkModal').classList.remove('show'); } } });
-        document.getElementById('bookmarkModal').addEventListener('click', e => { if (e.target.id === 'bookmarkModal') document.getElementById('bookmarkModal').classList.remove('show'); });
+        document.getElementById('addBookmarkBtn').addEventListener('click', function() {
+            const modal = document.getElementById('bookmarkModal');
+            const input = document.getElementById('bookmarkNameInput');
+            input.value = '';
+            dialogAccessibility.open(modal, this, input);
+        });
+        document.getElementById('bookmarkCancelBtn').addEventListener('click', () => dialogAccessibility.close(document.getElementById('bookmarkModal')));
+        document.getElementById('bookmarkSaveBtn').addEventListener('click', () => {
+            const name = document.getElementById('bookmarkNameInput').value.trim();
+            if (name) { addBookmark(name); dialogAccessibility.close(document.getElementById('bookmarkModal')); }
+            else toast('Enter name');
+        });
+        document.getElementById('bookmarkNameInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                const name = e.target.value.trim();
+                if (name) { addBookmark(name); dialogAccessibility.close(document.getElementById('bookmarkModal')); }
+            }
+        });
+        document.getElementById('bookmarkModal').addEventListener('click', e => {
+            if (e.target.id === 'bookmarkModal') dialogAccessibility.close(e.currentTarget);
+        });
         document.getElementById('emergencyFeedModeBtn')?.addEventListener('click', () => {
             if (emergencyHistoryManager.last24hOnly) emergencyHistoryManager.disableLast24h();
             else emergencyHistoryManager.enableLast24h();
@@ -10018,7 +10158,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         document.getElementById('rulerBtn')?.addEventListener('click', () => rulerTool.toggle());
 
         // Help overlay open
-        document.getElementById('helpBtn')?.addEventListener('click', () => document.getElementById('helpOverlay')?.classList.add('show'));
+        document.getElementById('helpBtn')?.addEventListener('click', function() {
+            dialogAccessibility.open(document.getElementById('helpOverlay'), this, document.querySelector('#helpOverlay .help-close'));
+        });
 
         // L19: Trail retention
         const _trSel = document.getElementById('trailRetention');
@@ -12095,7 +12237,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (panelName !== 'map') {
                 const sidebar = _el('sidebarWrapper');
                 if (sidebar) sidebar.style.display = 'none';
-                _el('infoPanel')?.classList.remove('show');
+                dialogAccessibility.close(_el('infoPanel'));
             }
             switch (panelName) {
                 case 'map':
@@ -12281,7 +12423,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const sbw = _el('sidebarWrapper');
             if (sbw) sbw.style.display = 'block';
             const infoPanel = _el('infoPanel');
-            if (infoPanel) infoPanel.classList.add('show');
+            if (infoPanel) {
+                if (dialogAccessibility.isOpen(infoPanel)) dialogAccessibility.sync(infoPanel);
+                else dialogAccessibility.open(infoPanel, document.activeElement, _el('infoClose'));
+            }
         },
         
         showWatchlistSheet() {
@@ -12451,8 +12596,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const settings = _el('settingsPanel');
             if (settings) {
                 settings.classList.add('bottom-sheet');
-                settings.classList.remove('show');
                 this.expandSheet(settings);
+                dialogAccessibility.open(settings, document.activeElement, settings.querySelector('button.toggle, select, input'));
                 settings.scrollTop = 0;
             }
         }
@@ -12617,8 +12762,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         switch (e.key) {
             case 'Escape':
                 document.getElementById('infoClose')?.click();
-                document.getElementById('helpOverlay')?.classList.remove('show');
-                document.getElementById('ethicsDisclaimer')?.classList.remove('show');
+                dialogAccessibility.close(document.getElementById('helpOverlay'));
+                dialogAccessibility.close(document.getElementById('ethicsDisclaimer'));
                 break;
             case 'f': case 'F':
                 document.getElementById('followBtn')?.click();
@@ -12641,7 +12786,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             case 'b': case 'B':
                 document.getElementById('addBookmarkBtn')?.click(); e.preventDefault(); break;
             case '?':
-                document.getElementById('helpOverlay')?.classList.add('show'); e.preventDefault(); break;
+                dialogAccessibility.open(document.getElementById('helpOverlay'), document.activeElement, document.querySelector('#helpOverlay .help-close')); e.preventDefault(); break;
         }
     });
 
@@ -12654,9 +12799,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (localStorage.getItem('viptrack_ethics_ack') === '1') return;
         const el = document.getElementById('ethicsDisclaimer');
         if (!el) return;
-        setTimeout(() => el.classList.add('show'), 1500);
+        setTimeout(() => dialogAccessibility.open(el, null, document.getElementById('ethicsDismiss')), 1500);
         document.getElementById('ethicsDismiss')?.addEventListener('click', () => {
-            el.classList.remove('show');
+            dialogAccessibility.close(el);
             localStorage.setItem('viptrack_ethics_ack', '1');
         });
     })();
@@ -15032,9 +15177,9 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
     (function helpOverlayInit(){
         if (document.getElementById('helpOverlay')) return;
         const html = `
-        <div class="help-overlay" id="helpOverlay" role="dialog" aria-label="Keyboard shortcuts">
+        <div class="help-overlay" id="helpOverlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle" aria-hidden="true" tabindex="-1">
           <div class="help-card">
-            <h3>Keyboard Shortcuts</h3>
+            <h3 id="helpTitle">Keyboard Shortcuts</h3>
             <table>
               <tr><td>F</td><td>Toggle follow</td></tr>
               <tr><td>Esc</td><td>Close panel / cancel</td></tr>
@@ -15048,10 +15193,13 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
               <tr><td>?</td><td>This help</td></tr>
               <tr><td>Ctrl+Shift+D</td><td>Data-source stats to console</td></tr>
             </table>
-            <button class="help-close" onclick="document.getElementById('helpOverlay').classList.remove('show')">Close</button>
+            <button class="help-close" id="helpClose" type="button">Close</button>
           </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', safeHTML(html));
+        const overlay = document.getElementById('helpOverlay');
+        overlay?.querySelector('#helpClose')?.addEventListener('click', () => dialogAccessibility.close(overlay));
+        overlay?.addEventListener('click', event => { if (event.target === overlay) dialogAccessibility.close(overlay); });
     })();
     
 
@@ -15187,9 +15335,9 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         if (!localStorage.getItem('viptrack_onboarded')) {
             const overlay = document.getElementById('onboardOverlay');
             if (overlay) {
-                setTimeout(() => overlay.classList.add('show'), 1500);
+                setTimeout(() => dialogAccessibility.open(overlay, null, document.getElementById('onboardDismiss')), 1500);
                 document.getElementById('onboardDismiss')?.addEventListener('click', () => {
-                    overlay.classList.remove('show');
+                    dialogAccessibility.close(overlay);
                     localStorage.setItem('viptrack_onboarded', '1');
                 });
             }

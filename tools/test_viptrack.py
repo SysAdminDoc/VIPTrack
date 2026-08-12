@@ -97,6 +97,29 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
+    def test_dialogs_expose_state_and_keyboard_focus_contract(self) -> None:
+        for marker in (
+            'id="infoPanel" role="dialog" aria-modal="true"',
+            'id="settingsPanel" role="dialog" aria-modal="true"',
+            'id="bookmarkModal" role="dialog" aria-modal="true"',
+            'id="onboardOverlay" role="dialog" aria-modal="true"',
+            'id="helpOverlay" role="dialog" aria-modal="true"',
+            'aria-hidden="true"',
+            'aria-labelledby="settingsTitle"',
+            'aria-labelledby="bookmarkModalTitle"',
+            'aria-describedby="onboardDescription"',
+            'const dialogAccessibility =',
+            'const focusableSelector =',
+            "event.key === 'Escape'",
+            "event.key !== 'Tab'",
+            'previousFocus',
+            'dialogAccessibility.open',
+            'dialogAccessibility.close',
+            "attributeFilter: ['class', 'hidden']",
+        ):
+            self.assertIn(marker, self.source)
+        self.assertNotIn('onclick="document.getElementById(\'helpOverlay\')', self.source)
+
     def test_privacy_data_precedes_registration_enrichment(self) -> None:
         privacy_marker = self.source.index("Resolve privacy protection before registration enrichment")
         registration_marker = self.source.index("// Registration DB", privacy_marker)
