@@ -141,6 +141,23 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
 
+    def test_action_buttons_have_explicit_types_and_toggle_names(self) -> None:
+        for marker in (
+            'id="watchBtn" type="button" title="Add to Watchlist" aria-pressed="false"',
+            'id="infoClose" type="button"',
+            'id="addBookmarkBtn" type="button" title="Save current view" aria-label="Save current view"',
+            'id="installDismiss" type="button" aria-label="Dismiss install prompt"',
+            'class="alert-close" type="button" aria-label="Dismiss alert"',
+            'class="watchlist-remove" data-hex="\' + entry.hex + \'" type="button"',
+            'class="history-remove" type="button"',
+            'class="bookmark-delete" type="button"',
+            'class="overlay-remove" aria-label="Remove overlay"',
+            "watchBtn.setAttribute('aria-pressed'",
+            "this.setAttribute('aria-pressed', 'false')",
+            "this.setAttribute('aria-pressed', 'true')",
+        ):
+            self.assertIn(marker, self.source)
+
     def test_privacy_data_precedes_registration_enrichment(self) -> None:
         privacy_marker = self.source.index("Resolve privacy protection before registration enrichment")
         registration_marker = self.source.index("// Registration DB", privacy_marker)

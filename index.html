@@ -1573,7 +1573,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <strong data-i18n="ethics.publicOnly">VIPTrack uses public ADS-B data only.</strong>
             <span>Many aircraft use the FAA <a href="https://nbaa.org/aircraft-operations/security/privacy/privacy-icao-address-pia/" target="_blank" rel="noopener">Privacy ICAO Address (PIA)</a> or LADD opt-out. VIPTrack honours those programs and is not for operational or harassment use.</span>
         </div>
-        <button id="ethicsDismiss" class="ethics-dismiss" aria-label="Dismiss notice" data-i18n-aria-label="common.dismiss" data-i18n="common.gotIt">Got it</button>
+        <button id="ethicsDismiss" class="ethics-dismiss" type="button" aria-label="Dismiss notice" data-i18n-aria-label="common.dismiss" data-i18n="common.gotIt">Got it</button>
     </div>
     <div class="circuit-breaker-warning" id="circuitBreakerWarning"></div>
     <div class="sync-indicator" id="syncIndicator">
@@ -1594,7 +1594,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     </div>
     <header class="header">
         <!-- Primary Actions (always visible) -->
-        <button class="header-btn" id="locateBtn" title="My Location" aria-label="My Location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
+        <button class="header-btn" id="locateBtn" type="button" title="My Location" aria-label="My Location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
 
         <button class="header-btn" id="settingsBtn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
         
@@ -1772,15 +1772,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                             <div class="filter-hint" data-i18n="search.regexHint">Matches against callsign and registration</div>
                         </div>
                         <div class="filter-actions">
-                            <button class="adv-filter-btn secondary" id="clearFiltersBtn" data-i18n="common.clearAll">Clear All</button>
-                            <button class="adv-filter-btn primary" id="applyFiltersBtn" data-i18n="search.applyFilters">Apply Filters</button>
+            <button class="adv-filter-btn secondary" id="clearFiltersBtn" type="button" data-i18n="common.clearAll">Clear All</button>
+            <button class="adv-filter-btn primary" id="applyFiltersBtn" type="button" data-i18n="search.applyFilters">Apply Filters</button>
                         </div>
                     </div>
                     <div class="search-tab-panel" id="tabHistory" role="tabpanel" aria-labelledby="searchTabHistory" tabindex="0" hidden>
                         <div class="search-history" id="searchHistory">
                             <div class="search-placeholder" data-i18n="search.noRecent">No recent searches</div>
                         </div>
-                        <button class="adv-filter-btn secondary full-width" id="clearHistoryBtn" data-i18n="search.clearHistory">Clear History</button>
+                        <button class="adv-filter-btn secondary full-width" id="clearHistoryBtn" type="button" data-i18n="search.clearHistory">Clear History</button>
                     </div>
                 </div>
             </div>
@@ -1810,11 +1810,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <div class="info-hex" id="infoHex">---</div>
             </div>
             <div class="info-header-actions">
-                <button class="watch-btn" id="watchBtn" title="Add to Watchlist" data-i18n-title="watch.add">
+                <button class="watch-btn" id="watchBtn" type="button" title="Add to Watchlist" aria-pressed="false" data-i18n-title="watch.add">
                     <span class="star">*</span>
                     <span class="watch-text" data-i18n="watch.watch">Watch</span>
                 </button>
-                <button class="info-close" id="infoClose" aria-label="Close aircraft details" data-i18n-aria-label="common.close">&times;</button>
+                <button class="info-close" id="infoClose" type="button" aria-label="Close aircraft details" data-i18n-aria-label="common.close">&times;</button>
             </div>
         </div>
         <div class="info-tabs" role="tablist" aria-label="Aircraft detail sections">
@@ -1984,14 +1984,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             </div>
         </div>
         <div class="info-actions">
-            <button class="action-btn prediction" id="showPredictionBtn" title="Show 30-min Flight Prediction (P)" data-i18n-title="actions.predictTitle"><span>P</span> <span data-i18n="actions.predict">Predict</span></button>
-            <button class="action-btn route" id="showRouteBtn" title="Show Route to Destination (R)" data-i18n-title="actions.routeTitle"><span>R</span> <span data-i18n="actions.route">Route</span></button>
-            <button class="action-btn" id="shareFlightBtn" title="Share aircraft trail PNG (copy link if unsupported)" data-i18n-title="actions.shareTitle"><span data-i18n="actions.shareTrail">Share trail</span></button>
+            <button class="action-btn prediction" id="showPredictionBtn" type="button" title="Show 30-min Flight Prediction (P)" data-i18n-title="actions.predictTitle"><span>P</span> <span data-i18n="actions.predict">Predict</span></button>
+            <button class="action-btn route" id="showRouteBtn" type="button" title="Show Route to Destination (R)" data-i18n-title="actions.routeTitle"><span>R</span> <span data-i18n="actions.route">Route</span></button>
+            <button class="action-btn" id="shareFlightBtn" type="button" title="Share aircraft trail PNG (copy link if unsupported)" data-i18n-title="actions.shareTitle"><span data-i18n="actions.shareTrail">Share trail</span></button>
             <!-- X24: Track export -->
-            <button class="action-btn" id="exportKmlBtn" title="Export track as KML (Google Earth)" data-i18n-title="actions.kmlTitle">KML</button>
-            <button class="action-btn" id="exportGpxBtn" title="Export track as GPX" data-i18n-title="actions.gpxTitle">GPX</button>
-            <button class="action-btn" id="exportGeoJsonBtn" title="Export track as GeoJSON" data-i18n-title="actions.geojsonTitle">JSON</button>
-            <button class="action-btn" id="exportCsvBtn" title="Export track as CSV" data-i18n-title="actions.csvTitle">CSV</button>
+            <button class="action-btn" id="exportKmlBtn" type="button" title="Export track as KML (Google Earth)" data-i18n-title="actions.kmlTitle">KML</button>
+            <button class="action-btn" id="exportGpxBtn" type="button" title="Export track as GPX" data-i18n-title="actions.gpxTitle">GPX</button>
+            <button class="action-btn" id="exportGeoJsonBtn" type="button" title="Export track as GeoJSON" data-i18n-title="actions.geojsonTitle">JSON</button>
+            <button class="action-btn" id="exportCsvBtn" type="button" title="Export track as CSV" data-i18n-title="actions.csvTitle">CSV</button>
         </div>
         <div class="info-section external-links-section">
         <div class="info-section-title" data-i18n="actions.trackElsewhere">Track Elsewhere</div>
@@ -2098,10 +2098,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.dataSources">Data Sources (Phase 16)</div>
             <div id="dataSourceList" style="font-size: 11px; margin-bottom: 10px;"></div>
-            <button class="btn-secondary" id="checkSourcesBtn" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.checkSources">Check All Sources</button>
-            <button class="btn-secondary" id="copySourceDiagnosticsBtn" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.copySourceDiagnostics">Copy source diagnostics</button>
+            <button class="btn-secondary" id="checkSourcesBtn" type="button" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.checkSources">Check All Sources</button>
+            <button class="btn-secondary" id="copySourceDiagnosticsBtn" type="button" style="width: 100%; margin-bottom: 8px;" data-i18n="settings.copySourceDiagnostics">Copy source diagnostics</button>
             <div class="source-diagnostics-status" id="sourceDiagnosticsStatus" role="status" aria-live="polite"></div>
-            <button class="btn-secondary" id="clearOfflineCacheBtn" style="width: 100%;" data-i18n="settings.clearOffline">Clear Offline Cache</button>
+            <button class="btn-secondary" id="clearOfflineCacheBtn" type="button" style="width: 100%;" data-i18n="settings.clearOffline">Clear Offline Cache</button>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.statsDashboard">Session Statistics (L14)</div>
@@ -2218,8 +2218,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <option value="600">10 min</option>
                 </select>
             </div>
-            <button class="btn-secondary" id="rulerBtn" style="width: 100%; margin-top: 8px;" data-i18n="settings.ruler">Ruler / distance tool (R)</button>
-            <button class="btn-secondary" id="helpBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.shortcuts">Keyboard shortcuts (?)</button>
+            <button class="btn-secondary" id="rulerBtn" type="button" style="width: 100%; margin-top: 8px;" data-i18n="settings.ruler">Ruler / distance tool (R)</button>
+            <button class="btn-secondary" id="helpBtn" type="button" style="width: 100%; margin-top: 6px;" data-i18n="settings.shortcuts">Keyboard shortcuts (?)</button>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.faaSuaTitle">FAA Special-Use Airspace (X23)</div>
@@ -2257,12 +2257,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.overlays">Overlays (X10)</div>
             <input type="file" id="overlayFileInput" accept=".geojson,.json" style="display:none;">
-            <button class="btn-secondary" id="overlayLoadFileBtn" style="width: 100%; margin-bottom: 6px;" data-i18n="settings.loadGeojson">Load GeoJSON file…</button>
+            <button class="btn-secondary" id="overlayLoadFileBtn" type="button" style="width: 100%; margin-bottom: 6px;" data-i18n="settings.loadGeojson">Load GeoJSON file…</button>
             <div style="display:flex;gap:4px;margin-bottom:6px;">
                 <input type="text" id="overlayUrlInput" placeholder="https://… (raw .geojson URL)" data-i18n-placeholder="settings.geojsonUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
-                <button class="btn-secondary" id="overlayLoadUrlBtn" style="padding:6px 10px;" data-i18n="common.load">Load</button>
+                <button class="btn-secondary" id="overlayLoadUrlBtn" type="button" style="padding:6px 10px;" data-i18n="common.load">Load</button>
             </div>
-            <button class="btn-secondary" id="overlayClearBtn" style="width: 100%;" data-i18n="settings.clearOverlays">Clear all overlays</button>
+            <button class="btn-secondary" id="overlayClearBtn" type="button" style="width: 100%;" data-i18n="settings.clearOverlays">Clear all overlays</button>
             <div id="overlayStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-top:6px;">Remote overlays require an explicit Load click and public HTTPS</div>
             <div id="overlaysList" style="margin-top:8px;"></div>
         </div>
@@ -2292,15 +2292,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             </label>
             <div id="webhookStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">No webhook configured</div>
             <div id="webhookPreview" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">Payload preview is empty</div>
-            <button class="btn-secondary" id="webhookSaveBtn" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveWebhook">Save webhook</button>
-            <button class="btn-secondary" id="webhookClearBtn" style="width:100%;margin-bottom:6px;">Clear webhook</button>
-            <button class="btn-secondary" id="webhookTestBtn" style="width:100%;" data-i18n="settings.testAlert">Send test alert</button>
+            <button class="btn-secondary" id="webhookSaveBtn" type="button" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveWebhook">Save webhook</button>
+            <button class="btn-secondary" id="webhookClearBtn" type="button" style="width:100%;margin-bottom:6px;">Clear webhook</button>
+            <button class="btn-secondary" id="webhookTestBtn" type="button" style="width:100%;" data-i18n="settings.testAlert">Send test alert</button>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.analyst">Analyst (X6 / OSINT)</div>
             <div class="setting-row"><span class="setting-label" id="toggleCoincidenceLabel" data-i18n="settings.coincidence">Coincidence detector</span><button type="button" class="toggle" id="toggleCoincidence" role="switch" aria-checked="false" aria-labelledby="toggleCoincidenceLabel"></button></div>
-            <button class="btn-secondary" id="osintReportBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.copyReport">Copy OSINT report (selected)</button>
-            <button class="btn-secondary" id="viewportCsvBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.exportViewport">Export viewport as CSV</button>
+            <button class="btn-secondary" id="osintReportBtn" type="button" style="width: 100%; margin-top: 6px;" data-i18n="settings.copyReport">Copy OSINT report (selected)</button>
+            <button class="btn-secondary" id="viewportCsvBtn" type="button" style="width: 100%; margin-top: 6px;" data-i18n="settings.exportViewport">Export viewport as CSV</button>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.storage">Storage</div>
@@ -2312,17 +2312,17 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <option value="30" data-i18n="time.days30">30 days</option>
                 </select>
             </div>
-            <button class="btn-secondary" id="trailRetentionApply" style="width: 100%; margin-top: 8px;" data-i18n="settings.applyClean">Apply &amp; clean now</button>
+            <button class="btn-secondary" id="trailRetentionApply" type="button" style="width: 100%; margin-top: 8px;" data-i18n="settings.applyClean">Apply &amp; clean now</button>
             <div class="receiver-coverage-help" data-i18n="settings.localStateHelp">Export supported configuration and analyst state. Credentials, tokens, aircraft cache, and raw private-aircraft fields are never included.</div>
             <input type="file" id="localStateImportInput" accept=".json,application/json" style="display:none;">
-            <button class="btn-secondary" id="localStateExportBtn" style="width: 100%; margin-top: 8px;" data-i18n="settings.exportLocalState">Export local state</button>
-            <button class="btn-secondary" id="localStateImportBtn" style="width: 100%; margin-top: 6px;" data-i18n="settings.importLocalState">Import local state</button>
+            <button class="btn-secondary" id="localStateExportBtn" type="button" style="width: 100%; margin-top: 8px;" data-i18n="settings.exportLocalState">Export local state</button>
+            <button class="btn-secondary" id="localStateImportBtn" type="button" style="width: 100%; margin-top: 6px;" data-i18n="settings.importLocalState">Import local state</button>
             <div class="receiver-coverage-status" id="localStateStatus" role="status" aria-live="polite" data-i18n="settings.localStateReady">No local-state backup loaded</div>
         </div>
     </div>
     <div class="bottom-panels">
         <div class="bookmarks-panel">
-            <div class="bookmarks-header"><span class="bookmarks-title" data-i18n="bookmarks.savedLocations">Saved Locations</span><button class="bookmark-add-btn" id="addBookmarkBtn" title="Save current view" data-i18n-title="bookmarks.saveView">+</button></div>
+            <div class="bookmarks-header"><span class="bookmarks-title" data-i18n="bookmarks.savedLocations">Saved Locations</span><button class="bookmark-add-btn" id="addBookmarkBtn" type="button" title="Save current view" aria-label="Save current view" data-i18n-title="bookmarks.saveView">+</button></div>
             <div class="bookmarks-list" id="bookmarksList"><div class="bookmarks-empty" data-i18n="bookmarks.none">No saved locations</div></div>
         </div>
         <div class="watchlist-panel">
@@ -2346,8 +2346,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <div class="install-content">
             <span class="install-icon">+</span>
             <span class="install-text" data-i18n="install.prompt">Install VIPTrack for offline access</span>
-            <button class="install-btn" id="installBtn" data-i18n="install.install">Install</button>
-            <button class="install-dismiss" id="installDismiss">x</button>
+            <button class="install-btn" id="installBtn" type="button" data-i18n="install.install">Install</button>
+            <button class="install-dismiss" id="installDismiss" type="button" aria-label="Dismiss install prompt">x</button>
         </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -4167,7 +4167,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             el.style.borderLeftColor = alert.alertType.color;
             el.innerHTML = safeHTML('<div class="alert-icon" style="color:' + alert.alertType.color + '">' + alert.alertType.icon + '</div>' +
                 '<div class="alert-body"><div class="alert-title">' + alert.callsign + '</div><div class="alert-message">' + alert.message + '</div></div>' +
-                '<button class="alert-close">&times;</button>');
+                '<button class="alert-close" type="button" aria-label="Dismiss alert">&times;</button>');
             
             el.querySelector('.alert-body').addEventListener('click', () => {
                 selectAircraft(alert.aircraft.hex);
@@ -4289,7 +4289,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     return '<div class="watchlist-item ' + (isActive ? 'active' : '') + '" data-hex="' + entry.hex + '">' +
                         '<div class="watchlist-info"><div class="watchlist-name">' + entry.name + '</div>' +
                         '<div class="watchlist-hex">' + entry.hex + (isActive ? ' - ACTIVE' : '') + '</div></div>' +
-                        '<button class="watchlist-remove" data-hex="' + entry.hex + '" title="Remove">x</button></div>';
+                        '<button class="watchlist-remove" data-hex="' + entry.hex + '" type="button" title="Remove" aria-label="Remove ' + entry.name + '">x</button></div>';
                 }).join('');
             
             container.innerHTML = safeHTML(items);
@@ -8064,7 +8064,26 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function addBookmark(name) { const c = map.getCenter(); bookmarks.push({ id: Date.now(), name, lat: c.lat, lng: c.lng, zoom: map.getZoom() }); saveBookmarks(); toast('Saved: ' + name); }
     function deleteBookmark(id) { bookmarks = bookmarks.filter(b => b.id !== id); saveBookmarks(); }
     function goToBookmark(id) { const b = bookmarks.find(x => x.id === id); if (b) { map.setView([b.lat, b.lng], b.zoom); toast('Jumped to ' + b.name); } }
-    function renderBookmarks() { const list = document.getElementById('bookmarksList'); if (!bookmarks.length) { list.innerHTML = safeHTML('<div class="bookmarks-empty">No saved locations</div>'); return; } list.innerHTML = safeHTML(bookmarks.map(b => '<div class="bookmark-item" data-id="' + b.id + '"><span class="bookmark-name">' + b.name + '</span><button class="bookmark-delete" data-id="' + b.id + '">&times;</button></div>').join('')); list.querySelectorAll('.bookmark-item').forEach(item => item.addEventListener('click', e => { if (!e.target.classList.contains('bookmark-delete')) goToBookmark(parseInt(item.dataset.id)); })); list.querySelectorAll('.bookmark-delete').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); deleteBookmark(parseInt(btn.dataset.id)); })); }
+    function renderBookmarks() {
+        const list = document.getElementById('bookmarksList');
+        if (!bookmarks.length) {
+            list.innerHTML = safeHTML('<div class="bookmarks-empty">No saved locations</div>');
+            return;
+        }
+        list.innerHTML = safeHTML(bookmarks.map(bookmark =>
+            '<div class="bookmark-item" data-id="' + bookmark.id + '">' +
+                '<span class="bookmark-name">' + bookmark.name + '</span>' +
+                '<button class="bookmark-delete" type="button" data-id="' + bookmark.id + '" aria-label="Delete bookmark">&times;</button>' +
+            '</div>'
+        ).join(''));
+        list.querySelectorAll('.bookmark-item').forEach(item => item.addEventListener('click', event => {
+            if (!event.target.classList.contains('bookmark-delete')) goToBookmark(parseInt(item.dataset.id));
+        }));
+        list.querySelectorAll('.bookmark-delete').forEach(button => button.addEventListener('click', event => {
+            event.stopPropagation();
+            deleteBookmark(parseInt(button.dataset.id));
+        }));
+    }
     // ============ VERSIONED LOCAL STATE EXPORT / IMPORT ============
     // This file is deliberately configuration-only. Aircraft observations,
     // trail samples, remote endpoints, credentials, tokens, API keys, and raw
@@ -9706,6 +9725,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (watchBtn) {
             const isWatched = alertSystem.isWatched(hex);
             watchBtn.classList.toggle('watched', isWatched);
+            watchBtn.setAttribute('aria-pressed', isWatched ? 'true' : 'false');
             watchBtn.querySelector('.star').textContent = isWatched ? 'x' : '*';
             watchBtn.querySelector('.watch-text').textContent = isWatched ? 'Watching' : 'Watch';
         }
@@ -10041,12 +10061,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (isWatched) {
                 alertSystem.removeFromWatchlist(selectedHex);
                 this.classList.remove('watched');
+                this.setAttribute('aria-pressed', 'false');
                 this.querySelector('.star').textContent = '*';
                 this.querySelector('.watch-text').textContent = 'Watch';
             } else {
                 const name = ac?.flight?.trim() || getDisplayRegistration(ac) || selectedHex;
                 alertSystem.addToWatchlist(selectedHex, name);
                 this.classList.add('watched');
+                this.setAttribute('aria-pressed', 'true');
                 this.querySelector('.star').textContent = 'x';
                 this.querySelector('.watch-text').textContent = 'Watching';
             }
@@ -10908,7 +10930,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 '<div class="history-item" data-index="' + i + '">' +
                     '<span class="history-text">' + h.text + '</span>' +
                     '<span class="history-time">' + this.formatTime(h.time) + '</span>' +
-                    '<button class="history-remove" data-index="' + i + '">x</button>' +
+                    '<button class="history-remove" type="button" data-index="' + i + '" aria-label="Remove recent search">x</button>' +
                 '</div>'
             ).join(''));
             
@@ -13332,7 +13354,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             el.innerHTML = safeHTML(this.layers.map((l, i) =>
                 '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;">' +
                 '<span>' + l.name + '</span>' +
-                '<button data-idx="' + i + '" class="overlay-remove" style="background:none;border:none;color:var(--danger);cursor:pointer;">×</button></div>'
+                '<button data-idx="' + i + '" type="button" class="overlay-remove" aria-label="Remove overlay" style="background:none;border:none;color:var(--danger);cursor:pointer;">×</button></div>'
             ).join(''));
             el.querySelectorAll('.overlay-remove').forEach(btn => btn.addEventListener('click', e => {
                 const idx = parseInt(e.target.dataset.idx, 10);

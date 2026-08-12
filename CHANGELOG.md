@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Converted settings toggles into keyboard-operable switch buttons with translated label associations, visible focus styling, and synchronized `aria-checked` state.
 - Added consistent dialog semantics, focus return, Escape/Tab handling, and mobile bottom-sheet state for aircraft details, settings, onboarding, bookmarks, ethics, and keyboard help.
 - Added tab, radio-filter, and toggle-button semantics with synchronized selection state, arrow-key tab navigation, and expanded-state feedback for search and mobile controls.
+- Normalized action controls with explicit button types, labels for dynamic dismiss/remove actions, and synchronized watchlist pressed state.
 
 ## [v0.4.2] - 2026-08-08
 
