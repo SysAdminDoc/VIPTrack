@@ -58,6 +58,9 @@
     <link rel="apple-touch-icon" sizes="192x192" href="assets/logo/VIPTrack_Mark-192x192.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous" />
     <style>
+        /* Base palette. Overridden by assets/viptrack-ui.css, and the six tokens in
+           applyMidnightTheme() are overridden again at runtime. Kept as the fallback
+           that renders before the stylesheet lands and when it fails to load. */
         :root {
             --bg: #1a1a2e;
             --bg-panel: rgba(26, 26, 46, 0.95);
@@ -11436,6 +11439,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
 
     // ============ MIDNIGHT THEME (hardcoded) ============
+    // Final layer of a three-stage palette. The inline :root above is the base,
+    // assets/viptrack-ui.css overrides it, and this sets inline custom properties on
+    // documentElement, which outrank both -- but only for the six tokens listed here.
+    // Every other token (--military, --gov, --pia, --accent-orange, ...) still comes
+    // from viptrack-ui.css. Change a colour in the wrong layer and nothing happens.
     function applyMidnightTheme() {
         const root = document.documentElement;
         root.style.setProperty('--bg', '#0a0a14');

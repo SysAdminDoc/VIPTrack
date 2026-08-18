@@ -14,6 +14,9 @@
 ### Added
 - A live feed status control. The reliability indicator existed but was switched off with a global `display: none`, so an outage looked exactly like normal operation. It is now visible, colour-coded healthy/degraded/unhealthy, counts only enabled sources, and opens a panel listing every source with its status, last success age, recent error count, whether it is relayed, and — for a disabled source — why. The panel also shows how old the plotted aircraft data is. Closes on Escape or an outside click and stays clear of the ethics notice and the mobile aircraft peek card.
 
+### Documentation
+- Corrected the design and version contract in the working notes. The palette resolves through three layers — the inline `:root`, `assets/viptrack-ui.css`, then `applyMidnightTheme()` setting six tokens inline on `documentElement` — and the shipped colours are `--bg #0a0a14` / `--accent #00d4ff`, not the values previously documented. Each layer now says where it sits in that order. Also corrected the README's localisation key count (342, not 313).
+
 ### Removed
 - Untracked and deleted four artifacts that were published with the site but are not part of it: `index.html.bak2` (533 KB), a 1.1 MB `.mhtml` page capture, a 1.3 MB root `icon.png`, and the `photo-audit.html` dev page. `.gitignore` covered `*.bak` but not `*.bak2`; it now covers `*.bak[0-9]` and `*.mhtml`.
 
