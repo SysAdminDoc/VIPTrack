@@ -665,6 +665,22 @@ class VipTrackContracts(unittest.TestCase):
                 self.assertIn(required, tokens, f"{name}: {required}")
         self.assertIn("object-src 'none'", policy)
 
+    def test_feed_health_is_visible_and_inspectable(self) -> None:
+        # The reliability indicator was switched off with a global `display: none`, so a
+        # feed outage was indistinguishable from normal operation.
+        self.assertNotIn(".data-source-indicator { display: none !important; }", self.source)
+        self.assertIn('id="dataSourceDetail"', self.source)
+        self.assertIn('aria-controls="dataSourceDetail"', self.source)
+        self.assertIn("healthSummary()", self.source)
+        self.assertIn("renderDetail()", self.source)
+        self.assertIn("toggleDetail(", self.source)
+        # Counts must be against enabled sources, not the raw list including disabled ones.
+        self.assertIn("const enabled = this.enabledSources();", self.source)
+        for state in ("is-healthy", "is-degraded", "is-unhealthy"):
+            self.assertIn(state, self.source)
+        # Escape closes the panel and focus returns to the control that opened it.
+        self.assertIn("this.toggleDetail(false);", self.source)
+
     def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

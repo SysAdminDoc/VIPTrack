@@ -177,13 +177,41 @@
         body.offline-mode::before { content: 'OFFLINE'; position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: var(--danger); color: #fff; padding: 4px 16px; border-radius: 0 0 10px 10px; font-size: 11px; font-weight: 700; letter-spacing: 1px; z-index: 3000; box-shadow: 0 2px 8px rgba(239,68,68,0.4); }
         body.offline-mode .cached-marker svg { opacity: 0.5; }
         body.offline-mode .cached-marker::after { content: '?'; position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #000; }
-        .data-source-indicator { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; display: flex; align-items: center; gap: 8px; font-size: 10px; z-index: 1000; backdrop-filter: blur(10px); }
+        .data-source-indicator { position: fixed; bottom: 8px; left: 8px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; display: flex; align-items: center; gap: 8px; font-size: 10px; z-index: 1000; backdrop-filter: blur(10px); }
         .source-name { font-weight: 600; color: var(--text); }
         .source-status { padding: 2px 6px; border-radius: 10px; font-weight: 600; font-size: 9px; }
         .source-status.healthy { background: rgba(74,222,128,0.2); color: var(--success); }
         .source-status.degraded { background: rgba(251,191,36,0.2); color: #fbbf24; }
         .source-status.unhealthy { background: rgba(239,68,68,0.2); color: var(--danger); }
         .source-latency { color: var(--text-muted); }
+        .data-source-indicator { cursor: pointer; color: var(--text-dim); font-family: inherit; }
+        .data-source-indicator:hover, .data-source-indicator:focus-visible { border-color: var(--accent); }
+        .source-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex: 0 0 auto; }
+        .data-source-indicator.is-healthy .source-dot { background: var(--success); }
+        .data-source-indicator.is-degraded .source-dot { background: var(--accent-orange); }
+        .data-source-indicator.is-unhealthy .source-dot { background: var(--danger, #ff5364); }
+        .data-source-indicator.is-degraded { border-color: rgba(245,185,66,0.55); }
+        .data-source-indicator.is-unhealthy { border-color: rgba(255,83,100,0.65); }
+        .data-source-detail { position: fixed; bottom: 44px; left: 8px; width: min(340px, calc(100vw - 24px)); max-height: 50vh; overflow-y: auto; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; z-index: 1001; backdrop-filter: blur(10px); font-size: 11px; }
+        .data-source-detail[hidden] { display: none; }
+        .data-source-detail-title { font-weight: 600; color: var(--text); margin-bottom: 8px; font-size: 12px; }
+        .dsd-row { display: grid; grid-template-columns: 8px 1fr auto; gap: 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--border); }
+        .dsd-row:first-child { border-top: 0; }
+        .dsd-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); align-self: center; }
+        .dsd-dot.healthy { background: var(--success); }
+        .dsd-dot.degraded { background: var(--accent-orange); }
+        .dsd-dot.unhealthy, .dsd-dot.unavailable { background: var(--danger, #ff5364); }
+        .dsd-name { color: var(--text); font-weight: 600; }
+        .dsd-meta { color: var(--text-muted); display: block; font-weight: 400; margin-top: 2px; line-height: 1.4; }
+        .dsd-latency { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+        @media (max-width: 768px) {
+            /* Clear the mobile nav, and clear the selected-aircraft peek card when one
+               is showing -- it is fixed at nav-clearance + 10px and would cover this. */
+            .data-source-indicator { bottom: calc(var(--mobile-nav-clearance, 78px) + 6px); z-index: 1390; }
+            .data-source-detail { bottom: calc(var(--mobile-nav-clearance, 78px) + 40px); z-index: 1391; }
+            body.mobile-view:has(.mobile-map-peek) .data-source-indicator { bottom: calc(var(--mobile-nav-clearance, 78px) + 132px); }
+            body.mobile-view:has(.mobile-map-peek) .data-source-detail { bottom: calc(var(--mobile-nav-clearance, 78px) + 166px); }
+        }
         .provenance-section { border-left: 2px solid var(--accent); }
         .provenance-help { color: var(--text-muted); font-size: 10px; line-height: 1.4; margin-top: 7px; }
         .provenance-value { max-width: 68%; text-align: right; }
@@ -1262,7 +1290,6 @@
 
         /* ============ UI OVERHAUL: STATUS DOCK ============ */
         #map { bottom: 0 !important; }
-        .data-source-indicator { display: none !important; }
         .legend { display: none !important; }
 
         /* ============ UI OVERHAUL: FILTER CHIPS ============ */
@@ -1564,10 +1591,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div id="webglMap" aria-label="WebGL aircraft map" data-i18n-aria-label="map.webglAria"></div>
     <div id="globe3d" aria-label="3D globe view" data-i18n-aria-label="map.globeAria"></div>
     <!-- Phase 16: Reliability Indicators -->
-    <div class="data-source-indicator" id="dataSourceIndicator">
+    <button type="button" class="data-source-indicator" id="dataSourceIndicator"
+            aria-expanded="false" aria-controls="dataSourceDetail"
+            aria-label="Live feed status" data-i18n-aria-label="status.feedStatusAria">
+        <span class="source-dot" aria-hidden="true"></span>
         <span class="source-name" data-i18n="status.connecting">Connecting...</span>
-        <span class="source-status unknown">0/4</span>
+        <span class="source-status unknown">0/0</span>
         <span class="source-latency">--</span>
+    </button>
+    <div class="data-source-detail" id="dataSourceDetail" role="dialog" aria-modal="false"
+         aria-labelledby="dataSourceDetailTitle" hidden>
+        <div class="data-source-detail-title" id="dataSourceDetailTitle" data-i18n="status.feedStatusTitle">Live feed status</div>
+        <div class="data-source-detail-body" id="dataSourceDetailBody"></div>
     </div>
     <!-- X31: tab paused pill -->
     <div id="pausedPill" class="paused-pill" role="status" aria-live="polite">
@@ -3182,6 +3217,23 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         init() {
             this.healthCheckInterval = setInterval(() => this.checkAllSources(), 60000);
             setTimeout(() => this.checkAllSources(), 5000);
+
+            const indicator = document.getElementById('dataSourceIndicator');
+            indicator?.addEventListener('click', () => this.toggleDetail());
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && !document.getElementById('dataSourceDetail')?.hidden) {
+                    this.toggleDetail(false);
+                    indicator?.focus();
+                }
+            });
+            document.addEventListener('click', event => {
+                const panel = document.getElementById('dataSourceDetail');
+                if (!panel || panel.hidden) return;
+                if (panel.contains(event.target) || indicator?.contains(event.target)) return;
+                this.toggleDetail(false);
+            });
+            // Keep the open panel's ages and errors current between health checks.
+            setInterval(() => this.renderDetail(), 5000);
         },
         
         async checkAllSources() {
@@ -3281,17 +3333,69 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             this.updateUI();
         },
         
+        // Degradation has to be visible: this indicator was hidden with a global
+        // `display: none`, so a feed outage looked exactly like normal operation.
+        describeAge(timestamp) {
+            if (!timestamp) return 'never';
+            const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+            if (seconds < 60) return seconds + 's ago';
+            if (seconds < 3600) return Math.round(seconds / 60) + 'm ago';
+            return Math.round(seconds / 3600) + 'h ago';
+        },
+
+        healthSummary() {
+            const enabled = this.enabledSources();
+            const healthy = enabled.filter(s => s.status === 'healthy').length;
+            const level = healthy === 0 ? 'unhealthy' : (healthy < enabled.length ? 'degraded' : 'healthy');
+            return { healthy, total: enabled.length, level };
+        },
+
         updateUI() {
             const indicator = document.getElementById('dataSourceIndicator');
             if (!indicator) return;
-            
+
             const best = this.getBestSource();
-            const healthy = this.sources.filter(s => s.status === 'healthy').length;
-            
-            indicator.innerHTML = safeHTML('<span class="source-name">' + best.name + '</span>' +
-                '<span class="source-status ' + best.status + '">' + healthy + '/' + this.sources.length + '</span>' +
+            const { healthy, total, level } = this.healthSummary();
+
+            indicator.classList.toggle('is-healthy', level === 'healthy');
+            indicator.classList.toggle('is-degraded', level === 'degraded');
+            indicator.classList.toggle('is-unhealthy', level === 'unhealthy');
+            indicator.innerHTML = safeHTML('<span class="source-dot" aria-hidden="true"></span>' +
+                '<span class="source-name">' + best.name + '</span>' +
+                '<span class="source-status ' + level + '">' + healthy + '/' + total + '</span>' +
                 '<span class="source-latency">' + (best.latency < 9999 ? best.latency + 'ms' : '--') + '</span>');
-            indicator.title = best.coverage + ' ' + best.limitations;
+            indicator.title = healthy + ' of ' + total + ' sources healthy. ' + best.coverage + ' ' + best.limitations;
+            this.renderDetail();
+        },
+
+        renderDetail() {
+            const body = document.getElementById('dataSourceDetailBody');
+            if (!body || document.getElementById('dataSourceDetail')?.hidden) return;
+            const rows = this.sources.map(source => {
+                const meta = source.disabled
+                    ? source.disabledReason
+                    : 'last ok ' + this.describeAge(source.lastSuccess)
+                        + (source.errorCount ? ' | ' + source.errorCount + ' recent error' + (source.errorCount === 1 ? '' : 's') : '')
+                        + (source.cors === false ? ' | relayed' : '');
+                return '<div class="dsd-row"><span class="dsd-dot ' + source.status + '"></span>'
+                    + '<span class="dsd-name">' + source.name
+                    + '<span class="dsd-meta">' + meta + '</span></span>'
+                    + '<span class="dsd-latency">' + (source.latency && source.latency < 9999 ? source.latency + 'ms' : '--') + '</span></div>';
+            }).join('');
+            const feedAge = '<div class="dsd-row"><span class="dsd-dot ' + (Date.now() - lastFetchTime > 60000 ? 'degraded' : 'healthy')
+                + '"></span><span class="dsd-name">Aircraft data<span class="dsd-meta">updated '
+                + this.describeAge(lastFetchTime) + '</span></span><span class="dsd-latency"></span></div>';
+            body.innerHTML = safeHTML(rows + feedAge);
+        },
+
+        toggleDetail(force) {
+            const panel = document.getElementById('dataSourceDetail');
+            const indicator = document.getElementById('dataSourceIndicator');
+            if (!panel || !indicator) return;
+            const open = typeof force === 'boolean' ? force : panel.hidden;
+            panel.hidden = !open;
+            indicator.setAttribute('aria-expanded', String(open));
+            if (open) this.renderDetail();
         },
         
         getStats() {
