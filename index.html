@@ -192,6 +192,10 @@
         .source-status.degraded { background: rgba(251,191,36,0.2); color: #fbbf24; }
         .source-status.unhealthy { background: rgba(239,68,68,0.2); color: var(--danger); }
         .source-latency { color: var(--text-muted); }
+        .filter-regex-status { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 11px; }
+        #filterRegexCount { color: var(--text-muted); }
+        .filter-regex-error { color: var(--danger, #ff5364); }
+        .filter-regex-error[hidden] { display: none; }
         .skip-link { position: fixed; top: -100px; left: 8px; z-index: 4000; padding: 10px 14px; background: var(--bg-panel); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; font-size: 13px; text-decoration: none; }
         .skip-link:focus { top: 8px; }
         @media (prefers-reduced-motion: reduce) {
@@ -1836,6 +1840,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         <div class="filter-section">
                             <div class="filter-label" data-i18n="search.regex">Regex Pattern (Advanced)</div>
                             <input type="text" id="filterRegex" placeholder="e.g., ^UAL\d+ or N\d{3}[A-Z]{2}" data-i18n-placeholder="search.regexPlaceholder" class="filter-input-full">
+                            <div class="filter-regex-status"><span id="filterRegexCount" aria-live="polite"></span><span class="filter-regex-error" id="filterRegexError" role="alert" hidden></span></div>
                             <div class="filter-hint" data-i18n="search.regexHint">Matches against callsign and registration</div>
                         </div>
                         <div class="filter-actions">
@@ -5785,6 +5790,24 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function isPrivacyProtectedHex(hex) {
         return !!hex && piaDB.loaded && piaDB.isPIA(hex);
     }
+    // A user-supplied pattern is untrusted input. Bound its length and reject nested
+    // quantifiers, which are the shape that turns matching into an unbounded hang.
+    const FILTER_REGEX_MAX_LENGTH = 200;
+    function compileFilterRegex(pattern) {
+        const text = String(pattern || '').trim();
+        if (text.length > FILTER_REGEX_MAX_LENGTH) {
+            return { ok: false, error: 'Pattern is too long (max ' + FILTER_REGEX_MAX_LENGTH + ' characters).' };
+        }
+        if (/(\([^)]*[+*][^)]*\)|\[[^\]]*\][+*]|\w[+*])\s*[+*]/.test(text)) {
+            return { ok: false, error: 'Nested quantifiers are not allowed; they can hang the browser.' };
+        }
+        try {
+            return { ok: true, value: new RegExp(text, 'i') };
+        } catch (e) {
+            return { ok: false, error: 'Invalid pattern: ' + e.message };
+        }
+    }
+
     function isPrivacyProtectedAircraft(ac) {
         return !!ac && (ac.privacyProtected === true || ac.piaInfo || isPrivacyProtectedHex(ac.hex));
     }
@@ -11189,13 +11212,26 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (document.getElementById('filterNoCallsign')?.checked) this.filters.noCallsign = true;
             
             // Regex
-            const regex = document.getElementById('filterRegex')?.value?.trim();
+            const regexInput = document.getElementById('filterRegex');
+            const regex = regexInput?.value?.trim();
+            const regexError = document.getElementById('filterRegexError');
+            if (regexError) { regexError.textContent = ''; regexError.hidden = true; }
+            regexInput?.removeAttribute('aria-invalid');
+            const regexCount = document.getElementById('filterRegexCount');
+            if (regexCount) regexCount.textContent = '';
             if (regex) {
-                try {
-                    this.filters.regex = new RegExp(regex, 'i');
-                } catch (e) {
-                    toast('Invalid regex pattern');
+                const compiled = compileFilterRegex(regex);
+                if (!compiled.ok) {
+                    if (regexError) { regexError.textContent = compiled.error; regexError.hidden = false; }
+                    regexInput?.setAttribute('aria-invalid', 'true');
                     return;
+                }
+                this.filters.regex = compiled.value;
+                if (regexCount) {
+                    // Live feedback: a pattern that matches nothing should say so.
+                    const matches = Object.values(aircraftCache).filter(ac =>
+                        compiled.value.test([ac.flight, ac.r, ac.t, ac.desc].filter(Boolean).join(' '))).length;
+                    regexCount.textContent = matches + ' of ' + Object.keys(aircraftCache).length + ' tracked aircraft match';
                 }
             }
             
@@ -11309,7 +11345,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             
             // Regex
             if (f.regex) {
-                const testStr = [ac.flight, ac.r].filter(Boolean).join(' ');
+                // Type code and type description are included so tar1090-style patterns
+                // work: B73. for the 737 family, H.. for helicopters, L2J for twinjets.
+                const testStr = [ac.flight, ac.r, ac.t, ac.desc].filter(Boolean).join(' ');
                 if (!f.regex.test(testStr)) return false;
             }
             

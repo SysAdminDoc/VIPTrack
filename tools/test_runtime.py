@@ -427,6 +427,30 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertEqual(leaked, "ok")
             self.assertEqual(crashes, [])
 
+    def test_regex_filter_reaches_type_code_and_is_bounded(self) -> None:
+        # tar1090's most useful filters (B73., H.., L2J) address the type code and
+        # description, which the previous implementation never matched against.
+        with self._page() as (page, crashes):
+            self.assertTrue(page.evaluate(
+                "() => { const r = compileFilterRegex('H..');"
+                " const ac = {flight: 'RESCUE1', r: 'N911HQ', t: 'H60', desc: 'Sikorsky UH-60'};"
+                " return r.ok && r.value.test([ac.flight, ac.r, ac.t, ac.desc].join(' ')); }"
+            ))
+            # A user-supplied pattern is untrusted: bound it and refuse the shapes that hang.
+            self.assertFalse(page.evaluate("compileFilterRegex('a'.repeat(250)).ok"))
+            self.assertFalse(page.evaluate("compileFilterRegex('(a+)+b').ok"))
+            self.assertFalse(page.evaluate("compileFilterRegex('[unclosed').ok"))
+            self.assertTrue(page.evaluate("compileFilterRegex('B739|B39M').ok"))
+            self.assertTrue(page.evaluate("compileFilterRegex('^(?!A320)').ok"))
+            # An invalid pattern reports inline rather than as a transient toast.
+            page.evaluate("document.getElementById('filterRegex').value = '[unclosed'")
+            page.evaluate("searchSystem.applyFilters()")
+            page.wait_for_timeout(400)
+            self.assertFalse(page.evaluate("document.getElementById('filterRegexError').hidden"))
+            self.assertEqual(page.evaluate(
+                "document.getElementById('filterRegex').getAttribute('aria-invalid')"), "true")
+            self.assertEqual(crashes, [])
+
     def test_file_protocol_boot_degrades_without_throwing(self) -> None:
         page = self._new_page()
         crashes: list[str] = []
