@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <!-- N3: Content Security Policy via meta tag (GitHub Pages cannot set headers).
          connect-src is an explicit allowlist: bare `http:`/`https:` were removed because
          they matched every origin and made the list that followed them decorative.
@@ -15,7 +15,7 @@
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://davidmegginson.github.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.stadiamaps.com https://corsproxy.io https://api.allorigins.win https://api.rainviewer.com https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
+        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://api.adsbdb.com https://hexdb.io https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://davidmegginson.github.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.stadiamaps.com https://corsproxy.io https://api.allorigins.win https://api.rainviewer.com https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
         worker-src 'self' blob: https://cdn.jsdelivr.net;
         frame-src 'self';
         manifest-src 'self' blob:;
@@ -187,6 +187,22 @@
         .source-status.degraded { background: rgba(251,191,36,0.2); color: #fbbf24; }
         .source-status.unhealthy { background: rgba(239,68,68,0.2); color: var(--danger); }
         .source-latency { color: var(--text-muted); }
+        .skip-link { position: fixed; top: -100px; left: 8px; z-index: 4000; padding: 10px 14px; background: var(--bg-panel); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; font-size: 13px; text-decoration: none; }
+        .skip-link:focus { top: 8px; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+        }
+        @media (prefers-contrast: more) {
+            :root { --border: rgba(200, 220, 245, 0.55); --text-dim: #d5dde8; --text-muted: #b6c2d4; }
+        }
+        @media (forced-colors: active) {
+            /* Category colour is the only cue for several controls, and forced-colors
+               discards author colours entirely -- keep borders and focus rings visible. */
+            .data-source-indicator, .data-source-detail, .filter-btn, .header-btn, .toggle { border: 1px solid CanvasText !important; }
+            .source-dot, .dsd-dot { outline: 1px solid CanvasText; forced-color-adjust: none; }
+            :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px; }
+            .skip-link { border-color: CanvasText; }
+        }
         .data-source-indicator { cursor: pointer; color: var(--text-dim); font-family: inherit; }
         .data-source-indicator:hover, .data-source-indicator:focus-visible { border-color: var(--accent); }
         .source-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex: 0 0 auto; }
@@ -1580,6 +1596,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 </script>
 </head>
 <body>
+    <a class="skip-link" href="#aircraftListContent" data-i18n="a11y.skipToList">Skip to aircraft list</a>
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="assets/logo/VIPTrack_Mark-128x128.png" alt="VIPTrack">
@@ -2561,8 +2578,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         airlineBannerUrl: 'assets/airlines/',
         flagUrl: 'assets/flags/',
         // External APIs (cannot self-host)
-        traceUrl: 'https://globe.airplanes.live/data/traces/',
-        planespottersApi: 'https://api.planespotters.net/pub/photos/hex/'
+        // globe.airplanes.live answers 403 through every relay, so historical traces
+        // come from the locally recorded trail instead. Set a base URL here to
+        // re-enable remote traces if a reachable tar1090 trace host appears.
+        traceUrl: null
     };
 
     // All HTML assembled from feed/database values passes through this boundary
@@ -2950,7 +2969,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     rateLimiter.configure('api.adsbdb.com', 2, 2);
     rateLimiter.configure('hexdb.io', 2, 2);
     rateLimiter.configure('aviationweather.gov', 2, 2);
-    rateLimiter.configure('api.planespotters.net', 2, 2);
 
     // ============ CONNECTION MONITORING ============
     const connectionMonitor = {
@@ -9032,7 +9050,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function updateMarkersSync() { if (_updateMarkersRaf) { cancelAnimationFrame(_updateMarkersRaf); _updateMarkersRaf = 0; } _updateMarkersCore(); }
 
     function createMarker(ac) { const marker = L.marker([ac.lat, ac.lon], { icon: createIcon(ac), zIndexOffset: getZIndex(ac) }); marker.on('click', e => { L.DomEvent.stopPropagation(e); selectAircraft(ac.hex); }); marker.addTo(map); markers[ac.hex] = marker; }
-    function updateMarker(ac) { const marker = markers[ac.hex]; if (!marker) return; const hash = _iconHash(ac); const cached = _iconCache[ac.hex]; const iconChanged = !cached || cached.hash !== hash; const pos = marker.getLatLng(); if (Math.abs(pos.lat - ac.lat) + Math.abs(pos.lng - ac.lon) < 0.00001) { if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } return; } aircraftAnimation[ac.hex] = { startLat: pos.lat, startLon: pos.lng, targetLat: ac.lat, targetLon: ac.lon, startTime: performance.now(), duration: CONFIG.refreshInterval * 0.95 }; if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } if (!animationRunning) { animationRunning = true; requestAnimationFrame(animateAircraft); } }
+    const _prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    function updateMarker(ac) { const marker = markers[ac.hex]; if (!marker) return; const hash = _iconHash(ac); const cached = _iconCache[ac.hex]; const iconChanged = !cached || cached.hash !== hash; const pos = marker.getLatLng(); if (Math.abs(pos.lat - ac.lat) + Math.abs(pos.lng - ac.lon) < 0.00001) { if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } return; } if (_prefersReducedMotion()) { marker.setLatLng([ac.lat, ac.lon]); if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } return; } aircraftAnimation[ac.hex] = { startLat: pos.lat, startLon: pos.lng, targetLat: ac.lat, targetLon: ac.lon, startTime: performance.now(), duration: CONFIG.refreshInterval * 0.95 }; if (iconChanged) { marker.setIcon(createIcon(ac)); marker.setZIndexOffset(getZIndex(ac)); } if (!animationRunning) { animationRunning = true; requestAnimationFrame(animateAircraft); } }
     // X15: ease-out interpolation (quadratic) feels smoother than linear, matching FR24/tar1090 perception
     function _easeOut(p) { return 1 - (1 - p) * (1 - p); }
     function animateAircraft(ts) { let active = false; Object.entries(aircraftAnimation).forEach(([hex, a]) => { const m = markers[hex]; if (!m) { delete aircraftAnimation[hex]; return; } const raw = Math.min((ts - a.startTime) / a.duration, 1); const p = _easeOut(raw); if (raw < 1) { active = true; const lat = a.startLat + (a.targetLat - a.startLat) * p, lon = a.startLon + (a.targetLon - a.startLon) * p; m.setLatLng([lat, lon]); if (hex === selectedHex && trailLine?._lastSegment) { const ll = trailLine._lastSegment.getLatLngs(); if (ll.length) { ll[ll.length - 1] = L.latLng(lat, lon); trailLine._lastSegment.setLatLngs(ll); } } } else { m.setLatLng([a.targetLat, a.targetLon]); delete aircraftAnimation[hex]; } }); if (active) requestAnimationFrame(animateAircraft); else animationRunning = false; }
@@ -9320,7 +9339,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (trailLine) { if (trailLine._originMarker) map.removeLayer(trailLine._originMarker); if (trailLine._group) map.removeLayer(trailLine._group); else map.removeLayer(trailLine); trailLine = null; }
         const ac = aircraftCache[hex]; if (!ac) return;
         const hexSuffix = hex.slice(-2).toLowerCase(), hexLower = hex.toLowerCase();
-        const endpoints = [{ url: CONFIG.traceUrl + hexSuffix + '/trace_full_' + hexLower + '.json', name: 'full' }, { url: CONFIG.traceUrl + hexSuffix + '/trace_recent_' + hexLower + '.json', name: 'recent' }];
+        const endpoints = CONFIG.traceUrl ? [{ url: CONFIG.traceUrl + hexSuffix + '/trace_full_' + hexLower + '.json', name: 'full' }, { url: CONFIG.traceUrl + hexSuffix + '/trace_recent_' + hexLower + '.json', name: 'recent' }] : [];
         for (const ep of endpoints) {
             status.textContent = 'Loading ' + ep.name + ' trail...'; const resp = await fetchWithProxy(ep.url); if (!resp) continue;
             try { 
@@ -9374,7 +9393,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (settings.altitudeColors) drawAltitudeColoredTrail(trace, ac); 
             else drawSimpleTrail(trace, ac); 
             status.textContent = 'Trail: ' + ac.history.length + ' pts (local)'; 
-        } else status.textContent = 'Trail: Building...';
+        } else status.textContent = CONFIG.traceUrl ? 'Trail: Building...' : 'Trail: recording locally...';
     }
     function drawAltitudeColoredTrail(trace, ac) {
         const group = L.layerGroup().addTo(map); let lastSeg = null;
@@ -9485,15 +9504,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
         }
 
-        // PRIORITY 4: Planespotters API by hex (live API)
-        const psHexUrl = await fetchPlanespottersPhoto('hex/' + hex);
-        if (psHexUrl) { cacheAndShow(hex, psHexUrl, 'planespotters'); return; }
-
-        // PRIORITY 5: Planespotters API by registration
-        if (ac.r && !isPrivacyProtectedAircraft(ac)) {
-            const psRegUrl = await fetchPlanespottersPhoto('reg/' + ac.r);
-            if (psRegUrl) { cacheAndShow(hex, psRegUrl, 'planespotters-reg'); return; }
-        }
+        // Planespotters used to sit here. Its public API now demands a descriptive
+        // User-Agent, which fetch() forbids the page from setting, and it refuses relayed
+        // requests outright -- so it is unreachable from a browser-only app by design.
+        // The link-out in the aircraft panel still works and is kept.
 
         // PRIORITY 6: airport-data.com API (by hex + optional reg)
         const adUrl = await fetchAirportDataPhoto(hex, isPrivacyProtectedAircraft(ac) ? '' : ac.r);
@@ -9526,20 +9540,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function cacheAndShow(hex, url, source) {
         photoCache[hex] = { url, source };
         displayPhoto(photoCache[hex]);
-    }
-
-    // Planespotters.net API - returns photo URL or null
-    async function fetchPlanespottersPhoto(path) {
-        try {
-            const resp = await fetchWithProxy('https://api.planespotters.net/pub/photos/' + path);
-            if (resp) {
-                const data = await resp.json();
-                if (data.photos?.length) {
-                    return data.photos[0].thumbnail_large?.src || data.photos[0].thumbnail?.src || null;
-                }
-            }
-        } catch(e) {}
-        return null;
     }
 
     // airport-data.com API - returns photo URL or null
@@ -9596,7 +9596,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (type && typeof type === 'string') {
             const typeUpper = type.toUpperCase();
             const selfHostedUrl = CONFIG.silhouetteUrl + typeUpper + '.png';
-            const externalUrl = 'https://globe.airplanes.live/aircraft_sil/' + typeUpper + '.png';
+            const externalUrl = CONFIG.remoteSilhouettes + typeUpper + '.png';
             const img = document.createElement('img');
             img.style.cssText = 'object-fit:contain;background:#1a1a2e;padding:20px;width:100%;height:100%;';
             img.onerror = function() {
@@ -9629,7 +9629,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (!div) return;
         if (!code) { div.style.display = 'none'; return; }
         const selfHostedUrl = CONFIG.airlineBannerUrl + code + '.png';
-        const externalUrl = 'https://globe.airplanes.live/airline_banners/' + code + '.png';
+        const externalUrl = CONFIG.remoteAirlineLogos + code + '.png';
         const img = div.querySelector('img');
         if (!img) return;
         img.onload = () => div.style.display = 'flex';
@@ -12604,7 +12604,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     </select>
                     <span>ALT</span><span>SPD</span><span>DIST</span>
                 </div>
-                <div class="sheet-content" id="aircraftListContent"></div>
+                <div class="sheet-content" id="aircraftListContent" tabindex="-1"></div>
             `);
             document.body.appendChild(sheet);
             sheet.querySelector('#listSort')?.addEventListener('change', () => this.updateAircraftList());

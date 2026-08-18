@@ -1272,7 +1272,14 @@ class VipTrackContracts(unittest.TestCase):
             "if (cesium3DManager.requested) cesium3DManager.clearPlayback(false)",
         ):
             self.assertIn(marker, self.source)
-        self.assertIn("traceUrl: 'https://globe.airplanes.live/data/traces/'", self.source)
+        # globe.airplanes.live answers 403 through every relay, so remote traces are
+        # disabled and playback falls back to the locally recorded trail. traceUrl
+        # stays as the switch that re-enables them if a reachable host appears.
+        self.assertIn("traceUrl: null", self.source)
+        self.assertIn("const endpoints = CONFIG.traceUrl ?", self.source)
+        self.assertNotIn("globe.airplanes.live/data/traces", self.source)
+        self.assertNotIn("globe.airplanes.live/aircraft_sil", self.source)
+        self.assertNotIn("globe.airplanes.live/airline_banners", self.source)
         self.assertIn("trace_full_' + hexLower + '.json", self.source)
         self.assertIn("trace_recent_' + hexLower + '.json", self.source)
 
