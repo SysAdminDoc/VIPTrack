@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Flight category is computed from the visibility the weather API actually sends. `aviationweather.gov` reports visibility as text — `"10+"` for ten-or-more, `"1/2"` or `"1 1/2"` for fractional miles — and the code compared those strings numerically. Every comparison was false, so it fell through to VFR: half-mile visibility, which is LIFR, was being shown as VFR. Visibility is now parsed (including mixed numbers and bare fractions), a missing value reports UNKN instead of VFR, and a cloud layer with no usable base no longer reads as "no ceiling".
+
+### Added
+- Runtime coverage for the seven surfaces the 2026-08-18 audit recorded as unexercised: weather parsing against the shapes the API really returns, the plugin manifest's capability and data-class boundary, the historical query workspace's ingest validation and PIA redaction, every trail colour mode against ragged history, the photo pipeline's resolve path and its fall-through to the silhouette, the Cesium `?3d=1` lane, and all four mobile workspace pages. Six came back clean; the seventh is the visibility defect above.
+
 ## [v0.8.0] - 2026-08-18
 
 ### Fixed

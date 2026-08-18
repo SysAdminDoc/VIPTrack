@@ -448,6 +448,295 @@ class VipTrackRuntime(unittest.TestCase):
                 self.assertEqual(undersized, [], f"{width}x{height}")
                 self.assertEqual(crashes, [])
 
+    # ---- surfaces the 2026-08-18 audit listed as unexercised (VT-53) ----
+
+    def test_weather_parsing_survives_the_shapes_the_api_actually_returns(self) -> None:
+        # aviationweather.gov reports visibility as a string ("10+", "1/2"), not a
+        # number, and omits fields entirely rather than sending null.
+        with self._page() as (page, crashes):
+            categories = page.evaluate(
+                """() => ({
+                    halfMile: weatherSystem.getFlightCategory({ visib: '1/2', clouds: [] }),
+                    tenPlus: weatherSystem.getFlightCategory({ visib: '10+', clouds: [] }),
+                    threeMiles: weatherSystem.getFlightCategory({ visib: '3', clouds: [] }),
+                    missing: weatherSystem.getFlightCategory({ clouds: [] }),
+                    lowCeiling: weatherSystem.getFlightCategory({ visib: '10+', clouds: [{cover:'OVC', base: 400}] }),
+                    numeric: weatherSystem.getFlightCategory({ visib: 0.5, clouds: [] })
+                })"""
+            )
+            # Half a mile is LIFR by definition; reporting it as VFR is a safety-facing
+            # misread of the same data the panel shows.
+            self.assertEqual(categories["halfMile"], "LIFR", categories)
+            self.assertEqual(categories["tenPlus"], "VFR", categories)
+            self.assertEqual(categories["threeMiles"], "MVFR", categories)
+            self.assertEqual(categories["missing"], "UNKN", categories)
+            self.assertEqual(categories["lowCeiling"], "LIFR", categories)
+            self.assertEqual(categories["numeric"], "LIFR", categories)
+
+            # Malformed payloads must not throw out of the parser.
+            survived = page.evaluate(
+                """() => {
+                    const shapes = [null, undefined, {}, { clouds: 'not-an-array' },
+                                    { clouds: [{}] }, { temp: 'x', dewp: 'y' },
+                                    { visib: {}, clouds: [{ cover: 'OVC' }] }];
+                    for (const shape of shapes) {
+                        try {
+                            weatherSystem.parseMETAR(shape);
+                            weatherSystem.getCeiling(shape && shape.clouds);
+                            weatherSystem.formatWind(shape && shape.wind);
+                        } catch (e) { return 'threw on ' + JSON.stringify(shape) + ': ' + e.message; }
+                    }
+                    return 'ok';
+                }"""
+            )
+            self.assertEqual(survived, "ok")
+            self.assertEqual(crashes, [])
+
+    def test_plugin_manifest_enforces_its_capability_boundary(self) -> None:
+        with self._page() as (page, crashes):
+            state = page.evaluate(
+                """() => ({
+                    entries: pluginManifestManager.entries.length,
+                    status: document.getElementById('pluginManifestStatus')?.textContent || '',
+                    modulesOptIn: pluginManifestManager.moduleIds.size >= 0
+                })"""
+            )
+            self.assertGreater(state["entries"], 0, "the manifest loaded no entries")
+            self.assertTrue(state["modulesOptIn"])
+
+            # A manifest entry declaring a capability outside the allowlist, or one it
+            # has no matching data class for, must be refused rather than loaded.
+            refused = page.evaluate(
+                """() => {
+                    const bad = pluginManifestManager._normalise({
+                        id: 'audit-bad', name: 'Audit', version: '1.0.0', kind: 'geojson-preset',
+                        presetId: 'x', origin: 'local', license: 'MIT',
+                        dataClasses: ['public-reference'], capabilities: ['exfiltrate-watchlist']
+                    });
+                    const unknownClass = pluginManifestManager._normalise({
+                        id: 'audit-class', name: 'Audit', version: '1.0.0', kind: 'geojson-preset',
+                        presetId: 'x', origin: 'local', license: 'MIT',
+                        dataClasses: ['secret-stuff'], capabilities: []
+                    });
+                    return { bad: bad === null, unknownClass: unknownClass === null };
+                }"""
+            )
+            self.assertTrue(refused["bad"], "a capability outside the allowlist was accepted")
+            self.assertTrue(refused["unknownClass"], "an unknown data class was accepted")
+
+            # Provenance is local-only and bounded.
+            provenance = page.evaluate(
+                """() => {
+                    const entry = pluginManifestManager.entries[0];
+                    const before = pluginManifestManager.provenanceLog.length;
+                    pluginManifestManager._recordProvenance(entry, 'load', 'audit\\nprobe');
+                    const record = pluginManifestManager.provenanceLog[0];
+                    return { grew: pluginManifestManager.provenanceLog.length > before,
+                             detail: record.detail, id: record.id };
+                }"""
+            )
+            self.assertTrue(provenance["grew"])
+            # Newlines are stripped so a log line cannot be forged.
+            self.assertNotIn("\n", provenance["detail"])
+            self.assertEqual(crashes, [])
+
+    def test_historical_workspace_filters_paginates_and_redacts(self) -> None:
+        with self._page() as (page, crashes):
+            result = page.evaluate(
+                """async () => {
+                    const records = [];
+                    for (let i = 0; i < 60; i++) {
+                        records.push({ timestamp: Date.now() - i * 60000, hex: 'AE00' + String(i % 10) + '0',
+                                       callsign: 'RCH' + i, type: 'C17',
+                                       lat: 38 + i * 0.01, lon: -77 + i * 0.01,
+                                       altitude: 20000 + i * 100, speed: 400, bearing: 90 });
+                    }
+                    // A PIA hex must be redacted on ingest, not on display. Membership is
+                    // a piaDB lookup rather than a range, so take one the catalogue holds.
+                    const piaHex = (typeof piaDB !== 'undefined' && piaDB.loaded && piaDB.aircraft.size)
+                        ? [...piaDB.aircraft.keys()][0] : null;
+                    if (piaHex) {
+                        records.push({ timestamp: Date.now(), hex: piaHex.toUpperCase(), callsign: 'SECRET1',
+                                       type: 'B738', lat: 40, lon: -75, altitude: 30000 });
+                    }
+                    const source = historicalWorkspace._source({
+                        id: 'audit-source', name: 'Audit archive', license: 'CC0',
+                        terms: 'local analysis only'
+                    });
+                    const parsed = historicalWorkspace._records(records, source);
+                    const pia = parsed.find(r => r.piaRedacted);
+                    return { total: parsed.length,
+                             seeded: Boolean(piaHex),
+                             piaFound: Boolean(pia),
+                             piaHex: pia ? pia.hex : null,
+                             piaCallsign: pia ? pia.callsign : null,
+                             sorted: parsed.every((r, i) => i === 0 || parsed[i - 1].timestamp <= r.timestamp) };
+                }"""
+            )
+            self.assertTrue(result["sorted"], "records were not sorted by time")
+            self.assertEqual(result["total"], 61 if result["seeded"] else 60)
+            # Guard against a vacuous pass: only assert redaction if a PIA hex existed.
+            self.assertTrue(result["seeded"], "piaDB held no hex to seed with")
+            self.assertTrue(result["piaFound"], "a known PIA hex was not flagged")
+            self.assertEqual(result["piaHex"], "", "a PIA hex survived ingest")
+            self.assertEqual(result["piaCallsign"], "", "a PIA callsign survived ingest")
+
+            # Oversized and malformed archives are refused with a reason.
+            rejects = page.evaluate(
+                """() => {
+                    const source = historicalWorkspace._source({ id: 'a', name: 'A', license: 'x', terms: 'y' });
+                    const cases = {};
+                    const attempt = (label, records) => {
+                        try { historicalWorkspace._records(records, source); cases[label] = 'ACCEPTED'; }
+                        catch (e) { cases[label] = 'rejected'; }
+                    };
+                    attempt('empty', []);
+                    attempt('tooMany', new Array(20001).fill({ timestamp: 1, lat: 0, lon: 0 }));
+                    attempt('forbiddenField', [{ timestamp: 1, lat: 0, lon: 0, registration: 'N1' }]);
+                    attempt('unknownField', [{ timestamp: 1, lat: 0, lon: 0, nonsense: 1 }]);
+                    attempt('badLat', [{ timestamp: 1, lat: 999, lon: 0 }]);
+                    attempt('futureTime', [{ timestamp: Date.now() + 86400000, lat: 0, lon: 0 }]);
+                    return cases;
+                }"""
+            )
+            self.assertEqual(rejects, {
+                "empty": "rejected", "tooMany": "rejected", "forbiddenField": "rejected",
+                "unknownField": "rejected", "badLat": "rejected", "futureTime": "rejected",
+            })
+            self.assertEqual(crashes, [])
+
+    def test_trail_renderer_colours_every_mode_without_throwing(self) -> None:
+        with self._page() as (page, crashes):
+            colours = page.evaluate(
+                """() => {
+                    const out = {};
+                    const previous = trailRenderer.options.colorBy;
+                    // Ragged history: a null altitude, a repeated position (zero elapsed
+                    // time for the speed estimate) and a single-point trail.
+                    const samples = [
+                        [51.5, -0.12, 0, Date.now() - 60000],
+                        [51.6, -0.13, 35000, Date.now() - 30000],
+                        [51.6, -0.13, null, Date.now() - 30000],
+                        [51.7, -0.14, 41000, Date.now()]
+                    ];
+                    for (const mode of ['altitude', 'speed', 'time', 'solid']) {
+                        trailRenderer.options.colorBy = mode;
+                        try {
+                            const group = trailRenderer.createGradientTrail(samples, { hex: 'AE1234' });
+                            const layers = group ? group.getLayers() : [];
+                            const lines = layers.filter(l => typeof l.getLatLngs === 'function');
+                            const bad = lines.filter(l => {
+                                const c = l.options.color;
+                                return !c || c === 'undefined' || c === 'NaN';
+                            });
+                            out[mode] = { segments: lines.length, bad: bad.length };
+                        } catch (e) { out[mode] = 'threw: ' + e.message; }
+                    }
+                    trailRenderer.options.colorBy = previous;
+                    out.tooShort = trailRenderer.createGradientTrail([[1, 2, 3, 4]], {});
+                    return out;
+                }"""
+            )
+            self.assertIsNone(colours.pop("tooShort"), "a one-point trail should produce no segments")
+            for mode, value in colours.items():
+                self.assertNotIsInstance(value, str, f"{mode}: {value}")
+                self.assertEqual(value["segments"], 3, f"{mode} produced {value['segments']} segments")
+                self.assertEqual(value["bad"], 0, f"{mode} produced an undefined colour")
+            self.assertEqual(crashes, [])
+
+    def test_photo_pipeline_resolves_and_falls_through_to_the_silhouette(self) -> None:
+        # The base stub answers every image with a valid GIF, so the golden path
+        # resolves at the first self-hosted source. The fall-through only happens
+        # when every source fails, which needs images to actually fail.
+        with self._page() as (page, crashes):
+            found = page.evaluate(
+                """async () => {
+                    const hex = Object.keys(aircraftCache)[0];
+                    if (!hex) return 'no aircraft';
+                    delete photoCache[hex];
+                    delete photoFailCache[hex];
+                    await loadAircraftPhoto(hex, aircraftCache[hex]);
+                    const div = document.getElementById('aircraftPhoto');
+                    return { cached: Boolean(photoCache[hex]),
+                             loading: div.innerHTML.includes('Loading...'),
+                             failCached: Boolean(photoFailCache[hex]) };
+                }"""
+            )
+            self.assertTrue(found["cached"], "a resolvable photo was not cached")
+            self.assertFalse(found["loading"], "the panel was left showing Loading...")
+            self.assertFalse(found["failCached"])
+
+            # Now make every image fail and confirm the chain ends at the silhouette
+            # rather than leaving the panel stuck. Use a hex the run has never fetched
+            # and no type code: already-requested URLs come from the browser's HTTP
+            # cache, which page.route never sees.
+            page.route("**/*.jpg", lambda route: route.abort())
+            page.route("**/hex-image-thumb*", lambda route: route.abort())
+            exhausted = page.evaluate(
+                """async () => {
+                    const hex = 'FFFE01';
+                    aircraftCache[hex] = { hex, t: '', r: '', flight: 'AUDIT1', lat: 51.5, lon: -0.12 };
+                    delete photoCache[hex];
+                    delete photoFailCache[hex];
+                    await loadAircraftPhoto(hex, aircraftCache[hex]);
+                    const div = document.getElementById('aircraftPhoto');
+                    return { failCached: Boolean(photoFailCache[hex]),
+                             loading: div.innerHTML.includes('Loading...'),
+                             html: div.innerHTML.slice(0, 160) };
+                }"""
+            )
+            self.assertFalse(exhausted["loading"], "the panel was left showing Loading...")
+            self.assertTrue(exhausted["failCached"],
+                            f"the exhausted chain was not cached: {exhausted['html']}")
+
+            # A second open must be served from the fail cache, not re-walk the chain.
+            reused = page.evaluate(
+                """async () => {
+                    const hex = 'FFFE01';
+                    let requests = 0;
+                    const RealImage = window.Image;
+                    window.Image = function (...args) { requests++; return new RealImage(...args); };
+                    await loadAircraftPhoto(hex, aircraftCache[hex]);
+                    window.Image = RealImage;
+                    return requests;
+                }"""
+            )
+            self.assertEqual(reused, 0, "a cached photo failure still probed image sources")
+            self.assertEqual(crashes, [])
+
+    def test_cesium_globe_lane_boots_or_degrades_without_throwing(self) -> None:
+        # The 3D lane is lazy-loaded from a CDN the harness stubs, so the contract
+        # under test is that requesting it never breaks the page.
+        url = f"{self.base_url}/index.html?3d=1"
+        with self._page(url=url) as (page, crashes):
+            state = page.evaluate(
+                """() => ({
+                    requested: cesium3DManager.requested,
+                    bodyClass: document.body.className.includes('cesium-3d-mode'),
+                    mapAlive: typeof map !== 'undefined' && Boolean(map),
+                    markers: Object.keys(markers).length
+                })"""
+            )
+            self.assertTrue(state["requested"], "?3d=1 did not request the globe")
+            # Whether or not Cesium loads, the app must still be functioning.
+            self.assertTrue(state["mapAlive"])
+            self.assertEqual(crashes, [])
+
+    def test_mobile_workspace_pages_all_render(self) -> None:
+        with self._page(viewport={"width": 390, "height": 780}) as (page, crashes):
+            for panel in ("map", "list", "watchlist", "settings"):
+                rendered = page.evaluate(
+                    """(panel) => {
+                        mobileSupport.setActivePanel(panel);
+                        return { active: mobileSupport.activePanel,
+                                 bodyClass: document.body.className.includes('mobile-panel-' + panel) };
+                    }""",
+                    panel,
+                )
+                self.assertEqual(rendered["active"], panel, f"{panel} did not become active")
+                self.assertTrue(rendered["bodyClass"], f"{panel} set no body class")
+            self.assertEqual(crashes, [])
+
     def test_csv_export_quotes_and_defuses_spreadsheet_formulas(self) -> None:
         # Feed-controlled callsigns land straight in an analyst's spreadsheet, where
         # a leading = executes. Quoting was also inconsistent: an embedded quote

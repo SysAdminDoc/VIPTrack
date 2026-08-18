@@ -1396,6 +1396,24 @@ class VipTrackContracts(unittest.TestCase):
         self.assertLess(guard, link_section.index("params.set('lat'"))
         self.assertLess(guard, link_section.index("params.set('lon'"))
 
+    def test_visibility_is_parsed_from_the_text_the_api_sends(self) -> None:
+        # aviationweather.gov sends visibility as text ("10+", "1/2", "1 1/2"), not a
+        # number. Comparing those strings numerically is always false, so the flight
+        # category silently fell through to VFR -- including for half-mile, which is
+        # LIFR. Runtime coverage lives in test_runtime.py; this pins the helper.
+        for marker in (
+            "visibilityMiles(value) {",
+            "const vis = this.visibilityMiles(data?.visib);",
+            "const ceil = this.getCeiling(data?.clouds);",
+        ):
+            self.assertIn(marker, self.source)
+        start = self.source.index("visibilityMiles(value) {")
+        section = self.source[start:self.source.index("getFlightCategory(data) {", start)]
+        # Mixed numbers and bare fractions both appear in real payloads.
+        self.assertIn("\s+", section)
+        self.assertIn("denominator", section)
+        self.assertIn("Number.isFinite(number) ? number : null", section)
+
     def test_coverage_view_is_local_aggregated_and_pia_redacted(self) -> None:
         for marker in (
             "const COVERAGE_MODES = ['off', 'density', 'tracks']",

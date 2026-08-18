@@ -4570,7 +4570,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
         
         parseMETAR(raw) {
-            if (!raw) return null;
+            if (!raw || typeof raw !== 'object') return null;
             
             return {
                 raw: raw.rawOb || raw.raw || '',
@@ -4585,7 +4585,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     gust: raw.wgst || null,
                     variable: raw.wdir === 'VRB'
                 },
-                visibility: raw.visib || null,
+                visibility: raw.visib ?? null,
+                visibilityMiles: this.visibilityMiles(raw.visib),
                 altimeter: raw.altim || null,
                 clouds: raw.clouds || [],
                 weather: raw.wxString || '',
@@ -4604,16 +4605,41 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         getCeiling(clouds) {
             if (!clouds || !Array.isArray(clouds)) return null;
             for (const layer of clouds) {
-                if (['BKN', 'OVC', 'VV'].includes(layer.cover)) {
-                    return layer.base;
+                if (['BKN', 'OVC', 'VV'].includes(layer?.cover)) {
+                    const base = Number(layer.base);
+                    if (Number.isFinite(base)) return base;
                 }
             }
             return null;
         },
         
+        // aviationweather.gov reports visibility as text, not a number: "10+" for
+        // ten-or-more and "1/2" or "1 1/2" for fractional miles. Comparing those
+        // strings numerically yields NaN, every comparison is false, and the code
+        // below fell through to VFR -- so half-mile visibility, which is LIFR, was
+        // being reported as VFR.
+        visibilityMiles(value) {
+            if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+            if (typeof value !== 'string') return null;
+            const text = value.trim().replace('+', '');
+            if (!text) return null;
+            const mixed = text.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+            if (mixed) {
+                const denominator = Number(mixed[3]);
+                return denominator ? Number(mixed[1]) + Number(mixed[2]) / denominator : null;
+            }
+            const fraction = text.match(/^(\d+)\/(\d+)$/);
+            if (fraction) {
+                const denominator = Number(fraction[2]);
+                return denominator ? Number(fraction[1]) / denominator : null;
+            }
+            const number = Number(text);
+            return Number.isFinite(number) ? number : null;
+        },
+
         getFlightCategory(data) {
-            const vis = data.visib;
-            const ceil = this.getCeiling(data.clouds);
+            const vis = this.visibilityMiles(data?.visib);
+            const ceil = this.getCeiling(data?.clouds);
             
             if (vis === null && ceil === null) return 'UNKN';
             
