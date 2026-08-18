@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.8.1] - 2026-08-18
 
 ### Fixed
 - Flight category is computed from the visibility the weather API actually sends. `aviationweather.gov` reports visibility as text — `"10+"` for ten-or-more, `"1/2"` or `"1 1/2"` for fractional miles — and the code compared those strings numerically. Every comparison was false, so it fell through to VFR: half-mile visibility, which is LIFR, was being shown as VFR. Visibility is now parsed (including mixed numbers and bare fractions), a missing value reports UNKN instead of VFR, and a cloud layer with no usable base no longer reads as "no ceiling".
