@@ -14,6 +14,9 @@
 ### Added
 - A live feed status control. The reliability indicator existed but was switched off with a global `display: none`, so an outage looked exactly like normal operation. It is now visible, colour-coded healthy/degraded/unhealthy, counts only enabled sources, and opens a panel listing every source with its status, last success age, recent error count, whether it is relayed, and — for a disabled source — why. The panel also shows how old the plotted aircraft data is. Closes on Escape or an outside click and stays clear of the ethics notice and the mobile aircraft peek card.
 
+### Removed
+- Untracked and deleted four artifacts that were published with the site but are not part of it: `index.html.bak2` (533 KB), a 1.1 MB `.mhtml` page capture, a 1.3 MB root `icon.png`, and the `photo-audit.html` dev page. `.gitignore` covered `*.bak` but not `*.bak2`; it now covers `*.bak[0-9]` and `*.mhtml`.
+
 ### Security
 - `connect-src` is an allowlist again. Both the meta policy and `_headers` carried bare `http:` and `https:` sources, which match every origin and made the 28-entry list that followed them decorative. Removed them, added the vector-basemap and OurAirports hosts the app actually fetches, and added `object-src 'none'` to the meta policy. `img-src` deliberately stays scheme-wide, documented in place.
 

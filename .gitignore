@@ -1,4 +1,6 @@
 *.bak
+*.bak[0-9]
+*.mhtml
 *.log
 *.tmp
 __pycache__/
