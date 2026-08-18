@@ -12063,7 +12063,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     setTimeout(() => document.querySelector('.mobile-settings-category[data-settings-group="map"]')?.click(), 0);
                 } else if (button.dataset.mapAction === 'weather') {
                     if (typeof toggleNexrad === 'function') toggleNexrad();
-                    button.classList.toggle('active', Boolean(_nexradLayer));
+                    button.classList.toggle('active', radarActive());
                 } else {
                     document.getElementById('locateBtn')?.click();
                 }
@@ -12969,22 +12969,62 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
     // ============ X22: NEXRAD WMS OVERLAY ============
     let _nexradLayer = null;
+    let _rainviewerLayer = null;
+    function radarActive() { return Boolean(_nexradLayer || _rainviewerLayer); }
     function toggleNexrad() {
         if (!map) return;
-        if (_nexradLayer) {
-            map.removeLayer(_nexradLayer); _nexradLayer = null;
-            toast('NEXRAD off'); return;
+        // Either layer may be the live one once the RainViewer fallback has engaged.
+        if (radarActive()) {
+            if (_nexradLayer) { map.removeLayer(_nexradLayer); _nexradLayer = null; }
+            if (_rainviewerLayer) { map.removeLayer(_rainviewerLayer); _rainviewerLayer = null; }
+            toast('Radar off'); return;
         }
         try {
-            _nexradLayer = L.tileLayer.wms('https://nowcoast.noaa.gov/arcgis/services/nowcoast/radar_meteo_imagery_nexrad_time/MapServer/WMSServer', {
-                layers: '1',
+            // nowCOAST retired the ArcGIS MapServer path (it answers 403); the service
+            // moved to GeoServer. base_reflectivity_mosaic covers CONUS, Alaska, Hawaii,
+            // the Caribbean and Guam, so it suits a globally scoped tracker.
+            _nexradLayer = L.tileLayer.wms('https://nowcoast.noaa.gov/geoserver/observations/weather_radar/ows', {
+                layers: 'base_reflectivity_mosaic',
                 format: 'image/png',
                 transparent: true,
                 opacity: 0.6,
-                attribution: 'NOAA nowcoast'
-            }).addTo(map);
-            toast('NEXRAD radar on (US)');
+                attribution: 'NOAA nowCOAST'
+            });
+            // A WMS 403/404 surfaces as a tileerror rather than a throw, so fall back
+            // to RainViewer's global mosaic instead of leaving the overlay blank.
+            let _nexradFellBack = false;
+            _nexradLayer.on('tileerror', () => {
+                if (_nexradFellBack) return;
+                _nexradFellBack = true;
+                enableRainviewerFallback();
+            });
+            _nexradLayer.addTo(map);
+            toast('NEXRAD radar on');
         } catch(e) { toast('NEXRAD failed to load'); }
+    }
+
+    // Global radar mosaic used when the NOAA WMS is unreachable. RainViewer publishes a
+    // frame index and serves plain XYZ tiles, so no key and no relay are required.
+    async function enableRainviewerFallback() {
+        if (_rainviewerLayer) return;
+        try {
+            const url = egressPolicy.validateUrl('https://api.rainviewer.com/public/weather-maps.json');
+            if (!url) return;
+            const response = await fetchWithTimeout(url.href, { cache: 'no-cache', credentials: 'omit' });
+            if (!response?.ok) throw new Error('RainViewer index unavailable');
+            const index = JSON.parse(await readBoundedResponseText(response));
+            const frames = Array.isArray(index?.radar?.past) ? index.radar.past : [];
+            const latest = frames[frames.length - 1];
+            if (!index?.host || !latest?.path) throw new Error('RainViewer index incomplete');
+            if (_nexradLayer && map?.hasLayer(_nexradLayer)) map.removeLayer(_nexradLayer);
+            _rainviewerLayer = L.tileLayer(index.host + latest.path + '/256/{z}/{x}/{y}/2/1_1.png', {
+                opacity: 0.6,
+                attribution: 'RainViewer'
+            }).addTo(map);
+            toast('Radar: NOAA unavailable, using RainViewer');
+        } catch (e) {
+            toast('Radar unavailable from NOAA and RainViewer');
+        }
     }
 
     // ============ X24: TRACK EXPORT (KML / GPX / GeoJSON / CSV) ============
