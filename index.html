@@ -115,6 +115,11 @@
         .leaflet-control-attribution { display: none !important; }
         .leaflet-top.leaflet-left { top: auto !important; bottom: 145px !important; left: auto !important; right: 15px !important; }
         .leaflet-control-zoom { margin-bottom: 0 !important; }
+        /* WCAG 2.2 SC 2.5.7: panning must be reachable without a dragging movement. */
+        .map-pan-control { display: grid; grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(3, 30px); gap: 2px; }
+        .map-pan-control button { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-panel); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 13px; line-height: 1; font-family: inherit; }
+        .map-pan-control button:hover, .map-pan-control button:focus-visible { border-color: var(--accent); color: var(--accent); }
+        .map-pan-control .map-pan-spacer { visibility: hidden; pointer-events: none; }
         .leaflet-control-zoom a { background: var(--bg-panel) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
         .aircraft-marker { transition: none; }
         .aircraft-marker.selected { z-index: 10000 !important; }
@@ -1314,7 +1319,7 @@
         /* ============ UI OVERHAUL: FILTER CHIPS ============ */
         .filter-chips-bar { position: fixed; top: 50px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; z-index: 1100; padding: 4px 6px; background: rgba(10,10,26,0.85); border: 1px solid var(--border); border-radius: 20px; backdrop-filter: blur(12px); opacity: 0; pointer-events: none; transition: opacity 0.2s; }
         .filter-chips-bar.show { opacity: 1; pointer-events: auto; }
-        .filter-chip-btn { padding: 4px 10px; border: 1px solid transparent; border-radius: 14px; background: rgba(255,255,255,0.04); color: var(--text-muted); font-size: 10px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+        .filter-chip-btn { min-height: 24px; padding: 4px 10px; border: 1px solid transparent; border-radius: 14px; background: rgba(255,255,255,0.04); color: var(--text-muted); font-size: 10px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
         .filter-chip-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-dim); }
         .filter-chip-btn.active { background: rgba(0,210,150,0.12); color: var(--accent); border-color: rgba(0,210,150,0.25); }
 
@@ -8856,6 +8861,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
     function initMap() {
         map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true, zoomSnap: 1, zoomDelta: 1, worldCopyJump: true });
+        addPanControl(map);
         baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
         currentBaseMap = 'esri-gray'; baseMaps[currentBaseMap].addTo(map);
         let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); }, 800); saveMapPosition(); });
@@ -9180,6 +9186,47 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         webglMapManager.sync();
     }
     // Coalesced wrapper: multiple rapid calls collapse to one rAF
+    // WCAG 2.2 SC 2.5.7 (Dragging Movements, AA): every map position must be reachable
+    // with a single pointer and no drag. Leaflet only offers drag-to-pan and arrow keys.
+    function addPanControl(targetMap) {
+        const PanControl = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd() {
+                const container = L.DomUtil.create('div', 'map-pan-control leaflet-bar');
+                container.setAttribute('role', 'group');
+                container.setAttribute('aria-label', 'Pan the map');
+                const cells = [
+                    null, { dx: 0, dy: -1, glyph: '▲', label: 'Pan north' }, null,
+                    { dx: -1, dy: 0, glyph: '◀', label: 'Pan west' },
+                    null,
+                    { dx: 1, dy: 0, glyph: '▶', label: 'Pan east' },
+                    null, { dx: 0, dy: 1, glyph: '▼', label: 'Pan south' }, null
+                ];
+                cells.forEach(cell => {
+                    if (!cell) {
+                        const spacer = L.DomUtil.create('span', 'map-pan-spacer', container);
+                        spacer.setAttribute('aria-hidden', 'true');
+                        return;
+                    }
+                    const button = L.DomUtil.create('button', '', container);
+                    button.type = 'button';
+                    button.textContent = cell.glyph;
+                    button.title = cell.label;
+                    button.setAttribute('aria-label', cell.label);
+                    L.DomEvent.on(button, 'click', event => {
+                        L.DomEvent.stop(event);
+                        // A quarter of the viewport per press, matching Leaflet's key pan feel.
+                        const size = targetMap.getSize();
+                        targetMap.panBy([cell.dx * size.x * 0.25, cell.dy * size.y * 0.25], { animate: true });
+                    });
+                });
+                L.DomEvent.disableClickPropagation(container);
+                return container;
+            }
+        });
+        targetMap.addControl(new PanControl());
+    }
+
     function updateMarkers() { if (_updateMarkersRaf) return; _updateMarkersRaf = requestAnimationFrame(() => { _updateMarkersRaf = 0; _updateMarkersCore(); }); }
     // Synchronous version for processAircraftData (needs immediate update after new data)
     function updateMarkersSync() { if (_updateMarkersRaf) { cancelAnimationFrame(_updateMarkersRaf); _updateMarkersRaf = 0; } _updateMarkersCore(); }

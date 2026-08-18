@@ -2360,3 +2360,8 @@
         border: 1px solid CanvasText;
     }
 }
+
+/* WCAG 2.2 SC 2.5.8 (Target Size Minimum, AA): this input rendered 17px tall. */
+body.mobile-view .mobile-settings-search input {
+    min-height: 24px;
+}

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Accessibility
+- Meets WCAG 2.2 SC 2.5.7 (Dragging Movements, AA): a Leaflet map can only be panned by dragging, so the map now carries single-pointer pan controls beside the zoom control, each labelled and keyboard-operable.
+- Meets WCAG 2.2 SC 2.5.8 (Target Size Minimum, AA): the mobile filter chips rendered 21px tall and the mobile settings search input 17px. Both now clear 24×24 CSS px, and a runtime test checks every visible interactive target at desktop and phone widths.
+
+
 ## [v0.6.0] - 2026-08-18
 
 ### Fixed

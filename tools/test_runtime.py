@@ -358,6 +358,40 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_map_pans_without_a_dragging_movement(self) -> None:
+        # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
+        # must also be reachable with a single pointer and no drag.
+        with self._page() as (page, crashes):
+            labels = page.evaluate(
+                "[...document.querySelectorAll('.map-pan-control button')]"
+                ".map(b => b.getAttribute('aria-label'))"
+            )
+            self.assertEqual(sorted(labels), ["Pan east", "Pan north", "Pan south", "Pan west"])
+            before = page.evaluate("({lat: map.getCenter().lat, lng: map.getCenter().lng})")
+            page.click(".map-pan-control button[aria-label='Pan east']")
+            page.wait_for_timeout(1200)
+            page.click(".map-pan-control button[aria-label='Pan north']")
+            page.wait_for_timeout(1200)
+            after = page.evaluate("({lat: map.getCenter().lat, lng: map.getCenter().lng})")
+            self.assertGreater(after["lng"], before["lng"])
+            self.assertGreater(after["lat"], before["lat"])
+            self.assertEqual(crashes, [])
+
+    def test_no_interactive_target_is_below_the_minimum_size(self) -> None:
+        # WCAG 2.2 SC 2.5.8 (AA): 24x24 CSS px unless an exception applies.
+        for width, height in ((1440, 900), (390, 844)):
+            with self._page(viewport={"width": width, "height": height}) as (page, crashes):
+                undersized = page.evaluate(
+                    "() => { const sel = 'a[href],button:not([disabled]),input:not([disabled]),"
+                    "select,[role=switch],[role=tab]'; const out = [];"
+                    " document.querySelectorAll(sel).forEach(el => { if (!el.offsetParent) return;"
+                    " const r = el.getBoundingClientRect();"
+                    " if (r.width < 24 || r.height < 24) out.push((el.id || el.className || el.tagName)"
+                    " + ' ' + Math.round(r.width) + 'x' + Math.round(r.height)); }); return out; }"
+                )
+                self.assertEqual(undersized, [], f"{width}x{height}")
+                self.assertEqual(crashes, [])
+
     def test_file_protocol_boot_degrades_without_throwing(self) -> None:
         page = self._new_page()
         crashes: list[str] = []
