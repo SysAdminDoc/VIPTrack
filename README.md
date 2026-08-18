@@ -63,7 +63,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | PIA | Privacy ICAO Address — aircraft using anonymized transponders | 94 aircraft |
 | Interesting | Chase planes, test aircraft, and other flagged aircraft | 4,530+ aircraft |
 | Civilian Intel | Categorized civilian fleet with type/operator data | Self-hosted DB |
-| FAA Registry | Privacy-minimized official owner/type lookup for non-PIA N-numbers | 315,211 records in 26 shards |
+| FAA Registry | Privacy-minimized official owner/type lookup for non-PIA N-numbers. Owner identity is labelled with the snapshot age after 90 days and withheld entirely after 180, because FAA §803 withholding requests are continuous; regenerate with `python tools/build_faa_registry.py` | 315,211 records in 26 shards |
 | OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |

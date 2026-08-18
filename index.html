@@ -5893,6 +5893,60 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     const faaRegistryManager = {
         shards: new Map(),
         requests: new Map(),
+        manifest: null,
+        manifestRequest: null,
+
+        // FAA section 803 (FAA Reauthorization Act of 2024) lets private owners withhold
+        // their name and address from public dissemination, and they may do so at any
+        // time. A frozen snapshot therefore drifts from "privacy-minimised" toward
+        // "records the owner has since asked to be withheld", so owner identity expires
+        // even though type and model stay useful indefinitely.
+        OWNER_STALE_DAYS: 90,
+        OWNER_EXPIRY_DAYS: 180,
+
+        async loadManifest() {
+            if (this.manifest !== null) return this.manifest;
+            if (this.manifestRequest) return this.manifestRequest;
+            if (CONFIG.isLocalFile) return null;
+            this.manifestRequest = (async () => {
+                const url = new URL('data/faa/manifest.json', VIPTRACK_REFERENCE_BASE_URL).href;
+                const response = await fetchWithTimeout(url, { cache: 'force-cache' }, 10000);
+                if (!response.ok) throw new Error('FAA manifest HTTP ' + response.status);
+                const data = await response.json();
+                this.manifest = data && typeof data === 'object' ? data : null;
+                return this.manifest;
+            })().catch(error => {
+                _dbg('FAA manifest unavailable:', error.message);
+                this.manifest = null;
+                return null;
+            }).finally(() => { this.manifestRequest = null; });
+            return this.manifestRequest;
+        },
+
+        ageDays() {
+            const generatedAt = Date.parse(this.manifest?.generatedAt || '');
+            if (!Number.isFinite(generatedAt)) return null;
+            return Math.max(0, Math.floor((Date.now() - generatedAt) / 86400000));
+        },
+
+        // 'fresh' | 'stale' | 'expired' | 'unknown'
+        freshness() {
+            const age = this.ageDays();
+            if (age === null) return 'unknown';
+            if (age >= this.OWNER_EXPIRY_DAYS) return 'expired';
+            if (age >= this.OWNER_STALE_DAYS) return 'stale';
+            return 'fresh';
+        },
+
+        provenance() {
+            const age = this.ageDays();
+            const state = this.freshness();
+            if (state === 'unknown') return 'FAA registry snapshot: vintage unknown.';
+            const when = 'FAA registry snapshot ' + (this.manifest?.generatedAt || '') + ' (' + age + ' days old)';
+            if (state === 'expired') return when + '. Owner details withheld: past the ' + this.OWNER_EXPIRY_DAYS + '-day limit, regenerate with tools/build_faa_registry.py.';
+            if (state === 'stale') return when + '. Owner details may be out of date.';
+            return when + '.';
+        },
 
         normalise(value) {
             let n = String(value || '').trim().toUpperCase();
@@ -5931,8 +5985,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         async lookup(registration) {
             const nNumber = this.normalise(registration);
             if (!nNumber) return null;
+            await this.loadManifest();
             const shard = await this.loadShard(this.shardFor(nNumber));
-            return shard?.[nNumber] || null;
+            const record = shard?.[nNumber] || null;
+            if (!record) return null;
+            if (this.freshness() !== 'expired') return { ...record, snapshotAgeDays: this.ageDays() };
+            // Past the limit, keep the aircraft facts and drop the owner identity.
+            const { name, owner, ownerName, city, state, ...rest } = record;
+            return { ...rest, ownerWithheld: true, snapshotAgeDays: this.ageDays() };
         },
 
         async enrich(ac) {
@@ -9685,7 +9745,20 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         faaRegistryManager.enrich(ac).then(() => {
             if (selectedHex !== hex || !ac.faaOwner || isPrivacyProtectedAircraft(ac)) return;
             const ownerRow = document.getElementById('infoFaaOwnerRow');
-            if (ownerRow) { document.getElementById('infoFaaOwner').textContent = ac.faaOwner; ownerRow.style.display = 'flex'; }
+            if (ownerRow) {
+                document.getElementById('infoFaaOwner').textContent = ac.faaOwner;
+                // Say how old the snapshot is wherever owner identity is shown, so a
+                // stale record is never read as current registry truth.
+                ownerRow.title = faaRegistryManager.provenance();
+                const state = faaRegistryManager.freshness();
+                ownerRow.dataset.snapshot = state;
+                const age = faaRegistryManager.ageDays();
+                const label = ownerRow.querySelector('.info-label');
+                if (label) label.textContent = (state === 'stale' && age !== null)
+                    ? 'FAA owner (' + age + 'd old)'
+                    : 'FAA owner';
+                ownerRow.style.display = 'flex';
+            }
         });
         piaRotationTimeline.render(ac);
         renderAircraftProvenance(ac);

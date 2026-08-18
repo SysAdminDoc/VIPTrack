@@ -700,6 +700,21 @@ class VipTrackContracts(unittest.TestCase):
         # Marker interpolation has to honour the setting too, not just CSS transitions.
         self.assertIn("_prefersReducedMotion()", self.source)
 
+    def test_faa_snapshot_ages_out_of_owner_identity(self) -> None:
+        # FAA section 803 withholding is continuous, so a frozen snapshot drifts toward
+        # holding records an owner has since asked to be withheld.
+        manifest = json.loads((ROOT / "data" / "faa" / "manifest.json").read_text(encoding="utf-8"))
+        self.assertIn("generatedAt", manifest)
+        self.assertRegex(manifest["generatedAt"], r"^\d{4}-\d{2}-\d{2}")
+        self.assertIn("OWNER_STALE_DAYS", self.source)
+        self.assertIn("OWNER_EXPIRY_DAYS", self.source)
+        self.assertIn("ownerWithheld: true", self.source)
+        self.assertIn("faaRegistryManager.provenance()", self.source)
+        # Past the limit the aircraft facts survive and only identity is dropped.
+        self.assertIn("const { name, owner, ownerName, city, state, ...rest } = record;", self.source)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("tools/build_faa_registry.py", readme)
+
     def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
