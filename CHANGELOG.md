@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+- In-app back navigation works on Android 16. From API 33 the platform stops calling `onBackPressed()` once predictive back is enabled, and on API 36 — which this app targets — that is the default, so the back gesture was bypassing the WebView history handler entirely. Back now registers through `OnBackInvokedDispatcher` with the override kept for API 24–32, and the manifest opts in explicitly. The upgraded lint is what surfaced this.
+
+### Changed
+- Android toolchain moved to AGP 8.13.2 and Gradle 8.14.3 (from 8.9.1 / 8.11.1).
+
 ### Accessibility
 - Meets WCAG 2.2 SC 2.5.7 (Dragging Movements, AA): a Leaflet map can only be panned by dragging, so the map now carries single-pointer pan controls beside the zoom control, each labelled and keyboard-operable.
 - Meets WCAG 2.2 SC 2.5.8 (Target Size Minimum, AA): the mobile filter chips rendered 21px tall and the mobile settings search input 17px. Both now clear 24×24 CSS px, and a runtime test checks every visible interactive target at desktop and phone widths.

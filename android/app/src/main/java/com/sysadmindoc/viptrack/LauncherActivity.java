@@ -22,6 +22,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -102,6 +104,7 @@ public final class LauncherActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        registerBackHandler();
 
         assetLoader = new WebViewAssetLoader.Builder()
                 .setDomain(VipTrackNavigation.APP_HOST)
@@ -583,8 +586,42 @@ public final class LauncherActivity extends Activity {
         super.onPause();
     }
 
+    /**
+     * From API 33 the platform stops calling {@link #onBackPressed()} for back gestures
+     * once an app opts into predictive back, and on API 36 that opt-in is the default --
+     * so relying on the override alone silently breaks in-app back navigation. Register a
+     * dispatcher callback where one exists and keep the override for older releases.
+     */
+    private OnBackInvokedCallback backCallback;
+
+    private void registerBackHandler() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        backCallback = this::handleBack;
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback);
+    }
+
+    private void unregisterBackHandler() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || backCallback == null) return;
+        getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(backCallback);
+        backCallback = null;
+    }
+
+    private void handleBack() {
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack();
+            return;
+        }
+        finish();
+    }
+
     @Override
+    @SuppressWarnings("deprecation")
+    // minSdk is 24, so API 24-32 still needs this override; API 33+ is served by
+    // registerBackHandler() and never reaches it. Lint flags the symbol, not the path.
+    @SuppressLint("GestureBackNavigation")
     public void onBackPressed() {
+        // Only reached below API 33; newer releases route through registerBackHandler().
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
@@ -619,6 +656,7 @@ public final class LauncherActivity extends Activity {
             webView.destroy();
             webView = null;
         }
+        unregisterBackHandler();
         super.onDestroy();
     }
 
