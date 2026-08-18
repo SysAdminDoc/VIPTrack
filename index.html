@@ -2211,7 +2211,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.receiverCoverage">Receiver Coverage (X13)</div>
-            <div class="receiver-coverage-help" data-i18n="settings.receiverCoverageHelp">Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.</div>
+            <div class="receiver-coverage-help" data-i18n="settings.receiverCoverageHelp">Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy. A page served over HTTPS cannot reach an http:// feeder, and the feeder host must appear in this deployment's connect-src allowlist (index.html and _headers).</div>
             <input type="url" id="receiverCoverageUrl" class="settings-input" placeholder="http://receiver.local/tar1090" data-i18n-placeholder="settings.receiverUrl" maxlength="320" autocomplete="off">
             <div class="receiver-coverage-grid">
                 <input type="number" id="receiverCoverageLat" class="settings-input" placeholder="Latitude fallback" data-i18n-placeholder="settings.latitudeFallback" min="-90" max="90" step="0.000001">
@@ -2382,6 +2382,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <button class="btn-secondary" id="overlayLoadUrlBtn" type="button" style="padding:6px 10px;" data-i18n="common.load">Load</button>
             </div>
             <button class="btn-secondary" id="overlayClearBtn" type="button" style="width: 100%;" data-i18n="settings.clearOverlays">Clear all overlays</button>
+            <div class="receiver-coverage-help" data-i18n="settings.overlayHelp">Remote overlays require an explicit Load click and public HTTPS. The host must also appear in this deployment's connect-src allowlist (index.html and _headers); local files have no such requirement.</div>
             <div id="overlayStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-top:6px;">Remote overlays require an explicit Load click and public HTTPS</div>
             <div id="overlaysList" style="margin-top:8px;"></div>
         </div>
@@ -2409,6 +2410,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);margin-bottom:6px;">
                 <input type="checkbox" id="webhookAutoSend"> Send matching alerts automatically
             </label>
+            <div class="receiver-coverage-help" data-i18n="settings.webhookHelp">Outgoing only, public HTTPS. This deployment's Content-Security-Policy lists the hosts the page may contact, so a self-hoster must add the webhook host to connect-src in index.html and _headers before sends succeed.</div>
             <div id="webhookStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">No webhook configured</div>
             <div id="webhookPreview" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">Payload preview is empty</div>
             <button class="btn-secondary" id="webhookSaveBtn" type="button" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveWebhook">Save webhook</button>
@@ -8652,6 +8654,84 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         return null;
     }
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...(options || {}), signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }
+
+    // Three features fetch hosts the deployer cannot know in advance: the webhook
+    // alert sink, the remote GeoJSON overlay loader, and receiver coverage. Since
+    // `connect-src` became a real allowlist those requests are refused by the
+    // policy, and `fetch()` reports the refusal as an ordinary "Failed to fetch" —
+    // indistinguishable from the host being down. Recording the violation lets the
+    // feature say what actually happened and which host to allowlist.
+    const cspWatch = {
+        blocked: new Map(),
+        RETENTION_MS: 15000,
+
+        init() {
+            document.addEventListener('securitypolicyviolation', event => {
+                if (event.effectiveDirective !== 'connect-src' && event.violatedDirective !== 'connect-src') return;
+                this.record(event.blockedURI);
+            });
+        },
+
+        record(blockedUri) {
+            const host = this.hostOf(blockedUri);
+            if (!host) return;
+            this.blocked.set(host, Date.now());
+            if (this.blocked.size > 32) {
+                const oldest = [...this.blocked.entries()].sort((a, b) => a[1] - b[1])[0];
+                if (oldest) this.blocked.delete(oldest[0]);
+            }
+        },
+
+        hostOf(value) {
+            try { return new URL(String(value || ''), location.href).hostname || ''; } catch (e) { return ''; }
+        },
+
+        // True when this exact host was refused by connect-src moments ago, i.e. the
+        // fetch that just failed was blocked by policy rather than by the network.
+        wasBlocked(url) {
+            const host = this.hostOf(url);
+            if (!host) return false;
+            const at = this.blocked.get(host);
+            if (!at) return false;
+            if (Date.now() - at > this.RETENTION_MS) { this.blocked.delete(host); return false; }
+            return true;
+        },
+
+        // The message a feature shows instead of "Failed to fetch". Returns '' when
+        // the failure was not a policy refusal, so callers keep their own wording.
+        explain(url) {
+            if (!this.wasBlocked(url)) return '';
+            const host = this.hostOf(url);
+            return 'Blocked by this deployment’s Content-Security-Policy. To allow it, add https://' + host +
+                ' to connect-src in index.html and _headers, then redeploy.';
+        },
+
+        // Mixed content is refused before any policy check and never raises a CSP
+        // violation, so an http:// target on an https:// page needs its own message.
+        mixedContentNote(url) {
+            try {
+                const target = new URL(String(url || ''), location.href);
+                if (target.protocol === 'http:' && location.protocol === 'https:') {
+                    return 'Blocked as mixed content: this page is served over HTTPS, so it cannot reach an http:// address. Serve the target over HTTPS, or open VIPTrack from a local HTTP copy.';
+                }
+            } catch (e) { /* not a parseable URL */ }
+            return '';
+        },
+
+        // One call for the common "my fetch threw, what do I tell the user" case.
+        // The violation event is dispatched *after* the fetch promise rejects, so a
+        // synchronous check in a catch block always loses the race and reports the
+        // generic network error. Give the event loop a few turns to deliver it.
+        async describeFailure(url, fallback) {
+            const mixed = this.mixedContentNote(url);
+            if (mixed) return mixed;
+            for (let attempt = 0; attempt < 8 && !this.wasBlocked(url); attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            return this.explain(url) || fallback;
+        }
+    };
+    cspWatch.init();
     async function readBoundedResponseText(response, maxBytes = egressPolicy.maxOverlayBytes) {
         const declaredLength = Number(response.headers?.get('content-length'));
         if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error('Response exceeds size limit');
@@ -11801,7 +11881,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const filter = overrides.filter !== undefined ? overrides.filter : settings.filter;
             const emergency = overrides.emergency !== undefined ? overrides.emergency : (typeof emergencyHistoryManager !== 'undefined' && emergencyHistoryManager.last24hOnly ? 'last24h' : null);
             
-            if (hex) params.set('hex', hex);
+            // Same rule as buildViewUrl: a privacy-protected aircraft is never named
+            // in a URL. This one writes the address bar via replaceState, so a hex
+            // here is what the user copies out of the browser by hand.
+            if (hex && !isPrivacyProtectedAircraft(aircraftCache[hex])) params.set('hex', hex);
             if (filter && filter !== 'all') params.set('filter', filter);
             if (emergency === 'last24h') params.set('emergency', emergency);
             // A desk finding is only shareable if the search that produced it travels too.
@@ -11882,10 +11965,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const ac = aircraftCache[hex];
             if (!ac) return null;
             const params = new URLSearchParams();
-            params.set('hex', hex);
-            if (ac.lat && ac.lon) {
-                params.set('lat', ac.lat.toFixed(4));
-                params.set('lon', ac.lon.toFixed(4));
+            // A PIA link would carry both the identity and its current position, which
+            // is exactly what the program exists to prevent. Share the view instead:
+            // map position and filter travel, the aircraft does not.
+            const privacyProtected = isPrivacyProtectedAircraft(ac);
+            if (!privacyProtected) {
+                params.set('hex', hex);
+                if (ac.lat && ac.lon) {
+                    params.set('lat', ac.lat.toFixed(4));
+                    params.set('lon', ac.lon.toFixed(4));
+                }
             }
             params.set('zoom', map.getZoom());
             if (settings.filter !== 'all') params.set('filter', settings.filter);
@@ -14142,7 +14231,8 @@ ${segs}
                 this._setStatus('Webhook sent · ' + new Date().toLocaleTimeString());
                 return true;
             } catch (e) {
-                this._setStatus('Webhook failed: ' + String(e?.message || 'network error').slice(0, 120));
+                const fallback = 'Webhook failed: ' + String(e?.message || 'network error').slice(0, 120);
+                this._setStatus(await cspWatch.describeFailure(validated.href, fallback));
                 _dbg('webhook send failed', e);
                 return false;
             }
@@ -14242,8 +14332,10 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 const name = decodeURIComponent(target.pathname.split('/').pop() || target.hostname).slice(0, 120);
                 return this.addFromText(text, name || 'remote');
             } catch (e) {
-                this._setStatus('Overlay fetch failed: ' + String(e?.message || 'network error').slice(0, 120));
-                toast('Could not fetch overlay');
+                const fallback = 'Overlay fetch failed: ' + String(e?.message || 'network error').slice(0, 120);
+                const message = await cspWatch.describeFailure(target.href, fallback);
+                this._setStatus(message);
+                toast(message === fallback ? 'Could not fetch overlay' : 'Overlay blocked by this deployment’s CSP');
                 return false;
             }
         },
@@ -14868,8 +14960,13 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             ]);
             const receiver = this._receiver(receiverData) || (fallbackLat !== null && fallbackLon !== null ? { lat: fallbackLat, lon: fallbackLon } : null);
             if (!receiver) {
-                this._setStatus('Receiver location unavailable. Supply latitude and longitude fallbacks.');
-                toast('Receiver location unavailable');
+                // Nothing came back at all. Before blaming the feeder, say so when the
+                // browser refused the request outright - a LAN feeder is http:// and this
+                // page is usually https://, and the CSP allowlist cannot name it either.
+                const probeUrl = this._endpoint(baseUrl, 'receiver.json');
+                const refusal = await cspWatch.describeFailure(probeUrl, '');
+                this._setStatus(refusal || 'Receiver location unavailable. Supply latitude and longitude fallbacks.');
+                toast(refusal ? 'Feeder request blocked by the browser' : 'Receiver location unavailable');
                 return;
             }
 

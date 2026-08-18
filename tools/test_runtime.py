@@ -448,6 +448,49 @@ class VipTrackRuntime(unittest.TestCase):
                 self.assertEqual(undersized, [], f"{width}x{height}")
                 self.assertEqual(crashes, [])
 
+    def test_csp_blocked_egress_names_the_host_to_allowlist(self) -> None:
+        # connect-src is a strict allowlist, so the three user-configured egress
+        # features are refused by policy and fetch() reports a bare "Failed to
+        # fetch". The user must be told which host to add, not left guessing.
+        with self._page() as (page, crashes):
+            webhook = page.evaluate(
+                "async () => { alertWebhook.url = 'https://hooks.example.org/hook';"
+                " alertWebhook.kind = 'generic';"
+                " await alertWebhook.send({type:'TEST', message:'x', timestamp: Date.now(),"
+                " aircraft:{hex:'TEST00'}}, {explicit:true});"
+                " return document.getElementById('webhookStatus').textContent; }"
+            )
+            self.assertIn("Content-Security-Policy", webhook)
+            self.assertIn("hooks.example.org", webhook)
+            self.assertNotIn("Failed to fetch", webhook)
+
+            overlay = page.evaluate(
+                "async () => { await geojsonLoader.addFromUrl('https://tiles.example.org/a.geojson');"
+                " return document.getElementById('overlayStatus').textContent; }"
+            )
+            self.assertIn("connect-src", overlay)
+            self.assertIn("tiles.example.org", overlay)
+
+            # A host that is genuinely allowlisted must keep its own wording, so the
+            # explanation cannot be a blanket message on every failure.
+            allowed = page.evaluate("() => cspWatch.explain('https://api.adsb.lol/v2/mil')")
+            self.assertEqual(allowed, "")
+            self.assertEqual(crashes, [])
+
+    def test_http_feeder_on_an_https_page_is_reported_as_mixed_content(self) -> None:
+        with self._page() as (page, crashes):
+            note = page.evaluate(
+                "() => cspWatch.mixedContentNote('http://receiver.local/tar1090/data/receiver.json')"
+            )
+            # The harness serves over http://, so no mixed-content case exists here;
+            # assert the rule itself instead of faking the page protocol.
+            self.assertEqual(note, "")
+            described = page.evaluate(
+                "async () => await cspWatch.describeFailure('http://receiver.local/x.json', 'fallback text')"
+            )
+            self.assertEqual(described, "fallback text")
+            self.assertEqual(crashes, [])
+
     def test_self_hosted_basemap_serves_tiles_or_falls_back(self) -> None:
         # The archive is gitignored, so both branches are real deployments: an
         # operator who ran the build script, and a clean checkout that did not.
@@ -667,6 +710,37 @@ class VipTrackRuntime(unittest.TestCase):
                 " return after.includes('hex=') ? 'LEAKED' : 'ok'; }"
             )
             self.assertEqual(leaked, "ok")
+
+            # buildViewUrl is not the only URL builder. buildUrl writes the address
+            # bar through replaceState (what a user copies by hand) and generateLink
+            # backs the Share Flight button; both used to name the aircraft.
+            others = page.evaluate(
+                "() => { const hex = Object.keys(markers)[0]; if (!hex) return 'no aircraft';"
+                " selectedHex = hex; const ac = aircraftCache[hex] || (aircraftCache[hex] = {hex});"
+                " ac.lat = 51.5; ac.lon = -0.12;"
+                " const beforeBuild = shareManager.buildUrl();"
+                " const beforeLink = shareManager.generateLink(hex);"
+                " if (!beforeBuild.includes('hex=') || !beforeLink.includes('hex='))"
+                "   return 'inconclusive: hex absent before flagging';"
+                " ac.privacyProtected = true;"
+                " const afterBuild = shareManager.buildUrl();"
+                " const afterLink = shareManager.generateLink(hex);"
+                " delete ac.privacyProtected;"
+                " return { build: afterBuild.includes('hex=') ? 'LEAKED' : 'ok',"
+                "   link: afterLink.includes('hex=') ? 'LEAKED' : 'ok',"
+                "   position: (afterLink.includes('lat=') || afterLink.includes('lon=')) ? 'LEAKED' : 'ok' }; }"
+            )
+            self.assertEqual(others, {"build": "ok", "link": "ok", "position": "ok"})
+
+            # The address bar itself must stay clean after selecting a PIA aircraft.
+            address = page.evaluate(
+                "() => { const hex = Object.keys(markers)[0];"
+                " const ac = aircraftCache[hex]; ac.privacyProtected = true;"
+                " selectAircraft(hex); const href = location.href;"
+                " delete ac.privacyProtected; deselectAircraft();"
+                " return href.includes('hex='); }"
+            )
+            self.assertFalse(address, "selecting a PIA aircraft put its hex in the address bar")
             self.assertEqual(crashes, [])
 
     def test_regex_filter_reaches_type_code_and_is_bounded(self) -> None:

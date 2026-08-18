@@ -28,6 +28,7 @@ TYPE_PHOTO_DOWNLOADER = ROOT / "download-type-photos.py"
 TYPE_PHOTO_WORKFLOW = ROOT / "tools" / "run_type_photo_enrichment.ps1"
 UI_STYLES = ROOT / "assets" / "viptrack-ui.css"
 UI_MOCKUPS = ROOT / "assets" / "mockups"
+CRLF = b"\r\n"
 
 
 class VipTrackContracts(unittest.TestCase):
@@ -1302,6 +1303,86 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("api_key", section)
         self.assertIn("this.renderer.setStyle(style)", section)
         self.assertIn("saveSettings()", section)
+
+    def test_hand_maintained_sources_stay_on_lf_endings(self) -> None:
+        """Guard against Windows tooling silently rewriting a whole file.
+
+        `pathlib.Path.write_text` translates LF to CRLF on Windows, and with
+        `core.autocrlf=false` git stores that literally -- a one-key edit to a JSON
+        catalog or a one-entry CHANGELOG addition turns into a whole-file diff that
+        buries the real change. The vendored trees under `data/` (upstream CSVs, FAA
+        shards) are CRLF as shipped and deliberately not covered here.
+        """
+        tracked = [
+            ROOT / "index.html", ROOT / "sw.js", ROOT / "cesium-frame.html",
+            ROOT / "manifest.json", ROOT / "_headers",
+            ROOT / "README.md", ROOT / "CHANGELOG.md",
+            UI_STYLES, PLUGINS_MANIFEST, OPFS_WORKER,
+            ROOT / "tools" / "cdn_dependencies.json",
+        ]
+        tracked += sorted(I18N_DIR.glob("*.json"))
+        tracked += [
+            ROOT / "tools" / name for name in (
+                "test_viptrack.py", "test_runtime.py", "check_cdn_dependencies.py",
+                "check_security_headers.py", "build_basemap_pmtiles.py",
+                "build_faa_registry.py", "refresh_reference_data.py",
+            )
+        ]
+        offenders = [
+            path.relative_to(ROOT).as_posix()
+            for path in tracked
+            if path.is_file() and CRLF in path.read_bytes()
+        ]
+        self.assertEqual(offenders, [], "CRLF crept into hand-maintained sources")
+
+    def test_csp_blocked_egress_is_explained_not_swallowed(self) -> None:
+        # connect-src is a strict allowlist, so webhook / overlay / receiver targets
+        # are refused by policy and fetch() reports a bare "Failed to fetch".
+        for marker in (
+            "const cspWatch = {",
+            "securitypolicyviolation",
+            "async describeFailure(url, fallback)",
+            "mixedContentNote(url)",
+            "await cspWatch.describeFailure(",
+        ):
+            self.assertIn(marker, self.source)
+
+        start = self.source.index("const cspWatch = {")
+        section = self.source[start:self.source.index("async function readBoundedResponseText", start)]
+        # Only connect-src refusals may be reported this way; other directives would
+        # produce a misleading "add this host" instruction.
+        self.assertIn("effectiveDirective !== 'connect-src'", section)
+        # The violation arrives after the fetch rejects, so a synchronous read races it.
+        self.assertIn("await new Promise(resolve => setTimeout(resolve, 10))", section)
+        # An unblocked host must keep the caller's own wording.
+        self.assertIn("return this.explain(url) || fallback;", section)
+
+        # Every user-configured egress feature explains itself.
+        self.assertEqual(self.source.count("await cspWatch.describeFailure("), 3)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("Allowlisting your own hosts", readme)
+        self.assertIn("mixed content", readme.lower())
+
+    def test_no_url_builder_names_a_privacy_protected_aircraft(self) -> None:
+        # buildViewUrl was guarded; buildUrl (address bar) and generateLink (Share
+        # Flight) were not, so two of three builders leaked the identity they exist
+        # to protect.
+        start = self.source.index("const shareManager = {")
+        section = self.source[start:self.source.index("async createTrailPng(hex)", start)]
+        self.assertIn("if (hex && !isPrivacyProtectedAircraft(aircraftCache[hex])) params.set('hex', hex);", section)
+        self.assertIn("const privacyProtected = isPrivacyProtectedAircraft(ac);", section)
+        # generateLink must withhold the position too - a PIA position plus a map
+        # link is the same disclosure by another route.
+        link_start = section.index("generateLink(hex) {")
+        link_section = section[link_start:section.index("_collectTrailPoints(hex)", link_start)]
+        self.assertIn("if (!privacyProtected) {", link_section)
+        # Both the identity and the position must sit inside the guard, and the guard
+        # must come first -- an unguarded set before it would leak regardless.
+        guard = link_section.index("if (!privacyProtected) {")
+        self.assertLess(guard, link_section.index("params.set('hex', hex)"))
+        self.assertLess(guard, link_section.index("params.set('lat'"))
+        self.assertLess(guard, link_section.index("params.set('lon'"))
 
     def test_coverage_view_is_local_aggregated_and_pia_redacted(self) -> None:
         for marker in (

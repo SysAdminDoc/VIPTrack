@@ -203,6 +203,20 @@ The published tree is roughly 466 MB against the GitHub Pages 1 GB soft limit, w
 
 The archive path must be same-origin. `connect-src` is a real allowlist, so a cross-origin archive is blocked by the app's own CSP; hosting elsewhere means adding that host to both the meta CSP in `index.html` and `_headers`. Note also that `python -m http.server` ignores `Range` headers — use a static host that answers 206 (GitHub Pages does) when testing locally.
 
+### Allowlisting your own hosts
+
+`connect-src` is a real allowlist, not a formality — bare `https:` was deliberately removed from it, because a scheme source matches every origin and makes everything after it decorative. That is correct for the app's own feeds, but three features fetch hosts only you can know:
+
+| Feature | What you must allowlist |
+|---------|------------------------|
+| Alert webhook (Settings > Alert Webhook) | Your webhook host, e.g. `https://discord.com` or your ntfy server |
+| Remote GeoJSON overlay (Settings > Overlays) | The host serving the `.geojson` file |
+| Receiver coverage (Settings > Receiver Coverage) | Your tar1090/readsb feeder host |
+
+Add the host to **both** the `Content-Security-Policy` meta tag in `index.html` and the `connect-src` line in `_headers`, then redeploy. Without that, the browser refuses the request before it reaches the network and the feature reports the refusal, naming the host to add.
+
+Receiver coverage has a second constraint, and no CSP change fixes it: a page served over HTTPS cannot fetch an `http://` address at all — the browser refuses it as mixed content. A LAN feeder on plain HTTP is only reachable if you also open VIPTrack over HTTP (a local copy), or put the feeder behind HTTPS.
+
 ### Deployment security headers
 
 GitHub Pages cannot attach response headers, so `index.html` retains a compatible meta CSP fallback. Cloudflare Pages and Netlify-style hosts can use the root `_headers` policy, which supplies HSTS, framing, permissions, MIME, referrer, enforcing CSP, and matching CSP Report-Only headers for the main page and isolated Cesium frame. Validate Report-Only violations in the deployed host before changing the policy; `python tools/check_security_headers.py` checks the committed policy and all dynamic HTML sinks. Do not apply HSTS to an HTTP-only local deployment.

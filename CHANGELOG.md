@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- The three user-configured egress features — the webhook alert sink, the remote GeoJSON overlay loader, and receiver coverage — were being refused by the app's own `connect-src` allowlist and reporting it as a generic "Failed to fetch", indistinguishable from the host being down. They now watch for the `securitypolicyviolation` event and say what actually happened, naming the exact host to add to `connect-src` in `index.html` and `_headers`. Receiver coverage additionally reports the mixed-content case, which no CSP change can fix: an HTTPS page cannot reach an `http://` LAN feeder. README documents both constraints and the settings help text states them.
+
+- Privacy-protected aircraft are no longer named in any shareable URL. `buildViewUrl` was guarded and tested, but `buildUrl` — which writes the address bar through `replaceState`, the URL a user copies by hand — and `generateLink`, behind the Share Flight button, both emitted the PIA hex, and `generateLink` emitted its live position alongside it. All three builders now apply the same rule, and the runtime test covers each.
+
 ## [v0.7.0] - 2026-08-18
 
 ### Added
