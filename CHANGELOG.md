@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.6.0] - 2026-08-18
 
 ### Fixed
 - Restored live aircraft loading. Every public ADS-B aggregator has dropped `Access-Control-Allow-Origin`, and the source manager was short-circuiting relayed sources to "degraded" on GitHub Pages, so the hosted build could not reach a single feed. All four feeds are now marked relay-only and checked through the CORS relay.

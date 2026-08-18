@@ -735,12 +735,12 @@ class VipTrackContracts(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("<title>VIPTrack v0.5.0", self.source)
-        self.assertIn('class="version">v0.5.0', self.source)
-        self.assertIn("version-0.5.0-blue", readme)
-        self.assertIn("## [v0.5.0] - 2026-08-12", changelog)
-        self.assertIn("versionName '0.5.0'", build_gradle)
-        self.assertIn("versionCode 8", build_gradle)
+        self.assertIn("<title>VIPTrack v0.6.0", self.source)
+        self.assertIn('class="version">v0.6.0', self.source)
+        self.assertIn("version-0.6.0-blue", readme)
+        self.assertIn("## [v0.6.0] - 2026-08-18", changelog)
+        self.assertIn("versionName '0.6.0'", build_gradle)
+        self.assertIn("versionCode 9", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
