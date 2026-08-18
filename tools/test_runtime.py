@@ -448,6 +448,271 @@ class VipTrackRuntime(unittest.TestCase):
                 self.assertEqual(undersized, [], f"{width}x{height}")
                 self.assertEqual(crashes, [])
 
+    def test_opensky_credential_slot_can_actually_hold_a_credential(self) -> None:
+        # The credentials surface watched two storage keys nothing ever wrote, so the
+        # slot read "not configured" forever and its Clear button was unreachable.
+        with self._page() as (page, crashes):
+            before = page.evaluate(
+                "() => credentialRegistry.isConfigured("
+                " credentialRegistry.slots.find(s => s.id === 'opensky'))"
+            )
+            self.assertFalse(before)
+
+            after = page.evaluate(
+                """() => {
+                    document.getElementById('openSkyClientId').value = 'client-abc';
+                    document.getElementById('openSkyClientSecret').value = 'secret-xyz';
+                    const box = document.getElementById('openSkyRemember');
+                    box.checked = true;
+                    box.dispatchEvent(new Event('change', { bubbles: true }));
+                    const slot = credentialRegistry.slots.find(s => s.id === 'opensky');
+                    credentialRegistry.render();
+                    return { configured: credentialRegistry.isConfigured(slot),
+                             hasClear: Boolean(document.querySelector('[data-cred-clear="opensky"]')) };
+                }"""
+            )
+            self.assertTrue(after["configured"], "storing credentials did not register the slot")
+            self.assertTrue(after["hasClear"], "no Clear control appeared for a held credential")
+
+            # Stored credentials survive a request; the per-use path still wipes.
+            survived = page.evaluate(
+                "() => { openSkyHistoricalManager.clearAuthState();"
+                " return document.getElementById('openSkyClientId').value; }"
+            )
+            self.assertEqual(survived, "client-abc")
+
+            cleared = page.evaluate(
+                """() => {
+                    credentialRegistry.clear('opensky');
+                    openSkyHistoricalManager.clearAuthState();
+                    const slot = credentialRegistry.slots.find(s => s.id === 'opensky');
+                    return { configured: credentialRegistry.isConfigured(slot),
+                             field: document.getElementById('openSkyClientId').value };
+                }"""
+            )
+            self.assertFalse(cleared["configured"])
+            self.assertEqual(cleared["field"], "", "clearing the slot left the secret in the field")
+            self.assertEqual(crashes, [])
+
+    def test_coverage_sampling_can_be_switched_off(self) -> None:
+        # Enabling the view turned sampling on and nothing ever turned it back off,
+        # so one visit left the browser accumulating position history permanently.
+        with self._page() as (page, crashes):
+            state = page.evaluate(
+                """async () => {
+                    await coverageView.setMode('density', false);
+                    const afterEnable = settings.coverageRecording;
+                    coverageView.setRecording(false);
+                    const afterDisable = settings.coverageRecording;
+                    const timerStopped = coverageRecorder.timer === 0;
+                    aircraftCache['AE1234'] = {hex: 'AE1234', lat: 5, lon: 5};
+                    const wrote = await coverageRecorder.tick();
+                    return { afterEnable, afterDisable, timerStopped, wrote };
+                }"""
+            )
+            self.assertTrue(state["afterEnable"], "turning the view on should start sampling")
+            self.assertFalse(state["afterDisable"], "sampling could not be turned off")
+            self.assertTrue(state["timerStopped"])
+            self.assertEqual(state["wrote"], 0, "a tick wrote rows while recording was off")
+
+            # The dedupe map must track the live cache, not every hex ever seen.
+            pruned = page.evaluate(
+                """async () => {
+                    settings.coverageRecording = true;
+                    coverageRecorder.lastByHex.clear();
+                    coverageRecorder.lastByHex.set('DEADBE', [1, 1]);
+                    aircraftCache['AE1234'] = {hex: 'AE1234', lat: 7, lon: 7};
+                    await coverageRecorder.tick();
+                    return coverageRecorder.lastByHex.has('DEADBE');
+                }"""
+            )
+            self.assertFalse(pruned, "lastByHex kept a hex that left the cache")
+            self.assertEqual(crashes, [])
+
+    def test_coverage_view_reports_that_it_cannot_draw_under_webgl(self) -> None:
+        # ?renderer=webgl hides the Leaflet map, and this layer draws on a Leaflet
+        # pane -- the toggle used to toast success onto an invisible canvas.
+        url = f"{self.base_url}/index.html?renderer=webgl"
+        with self._page(url=url) as (page, crashes):
+            page.wait_for_function(
+                "() => typeof webglMapManager !== 'undefined' && webglMapManager.renderer",
+                timeout=45000,
+            )
+            result = page.evaluate(
+                """async () => {
+                    const applied = await coverageView.setMode('density', false);
+                    return { applied, rendersHere: coverageView.rendersHere(),
+                             status: document.getElementById('coverageStatus').textContent,
+                             canvas: Boolean(coverageView.canvas) };
+                }"""
+            )
+            self.assertFalse(result["rendersHere"])
+            self.assertFalse(result["applied"], "coverage claimed success under WebGL")
+            self.assertFalse(result["canvas"])
+            self.assertIn("standard map", result["status"])
+            self.assertEqual(crashes, [])
+
+    def test_user_supplied_names_render_as_text_not_markup(self) -> None:
+        # DOMPurify strips scripts, so this was never XSS -- but a name containing a
+        # quote broke out of the aria-label attribute and garbled the row, and angle
+        # brackets rendered as (sanitized) markup instead of the name the user typed.
+        hostile = 'A"<b>&B'
+        with self._page() as (page, crashes):
+            result = page.evaluate(
+                """(name) => {
+                    bookmarks.length = 0;
+                    bookmarks.push({ id: 1, name, lat: 51.5, lng: -0.12, zoom: 8 });
+                    renderBookmarks();
+                    alertSystem.watchlist.clear();
+                    alertSystem.watchlist.set('ABC123',
+                        { hex: 'ABC123', name, notes: '', addedAt: Date.now() });
+                    alertSystem.updateWatchlistUI();
+                    const bookmark = document.querySelector('.bookmark-name');
+                    const watch = document.querySelector('.watchlist-name');
+                    const remove = document.querySelector('.watchlist-remove');
+                    return {
+                        bookmarkText: bookmark ? bookmark.textContent : null,
+                        watchText: watch ? watch.textContent : null,
+                        removeLabel: remove ? remove.getAttribute('aria-label') : null,
+                        strayBold: document.querySelectorAll('.bookmark-name b, .watchlist-name b').length
+                    };
+                }""",
+                hostile,
+            )
+            self.assertEqual(result["bookmarkText"], hostile)
+            self.assertEqual(result["watchText"], hostile)
+            # The attribute must survive intact rather than being split by the quote.
+            self.assertEqual(result["removeLabel"], "Remove " + hostile)
+            self.assertEqual(result["strayBold"], 0)
+            self.assertEqual(crashes, [])
+
+    def test_health_probes_skip_sources_the_live_loop_just_measured(self) -> None:
+        # The whole data plane rides one free relay that rate-limits, and the live
+        # loop already records real latencies every 6 s. Re-probing a source it just
+        # used spends budget to learn what is already known.
+        with self._page() as (page, crashes):
+            probed = page.evaluate(
+                """async () => {
+                    const calls = [];
+                    const real = dataSourceManager.checkSource.bind(dataSourceManager);
+                    dataSourceManager.checkSource = source => { calls.push(source.key); return Promise.resolve(); };
+                    const now = Date.now();
+                    // One source measured moments ago, one silent for ten minutes.
+                    const enabled = dataSourceManager.enabledSources();
+                    enabled.forEach(s => { s.lastSuccess = 0; s.lastError = 0; });
+                    enabled[0].lastSuccess = now;
+                    if (enabled[1]) enabled[1].lastSuccess = now - 600000;
+                    await dataSourceManager.checkAllSources();
+                    dataSourceManager.checkSource = real;
+                    return { calls, fresh: enabled[0].key, stale: enabled[1] ? enabled[1].key : null };
+                }"""
+            )
+            self.assertNotIn(probed["fresh"], probed["calls"],
+                             "a source measured seconds ago was probed again")
+            if probed["stale"]:
+                self.assertIn(probed["stale"], probed["calls"],
+                              "a silent source must still be probed")
+
+            # A succeeding live loop is itself proof of connectivity.
+            skipped = page.evaluate(
+                """async () => {
+                    let fetched = false;
+                    const realFetch = window.fetch;
+                    window.fetch = (...args) => { fetched = true; return realFetch(...args); };
+                    offlineManager.isOnline = true;
+                    lastFetchTime = Date.now();
+                    await offlineManager.checkConnection();
+                    window.fetch = realFetch;
+                    return fetched;
+                }"""
+            )
+            self.assertFalse(skipped, "connectivity probe ran while the feed was live")
+            self.assertEqual(crashes, [])
+
+    def test_alert_sounds_share_one_audio_context(self) -> None:
+        # A fresh AudioContext per alert is never closed and browsers cap how many a
+        # page may hold, so a long-running tab used to lose alert sounds entirely.
+        with self._page() as (page, crashes):
+            created = page.evaluate(
+                """() => {
+                    const Real = window.AudioContext || window.webkitAudioContext;
+                    let count = 0;
+                    const Counted = function (...args) { count++; return new Real(...args); };
+                    Counted.prototype = Real.prototype;
+                    window.AudioContext = Counted;
+                    window.webkitAudioContext = Counted;
+                    alertSystem._audioContext = null;
+                    for (let i = 0; i < 20; i++) alertSystem.playSound('chime');
+                    window.AudioContext = Real;
+                    window.webkitAudioContext = Real;
+                    return count;
+                }"""
+            )
+            self.assertEqual(created, 1, f"{created} AudioContexts created for 20 alerts")
+            self.assertEqual(crashes, [])
+
+    def test_going_offline_renders_once_not_every_poll(self) -> None:
+        # The 6 s poll kept calling showCachedPositions(), which re-toasted and tore
+        # down every marker each time -- the toast never cleared and the map flickered.
+        with self._page() as (page, crashes):
+            page.evaluate("async () => { offlineManager.cachePositions();"
+                          " await new Promise(r => setTimeout(r, 300)); }")
+            result = page.evaluate(
+                """() => {
+                    const toasts = [];
+                    const realToast = window.toast;
+                    window.toast = msg => { toasts.push(msg); return realToast(msg); };
+                    offlineManager.handleOffline();
+                    const afterFirst = Object.keys(markers).map(h => markers[h]);
+                    // Three more polls, exactly as the interval would drive them.
+                    loadAircraft(); loadAircraft(); loadAircraft();
+                    const afterPolls = Object.keys(markers).map(h => markers[h]);
+                    const stable = afterFirst.length === afterPolls.length &&
+                        afterFirst.every((marker, i) => marker === afterPolls[i]);
+                    const label = document.getElementById('dataSource').textContent;
+                    window.toast = realToast;
+                    offlineManager.isOnline = true;
+                    return { toasts, stable, markerCount: afterPolls.length, label };
+                }"""
+            )
+            # One transition toast, and no "Showing data from N minutes ago" repeat.
+            self.assertEqual(
+                [t for t in result["toasts"] if "Showing data from" in t], [],
+                "the offline poll re-announced the cache age")
+            self.assertLessEqual(len(result["toasts"]), 1, result["toasts"])
+            self.assertTrue(result["stable"], "markers were torn down and rebuilt by the poll")
+            # The age readout still updates so the user can see the data is stale.
+            self.assertIn("Cached", result["label"])
+            self.assertEqual(crashes, [])
+
+    def test_keyboard_filter_shortcuts_drive_the_real_filter(self) -> None:
+        # Two control sets share [data-filter]: the mobile chip bar (earlier in the
+        # document) and the desktop radios. A bare selector hits the hidden chip, so
+        # M toasted "Military only" while settings.filter never changed.
+        with self._page() as (page, crashes):
+            self.assertEqual(page.evaluate("settings.filter"), "mil-vip")
+            page.keyboard.press("m")
+            page.wait_for_timeout(400)
+            self.assertEqual(page.evaluate("settings.filter"), "military")
+            self.assertEqual(page.evaluate(
+                "() => [...document.querySelectorAll('.filter-btn.active')].map(b => b.dataset.filter)"
+            ), ["military"])
+
+            page.keyboard.press("v")
+            page.wait_for_timeout(400)
+            self.assertEqual(page.evaluate("settings.filter"), "vip")
+
+            page.keyboard.press("a")
+            page.wait_for_timeout(400)
+            self.assertEqual(page.evaluate("settings.filter"), "mil-vip")
+
+            # The hidden chips must stay untouched: an active chip dims markers to
+            # 0.08 opacity with nothing on screen explaining why.
+            self.assertEqual(page.evaluate(
+                "() => [...document.querySelectorAll('.filter-chip-btn.active')].length"
+            ), 0)
+            self.assertEqual(crashes, [])
+
     def test_csp_blocked_egress_names_the_host_to_allowlist(self) -> None:
         # connect-src is a strict allowlist, so the three user-configured egress
         # features are refused by policy and fetch() reports a bare "Failed to

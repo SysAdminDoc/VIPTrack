@@ -1579,7 +1579,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.27';
+const SW_CACHE_SCHEMA = '4.28';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -2228,6 +2228,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="receiver-coverage-help" data-i18n="settings.openSkyHelp">Manual historical track lookup only; this never participates in the live refresh loop. Supply an OpenSky OAuth2 API client. Credentials stay in this tab and the secret is sent only to OpenSky’s token endpoint.</div>
             <input type="text" id="openSkyClientId" class="settings-input" placeholder="OpenSky OAuth2 client ID" data-i18n-placeholder="settings.openSkyClientId" maxlength="180" autocomplete="off">
             <input type="password" id="openSkyClientSecret" class="settings-input" placeholder="OpenSky OAuth2 client secret" data-i18n-placeholder="settings.openSkyClientSecret" maxlength="240" autocomplete="new-password">
+            <label class="receiver-coverage-help" style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="openSkyRemember">
+                <span data-i18n="settings.openSkyRemember">Remember these credentials in this browser</span>
+            </label>
             <div class="receiver-coverage-grid">
                 <input type="text" id="openSkyHex" class="settings-input" placeholder="ICAO hex (or selected aircraft)" data-i18n-placeholder="settings.icaoHex" maxlength="6" autocomplete="off">
                 <input type="date" id="openSkyDate" class="settings-input">
@@ -2322,6 +2326,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <option value="300">5 min</option>
                 </select>
             </div>
+            <div class="setting-row"><span class="setting-label" id="toggleCoverageRecordingLabel" data-i18n="settings.coverageRecording">Record coverage samples</span><button type="button" class="toggle" id="toggleCoverageRecording" role="switch" aria-checked="false" aria-labelledby="toggleCoverageRecordingLabel"></button></div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.coverageClear">Coverage history</span><button type="button" class="settings-btn secondary" id="coverageClearBtn" data-i18n="settings.coverageClearAction">Clear</button></div>
             <div class="receiver-coverage-help" id="coverageStatus" data-i18n="settings.coverageHelp">Coverage is built only from what this browser has observed. Nothing is fetched or transmitted, and privacy-protected aircraft are excluded when sampled and again when drawn. Retention follows the trail retention setting.</div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLookahead">Heading lookahead</span>
@@ -3089,6 +3094,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         lastOnlineTime: Date.now(),
         offlineData: null,
         syncQueue: [],
+        // Timestamp of the cached payload currently drawn, so a repeated poll while
+        // offline is a no-op instead of a full marker teardown.
+        _renderedOfflineAt: 0,
         
         init() {
             window.addEventListener('online', () => this.handleOnline());
@@ -3106,6 +3114,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         handleOnline() {
             this.isOnline = true;
             this.lastOnlineTime = Date.now();
+            this._renderedOfflineAt = 0;
             
             document.body.classList.remove('offline-mode');
             connectionMonitor.updateStatus('online');
@@ -3125,10 +3134,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             connectionMonitor.updateStatus('offline');
             toast('You are offline - showing cached data');
             
-            this.showCachedPositions();
+            this._renderedOfflineAt = 0;
+            this.showCachedPositions({ announce: false });
         },
         
         async checkConnection() {
+            // A live fetch that just succeeded is proof of connectivity; probing again
+            // only spends the same shared relay budget. Probe when the feed goes quiet.
+            if (this.isOnline && Date.now() - lastFetchTime < 30000) return;
             try {
                 // Probe whichever feed the source manager currently prefers rather than a
                 // hardcoded host. Both former probe targets started returning HTTP 403,
@@ -3182,16 +3195,26 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
         },
         
-        showCachedPositions() {
+        // The poll keeps firing while offline, so this used to re-toast and rebuild
+        // every marker every 6 s: the toast never cleared (3 s hide, 6 s period) and
+        // the map flickered. Render once per offline episode; later calls only
+        // refresh the age readout.
+        showCachedPositions({ announce = true } = {}) {
             if (!this.offlineData || !this.offlineData.positions) {
-                toast('No cached data available');
+                if (announce) toast('No cached data available');
+                this._renderedOfflineAt = 0;
                 return;
             }
             
             const age = Date.now() - this.offlineData.timestamp;
             const ageMinutes = Math.round(age / 60000);
-            
-            toast('Showing data from ' + ageMinutes + ' minutes ago');
+            const ageText = 'Cached · ' + ageMinutes + ' min old';
+            const label = _el('dataSource');
+            if (label) label.textContent = ageText;
+
+            if (this._renderedOfflineAt === this.offlineData.timestamp) return;
+            this._renderedOfflineAt = this.offlineData.timestamp;
+            if (announce) toast('Showing data from ' + ageMinutes + ' minutes ago');
             
             Object.keys(markers).forEach(hex => {
                 if (markers[hex] && map) {
@@ -3379,12 +3402,19 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // check -- fetchWithProxy() relays it. Previously this short-circuited every
             // proxied source to 'degraded' on github.io, which left the hosted build with
             // no usable feed at all. Sources marked `disabled` stay out until re-enabled.
+            // The live loop calls recordSuccess/recordFailure with real latencies every
+            // 6 s, so probing a source it just exercised spends relay budget to learn
+            // what is already known. The entire data plane rides one free relay that
+            // rate-limits, so only probe sources that have gone quiet.
+            const quietAfter = Date.now() - 60000;
             for (const source of this.sources) {
                 if (source.disabled) {
                     source.status = 'unavailable';
                     source.latency = 9999;
                     continue;
                 }
+                const lastSeen = Math.max(source.lastSuccess || 0, source.lastError || 0);
+                if (lastSeen > quietAfter) continue;
                 await this.checkSource(source);
             }
 
@@ -4497,7 +4527,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             el.className = 'alert-notification';
             el.style.borderLeftColor = alert.alertType.color;
             el.innerHTML = safeHTML('<div class="alert-icon" style="color:' + alert.alertType.color + '">' + alert.alertType.icon + '</div>' +
-                '<div class="alert-body"><div class="alert-title">' + alert.callsign + '</div><div class="alert-message">' + alert.message + '</div></div>' +
+                '<div class="alert-body"><div class="alert-title">' + escapeHTML(alert.callsign) + '</div><div class="alert-message">' + escapeHTML(alert.message) + '</div></div>' +
                 '<button class="alert-close" type="button" aria-label="Dismiss alert">&times;</button>');
             
             el.querySelector('.alert-body').addEventListener('click', () => {
@@ -4519,9 +4549,28 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }, alert.type === 'EMERGENCY' ? 30000 : 10000);
         },
         
+        // One context for the whole session. A fresh AudioContext per alert is never
+        // closed, and browsers cap how many a page may hold: a long-running tab used
+        // to hit that cap and lose alert sounds for the rest of the session.
+        _audioContext: null,
+
+        audioContext() {
+            const Ctor = window.AudioContext || window.webkitAudioContext;
+            if (!Ctor) return null;
+            if (!this._audioContext || this._audioContext.state === 'closed') {
+                this._audioContext = new Ctor();
+            }
+            // Autoplay policy suspends a context created before a user gesture.
+            if (this._audioContext.state === 'suspended') {
+                this._audioContext.resume().catch(() => {});
+            }
+            return this._audioContext;
+        },
+
         playSound(type) {
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const ctx = this.audioContext();
+                if (!ctx) return;
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.connect(gain);
@@ -4639,10 +4688,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 .map(entry => {
                     const ac = aircraftCache[entry.hex];
                     const isActive = !!ac;
-                    return '<div class="watchlist-item ' + (isActive ? 'active' : '') + '" data-hex="' + entry.hex + '">' +
-                        '<div class="watchlist-info"><div class="watchlist-name">' + entry.name + '</div>' +
-                        '<div class="watchlist-hex">' + entry.hex + (isActive ? ' - ACTIVE' : '') + '</div></div>' +
-                        '<button class="watchlist-remove" data-hex="' + entry.hex + '" type="button" title="Remove" aria-label="Remove ' + entry.name + '">x</button></div>';
+                    return '<div class="watchlist-item ' + (isActive ? 'active' : '') + '" data-hex="' + escapeHTML(entry.hex) + '">' +
+                        '<div class="watchlist-info"><div class="watchlist-name">' + escapeHTML(entry.name) + '</div>' +
+                        '<div class="watchlist-hex">' + escapeHTML(entry.hex) + (isActive ? ' - ACTIVE' : '') + '</div></div>' +
+                        '<button class="watchlist-remove" data-hex="' + escapeHTML(entry.hex) + '" type="button" title="Remove" aria-label="Remove ' + escapeHTML(entry.name) + '">x</button></div>';
                 }).join('');
             
             container.innerHTML = safeHTML(items);
@@ -4676,11 +4725,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
             const items = Array.from(this.namedWatchlists.values())
                 .sort((a, b) => b.createdAt - a.createdAt)
-                .map(entry => '<div class="named-watchlist-item' + (entry.enabled ? '' : ' disabled') + '" data-id="' + entry.id + '">' +
-                    '<div class="named-watchlist-info"><div class="named-watchlist-name">' + entry.name + '</div>' +
-                    '<div class="named-watchlist-rules">' + this.namedRulesSummary(entry.rules) + '</div></div>' +
+                .map(entry => '<div class="named-watchlist-item' + (entry.enabled ? '' : ' disabled') + '" data-id="' + escapeHTML(entry.id) + '">' +
+                    '<div class="named-watchlist-info"><div class="named-watchlist-name">' + escapeHTML(entry.name) + '</div>' +
+                    '<div class="named-watchlist-rules">' + escapeHTML(this.namedRulesSummary(entry.rules)) + '</div></div>' +
                     '<button class="named-watchlist-action" data-action="toggle" type="button">' + (entry.enabled ? 'On' : 'Off') + '</button>' +
-                    '<button class="named-watchlist-action" data-action="remove" type="button" aria-label="Remove ' + entry.name + '">x</button></div>')
+                    '<button class="named-watchlist-action" data-action="remove" type="button" aria-label="Remove ' + escapeHTML(entry.name) + '">x</button></div>')
                 .join('');
             container.innerHTML = safeHTML(items);
             container.querySelectorAll('.named-watchlist-action').forEach(button => {
@@ -8806,7 +8855,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
         list.innerHTML = safeHTML(bookmarks.map(bookmark =>
             '<div class="bookmark-item" data-id="' + bookmark.id + '">' +
-                '<span class="bookmark-name">' + bookmark.name + '</span>' +
+                '<span class="bookmark-name">' + escapeHTML(bookmark.name) + '</span>' +
                 '<button class="bookmark-delete" type="button" data-id="' + bookmark.id + '" aria-label="Delete bookmark">&times;</button>' +
             '</div>'
         ).join(''));
@@ -9303,7 +9352,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if(!map)return;
         if(gridFetch.inProgress)return;
         if(Date.now()-lastFetchTime<2000)return;
-        if(!offlineManager.isOnline){offlineManager.showCachedPositions();return;}
+        if(!offlineManager.isOnline){offlineManager.showCachedPositions({ announce: false });return;}
         const statsStartedAt = Date.now();
         gridFetch.inProgress=true;fetchInProgress=true;
         try{
@@ -11133,10 +11182,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         const _coverageMode = document.getElementById('coverageMode');
         const _coverageWindow = document.getElementById('coverageWindow');
         const _coverageInterval = document.getElementById('coverageInterval');
+        const _coverageRecordingToggle = document.getElementById('toggleCoverageRecording');
         const _syncCoverageControls = () => {
             const active = coverageView.isActive();
             _coverageToggle?.classList.toggle('on', active);
             _coverageToggle?.setAttribute('aria-checked', String(active));
+            const recording = Boolean(settings.coverageRecording);
+            _coverageRecordingToggle?.classList.toggle('on', recording);
+            _coverageRecordingToggle?.setAttribute('aria-checked', String(recording));
             if (_coverageMode) _coverageMode.value = active ? coverageView.mode() : (settings.coverageMode === 'tracks' ? 'tracks' : 'density');
             if (_coverageWindow) _coverageWindow.value = String(coverageView.windowHours());
             if (_coverageInterval) _coverageInterval.value = String(coverageRecorder.intervalSeconds());
@@ -11153,6 +11206,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         });
         _coverageWindow?.addEventListener('change', event => coverageView.setWindow(event.target.value));
         _coverageInterval?.addEventListener('change', event => coverageView.setInterval(event.target.value));
+        _coverageRecordingToggle?.addEventListener('click', () => {
+            coverageView.setRecording(!settings.coverageRecording);
+            _syncCoverageControls();
+        });
         document.getElementById('coverageClearBtn')?.addEventListener('click', () => coverageView.clear());
         _syncCoverageControls();
         coverageRecorder.start();
@@ -13817,13 +13874,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 document.getElementById('followBtn')?.click();
                 toast('Follow toggled'); e.preventDefault(); break;
             case 'm': case 'M':
-                document.querySelector('[data-filter="military"]')?.click();
+                document.querySelector('.filter-btn[data-filter="military"]')?.click();
                 toast('Military only'); e.preventDefault(); break;
             case 'v': case 'V':
-                document.querySelector('[data-filter="vip"]')?.click();
+                document.querySelector('.filter-btn[data-filter="vip"]')?.click();
                 toast('VIP only'); e.preventDefault(); break;
             case 'a': case 'A':
-                document.querySelector('[data-filter="mil-vip"]')?.click();
+                document.querySelector('.filter-btn[data-filter="mil-vip"]')?.click();
                 toast('All mil + VIP'); e.preventDefault(); break;
             case 's': case 'S':
                 document.getElementById('searchInput')?.focus(); e.preventDefault(); break;
@@ -14352,7 +14409,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             if (!this.layers.length) { el.innerHTML = safeHTML('<div style="color:var(--text-muted);font-size:11px;">No overlays loaded</div>'); return; }
             el.innerHTML = safeHTML(this.layers.map((l, i) =>
                 '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;">' +
-                '<span>' + l.name + '</span>' +
+                '<span>' + escapeHTML(l.name) + '</span>' +
                 '<button data-idx="' + i + '" type="button" class="overlay-remove" aria-label="Remove overlay" style="background:none;border:none;color:var(--danger);cursor:pointer;">×</button></div>'
             ).join(''));
             el.querySelectorAll('.overlay-remove').forEach(btn => btn.addEventListener('click', e => {
@@ -15036,6 +15093,17 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             const timeInput = document.getElementById('openSkyTime');
             if (dateInput && !dateInput.value) dateInput.value = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
             if (timeInput && !timeInput.value) timeInput.value = '12:00';
+            this.restoreCredentials();
+            document.getElementById('openSkyRemember')?.addEventListener('change', event => {
+                if (event.target.checked) {
+                    this.remember(
+                        document.getElementById('openSkyClientId')?.value,
+                        document.getElementById('openSkyClientSecret')?.value
+                    );
+                } else {
+                    this.forget();
+                }
+            });
         },
 
         _setStatus(message) {
@@ -15048,10 +15116,53 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             this.layer = null;
         },
 
+        ID_STORAGE_KEY: 'viptrack_opensky_client_id',
+        SECRET_STORAGE_KEY: 'viptrack_opensky_client_secret',
+
+        isRemembered() {
+            try { return Boolean(localStorage.getItem(this.ID_STORAGE_KEY)); } catch (e) { return false; }
+        },
+
+        // Opt-in only. Without this the credentials surface listed OpenSky as a slot
+        // that could hold a key while nothing in the app ever wrote one, so it read
+        // "not configured" forever and the user retyped OAuth2 credentials per use.
+        remember(clientId, clientSecret) {
+            try {
+                localStorage.setItem(this.ID_STORAGE_KEY, String(clientId || '').slice(0, 180));
+                localStorage.setItem(this.SECRET_STORAGE_KEY, String(clientSecret || '').slice(0, 240));
+            } catch (e) { _dbg('OpenSky credentials not persisted:', e.message); }
+            if (typeof credentialRegistry !== 'undefined') credentialRegistry.render();
+        },
+
+        forget() {
+            try {
+                localStorage.removeItem(this.ID_STORAGE_KEY);
+                localStorage.removeItem(this.SECRET_STORAGE_KEY);
+            } catch (e) { /* private mode */ }
+            if (typeof credentialRegistry !== 'undefined') credentialRegistry.render();
+        },
+
+        restoreCredentials() {
+            const remember = document.getElementById('openSkyRemember');
+            if (!this.isRemembered()) { if (remember) remember.checked = false; return; }
+            let id = '', secret = '';
+            try {
+                id = localStorage.getItem(this.ID_STORAGE_KEY) || '';
+                secret = localStorage.getItem(this.SECRET_STORAGE_KEY) || '';
+            } catch (e) { return; }
+            const clientIdInput = document.getElementById('openSkyClientId');
+            const clientSecretInput = document.getElementById('openSkyClientSecret');
+            if (clientIdInput) clientIdInput.value = id;
+            if (clientSecretInput) clientSecretInput.value = secret;
+            if (remember) remember.checked = true;
+        },
+
         clearAuthState({ clearInputs = true } = {}) {
             this.token = '';
             this.tokenExpiresAt = 0;
-            if (clearInputs) {
+            // Remembered credentials survive a request; only transient ones are wiped,
+            // so the per-use path still leaves nothing behind.
+            if (clearInputs && !this.isRemembered()) {
                 const clientIdInput = document.getElementById('openSkyClientId');
                 const clientSecretInput = document.getElementById('openSkyClientSecret');
                 if (clientIdInput) clientIdInput.value = '';
@@ -15061,6 +15172,9 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
 
         clear(announce = true) {
             this._clearLayer();
+            this.forget();
+            const remember = document.getElementById('openSkyRemember');
+            if (remember) remember.checked = false;
             this.clearAuthState();
             this.lastRecords = [];
             this._setStatus('No historical track loaded');
@@ -15105,6 +15219,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             if (!/^[0-9a-f]{6}$/.test(hex)) { this._setStatus('Enter a six-character ICAO hex or select an aircraft first'); toast('ICAO hex required'); return; }
             if (timestamp === null) { this._setStatus('Choose a valid UTC time within the last 30 days'); toast('Invalid historical time'); return; }
             this._setStatus('Authenticating with OpenSky…');
+            if (document.getElementById('openSkyRemember')?.checked) this.remember(clientId, clientSecret);
             try {
                 const token = await this._getToken(clientId, clientSecret);
                 const url = 'https://opensky-network.org/api/tracks/all?icao24=' + encodeURIComponent(hex) + '&time=' + timestamp;
@@ -16110,6 +16225,9 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 const altitude = Number(ac.alt_baro ?? ac.alt_geom ?? ac.altitude);
                 batch.push({ hex: key, data: [lat, lon, Number.isFinite(altitude) ? altitude : null] });
             }
+            for (const key of this.lastByHex.keys()) {
+                if (!aircraftCache[key]) this.lastByHex.delete(key);
+            }
             if (!batch.length) return 0;
             try {
                 return await skytrackDB.saveTrailPoints(batch);
@@ -16141,6 +16259,13 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             return this.mode() !== 'off';
         },
 
+        // ?renderer=webgl hides the Leaflet map entirely, and this layer draws on a
+        // Leaflet pane. Without this the toggle walked the store and toasted success
+        // onto an invisible canvas.
+        rendersHere() {
+            return !(typeof webglMapManager !== 'undefined' && webglMapManager.renderer);
+        },
+
         async setMode(mode, announce = true) {
             const next = COVERAGE_MODES.includes(mode) ? mode : 'off';
             settings.coverageMode = next;
@@ -16152,6 +16277,12 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 if (announce) toast('Coverage off');
                 return true;
             }
+            if (!this.rendersHere()) {
+                // Keep the setting saved so it applies on the next standard-map load.
+                this.render();
+                if (announce) toast('Coverage draws on the standard map');
+                return false;
+            }
             await this.refresh(announce);
             return true;
         },
@@ -16160,7 +16291,8 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             const value = Number(hours);
             settings.coverageWindow = COVERAGE_WINDOW_HOURS.includes(value) ? value : 6;
             saveSettings();
-            if (this.isActive()) await this.refresh(announce);
+            if (this.isActive() && this.rendersHere()) await this.refresh(announce);
+            else this.render();
         },
 
         setInterval(seconds) {
@@ -16168,6 +16300,17 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             settings.coverageInterval = COVERAGE_INTERVAL_SECONDS.includes(value) ? value : 30;
             saveSettings();
             coverageRecorder.restart();
+        },
+
+        // Turning the view on starts sampling; nothing used to stop it again, so a
+        // single visit left this browser accumulating position history for good.
+        setRecording(enabled) {
+            settings.coverageRecording = Boolean(enabled);
+            saveSettings();
+            if (settings.coverageRecording) coverageRecorder.start();
+            else coverageRecorder.stop();
+            this.render();
+            return settings.coverageRecording;
         },
 
         detach() {
@@ -16254,6 +16397,10 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             const status = _el('coverageStatus');
             if (!status) return;
             if (this.loading) { status.textContent = 'Reading coverage history…'; return; }
+            if (this.isActive() && !this.rendersHere()) {
+                status.textContent = 'Coverage view renders on the standard map — reload without ?renderer=webgl to use it.';
+                return;
+            }
             if (!this.isActive()) {
                 status.textContent = settings.coverageRecording
                     ? 'Coverage off. Sampling continues every ' + coverageRecorder.intervalSeconds() + 's.'

@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_SCHEMA_VERSION = '4.27';
+const CACHE_SCHEMA_VERSION = '4.28';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',
@@ -37,6 +37,12 @@ const PERIODIC_REFRESH_ASSETS = [
 ];
 const API_CACHE_TTL_MS = 60000;
 const TILE_CACHE_LIMIT = 1000;
+// Relay requests carry the target URL in the query string and point queries embed
+// map coordinates, so every pan mints a new cache key. Without a cap those entries
+// -- whole feed payloads -- accumulate forever, because an entry is only deleted
+// when that same URL is requested again after expiry. Tiles have had a cap since
+// the start; the API cache did not.
+const API_CACHE_LIMIT = 50;
 const CACHE_PREFIX = 'viptrack-';
 
 function fnv1a(value) {
@@ -93,6 +99,26 @@ async function freshApiCache(request) {
     return cached;
 }
 
+// Oldest-first eviction on the API cache. Also drops anything already past its
+// TTL, so a sweep reclaims dead entries even when the cap is not yet reached.
+async function evictApiEntries(cache) {
+    const requests = await cache.keys();
+    const entries = [];
+    for (const request of requests) {
+        const response = await cache.match(request);
+        const cachedAt = Number(response?.headers.get('X-VIPTrack-Cached-At'));
+        if (!Number.isFinite(cachedAt)) continue;   // not an API entry
+        entries.push({ request, cachedAt });
+    }
+    const now = Date.now();
+    const expired = entries.filter(entry => now - entry.cachedAt > API_CACHE_TTL_MS);
+    await Promise.all(expired.map(entry => cache.delete(entry.request)));
+    const live = entries.filter(entry => now - entry.cachedAt <= API_CACHE_TTL_MS);
+    if (live.length <= API_CACHE_LIMIT) return;
+    live.sort((a, b) => a.cachedAt - b.cachedAt);
+    await Promise.all(live.slice(0, live.length - API_CACHE_LIMIT).map(entry => cache.delete(entry.request)));
+}
+
 async function touchTile(cache, request, response) {
     await cacheWithTimestamp(cache, request, response, 'X-VIPTrack-Tile-Last-Used');
 }
@@ -146,6 +172,9 @@ self.addEventListener('activate', event => {
         await Promise.all(keys
             .filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME && key !== TILE_CACHE_NAME)
             .map(key => caches.delete(key)));
+        // Reclaim API entries left behind by a previous run: without this a cache
+        // that stopped being written to keeps its expired payloads indefinitely.
+        try { await evictApiEntries(await caches.open(CACHE_NAME)); } catch (error) { /* best effort */ }
         await self.clients.claim();
     })());
 });
@@ -164,7 +193,12 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             fetch(request).then(response => {
                 if (response.ok && response.type !== 'opaque') {
-                    event.waitUntil(caches.open(CACHE_NAME).then(cache => cacheWithTimestamp(cache, request, response, 'X-VIPTrack-Cached-At')).catch(() => {}));
+                    event.waitUntil(caches.open(CACHE_NAME)
+                        .then(async cache => {
+                            await cacheWithTimestamp(cache, request, response, 'X-VIPTrack-Cached-At');
+                            await evictApiEntries(cache);
+                        })
+                        .catch(() => {}));
                 }
                 return response;
             }).catch(() => freshApiCache(request).then(cached => cached || Response.error()))

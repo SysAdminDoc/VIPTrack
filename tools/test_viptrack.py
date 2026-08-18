@@ -80,7 +80,7 @@ class VipTrackContracts(unittest.TestCase):
 
     def test_settings_toggles_are_keyboard_operable_switches(self) -> None:
         toggles = re.findall(r'<button\b[^>]*class="toggle(?: on)?"[^>]*></button>', self.source)
-        self.assertEqual(len(toggles), 14)
+        self.assertEqual(len(toggles), 15)
         self.assertNotIn('<div class="toggle', self.source)
         for toggle in toggles:
             self.assertIn('type="button"', toggle)
@@ -150,7 +150,9 @@ class VipTrackContracts(unittest.TestCase):
             'id="addBookmarkBtn" type="button" title="Save current view" aria-label="Save current view"',
             'id="installDismiss" type="button" aria-label="Dismiss install prompt"',
             'class="alert-close" type="button" aria-label="Dismiss alert"',
-            'class="watchlist-remove" data-hex="\' + entry.hex + \'" type="button"',
+            # Assert the contract (the button carries a type and a data-hex), not the
+            # exact interpolation -- pinning the expression blocked escapeHTML here.
+            'class="watchlist-remove" data-hex="',
             'class="history-remove" type="button"',
             'class="bookmark-delete" type="button"',
             'class="overlay-remove" aria-label="Remove overlay"',
@@ -1094,7 +1096,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.27'",
+            "const CACHE_SCHEMA_VERSION = '4.28'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -1102,6 +1104,12 @@ class VipTrackContracts(unittest.TestCase):
             "const TILE_CACHE_LIMIT = 1000",
             "X-VIPTrack-Tile-Last-Used",
             "entries.sort((a, b) => a.lastUsed - b.lastUsed)",
+            # The API cache is capped and swept the same way tiles are: relay URLs
+            # carry the target in the query string, so every pan mints a new key.
+            "const API_CACHE_LIMIT = 50",
+            "async function evictApiEntries(cache)",
+            "live.sort((a, b) => a.cachedAt - b.cachedAt)",
+            "await evictApiEntries(cache);",
             "self.addEventListener('install'",
             "self.addEventListener('activate'",
             "self.addEventListener('fetch'",
@@ -1109,7 +1117,11 @@ class VipTrackContracts(unittest.TestCase):
             "self.clients.claim()",
         ):
             self.assertIn(marker, worker)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.27'", self.source)
+        # A stale cache from a previous run must be reclaimed on activate, not only
+        # when the same URL happens to be requested again.
+        activate = worker[worker.index("self.addEventListener('activate'"):worker.index("self.addEventListener('periodicsync'")]
+        self.assertIn("evictApiEntries", activate)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.28'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)

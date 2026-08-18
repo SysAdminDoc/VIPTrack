@@ -3,6 +3,19 @@
 ## [Unreleased]
 
 ### Fixed
+- Keyboard shortcuts M, V and A were clicking the hidden mobile filter chips instead of the desktop filter, because both control sets share a `data-filter` attribute and the chips come first in the document. Pressing M toasted "Military only" while the filter never changed, and repeated presses accumulated invisible chip state that dimmed markers with nothing on screen explaining why.
+- Going offline no longer re-toasts and rebuilds every marker on each 6-second poll. Cached positions render once per offline episode; later polls only refresh the age readout.
+- Alert sounds share one AudioContext instead of constructing and abandoning one per alert. Browsers cap how many a page may hold, so a long-running tab used to hit the cap and lose alert sounds for the rest of the session.
+- The service worker's API cache is capped at 50 entries with oldest-first eviction and an activate-time sweep. Relay URLs carry the target in the query string and point queries embed map coordinates, so every pan minted a new key and whole feed payloads accumulated indefinitely; only tiles had a cap.
+- User-supplied bookmark, watchlist and overlay names are escaped before being interpolated into markup. A name containing a quote broke out of the remove button's `aria-label`, and angle brackets rendered as markup rather than the name that was typed.
+- The coverage view no longer claims success under `?renderer=webgl`. That lane hides the Leaflet map while the layer draws on a Leaflet pane, so the toggle was walking the store and painting an invisible canvas; it now says where the view renders and leaves the setting saved for the next standard-map load.
+- OpenSky replay credentials can be stored on purpose. The credentials surface listed OpenSky as a slot that could hold a key, but nothing ever wrote those storage keys, so it read "not configured" forever and its Clear control was unreachable. An explicit "Remember these credentials in this browser" checkbox now backs the slot; without it the per-use path still clears the fields after every request.
+
+### Changed
+- Health and connectivity probes skip any source the live loop measured in the last minute. The whole data plane rides one rate-limited free relay, and the poll already records real latencies every 6 seconds, so the probes were spending shared budget to learn what was already known.
+- Coverage sampling has an off switch. Turning the view on still starts it, but a "Record coverage samples" toggle stops it again — previously a single visit left the browser accumulating position history permanently. The per-hex dedupe map is also pruned to the live cache instead of growing for the session.
+
+### Fixed
 - The three user-configured egress features — the webhook alert sink, the remote GeoJSON overlay loader, and receiver coverage — were being refused by the app's own `connect-src` allowlist and reporting it as a generic "Failed to fetch", indistinguishable from the host being down. They now watch for the `securitypolicyviolation` event and say what actually happened, naming the exact host to add to `connect-src` in `index.html` and `_headers`. Receiver coverage additionally reports the mixed-content case, which no CSP change can fix: an HTTPS page cannot reach an `http://` LAN feeder. README documents both constraints and the settings help text states them.
 
 - Privacy-protected aircraft are no longer named in any shareable URL. `buildViewUrl` was guarded and tested, but `buildUrl` — which writes the address bar through `replaceState`, the URL a user copies by hand — and `generateLink`, behind the Share Flight button, both emitted the PIA hex, and `generateLink` emitted its live position alongside it. All three builders now apply the same rule, and the runtime test covers each.
