@@ -211,6 +211,7 @@
     "settings.basemapCarto": "CARTO Voyager (vecteur MapLibre)",
     "settings.basemapEsri": "ESRI Dark Gray (Leaflet)",
     "settings.basemapHelp": "CARTO et Stadia sont des styles vectoriels MapLibre facultatifs. Utilisez ?renderer=webgl pour les activer ; l’attribution reste visible sur la carte.",
+    "settings.basemapPmtiles": "PMTiles auto-hébergé (vectoriel MapLibre)",
     "settings.basemapStadia": "Stadia Alidade Smooth Dark (vecteur MapLibre)",
     "settings.browserNotifications": "Notifications du navigateur",
     "settings.cancelDrawing": "Annuler le dessin",
@@ -291,6 +292,9 @@
     "settings.overlays": "Calques (X10)",
     "settings.pluginCatalog": "Catalogue de plugins / calques (L7)",
     "settings.pluginCatalogHelp": "Calques et plugins facultatifs pilotés par manifeste. Chaque entrée déclare sa version, sa licence, ses classes de données, ses capacités et son hook de nettoyage ; les modules JavaScript sont de même origine, désactivés par défaut et nécessitent un clic explicite sur Charger.",
+    "settings.pmtilesHelp": "Un chemin .pmtiles de même origine supprime entièrement la dépendance aux fonds de carte tiers. Générez-en un avec tools/build_basemap_pmtiles.py ; la Content-Security-Policy de cette application bloque les archives d'une autre origine.",
+    "settings.pmtilesPath": "Archive PMTiles",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
     "settings.receiverCoverage": "Couverture du récepteur (X13)",
     "settings.receiverCoverageHelp": "Saisissez une URL de base tar1090/readsb. VIPTrack lit directement receiver.json, aircraft.json et stats.json ; votre récepteur doit autoriser CORS. Aucune donnée du récepteur n’est envoyée à un proxy.",
     "settings.receiverUrl": "http://receiver.local/tar1090",
@@ -348,10 +352,6 @@
     "watch.addHint": "Cliquez sur l’étoile d’un aéronef pour l’ajouter",
     "watch.none": "Aucun aéronef suivi",
     "watch.watch": "Suivre",
-    "watch.watchlist": "Suivi",
-    "settings.basemapPmtiles": "PMTiles auto-hébergé (vectoriel MapLibre)",
-    "settings.pmtilesPath": "Archive PMTiles",
-    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
-    "settings.pmtilesHelp": "Un chemin .pmtiles de même origine supprime entièrement la dépendance aux fonds de carte tiers. Générez-en un avec tools/build_basemap_pmtiles.py ; la Content-Security-Policy de cette application bloque les archives d'une autre origine."
+    "watch.watchlist": "Suivi"
   }
 }

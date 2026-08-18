@@ -211,6 +211,7 @@
     "settings.basemapCarto": "CARTO Voyager (MapLibre-Vektor)",
     "settings.basemapEsri": "ESRI Dark Gray (Leaflet)",
     "settings.basemapHelp": "CARTO und Stadia sind optionale MapLibre-Vektorstile. Mit ?renderer=webgl aktivieren; die Quellenangabe bleibt auf der Karte sichtbar.",
+    "settings.basemapPmtiles": "Selbst gehostetes PMTiles (MapLibre-Vektor)",
     "settings.basemapStadia": "Stadia Alidade Smooth Dark (MapLibre-Vektor)",
     "settings.browserNotifications": "Browser-Benachrichtigungen",
     "settings.cancelDrawing": "Zeichnen abbrechen",
@@ -291,6 +292,9 @@
     "settings.overlays": "Ebenen (X10)",
     "settings.pluginCatalog": "Plugin-/Ebenenkatalog (L7)",
     "settings.pluginCatalogHelp": "Manifest-gesteuerte optionale Ebenen und Plugins. Jeder Eintrag deklariert Version, Lizenz, Datenklassen, Fähigkeiten und Bereinigungs-Hook; JavaScript-Module sind gleich-originig, standardmäßig deaktiviert und erfordern einen ausdrücklichen Klick auf Laden.",
+    "settings.pmtilesHelp": "Ein .pmtiles-Pfad derselben Herkunft beseitigt die Abhängigkeit von fremden Basiskarten vollständig. Erzeuge eines mit tools/build_basemap_pmtiles.py; Archive anderer Herkunft blockiert die Content-Security-Policy dieser App.",
+    "settings.pmtilesPath": "PMTiles-Archiv",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
     "settings.receiverCoverage": "Empfängerabdeckung (X13)",
     "settings.receiverCoverageHelp": "Geben Sie eine tar1090/readsb-Basis-URL ein. VIPTrack liest receiver.json, aircraft.json und stats.json direkt; Ihr Empfänger muss Browser-CORS erlauben. Es werden keine Empfängerdaten an einen Proxy gesendet.",
     "settings.receiverUrl": "http://receiver.local/tar1090",
@@ -348,10 +352,6 @@
     "watch.addHint": "Klicken Sie auf den Stern eines Flugzeugs, um es hinzuzufügen",
     "watch.none": "Keine Flugzeuge beobachtet",
     "watch.watch": "Beobachten",
-    "watch.watchlist": "Beobachtungsliste",
-    "settings.basemapPmtiles": "Selbst gehostetes PMTiles (MapLibre-Vektor)",
-    "settings.pmtilesPath": "PMTiles-Archiv",
-    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
-    "settings.pmtilesHelp": "Ein .pmtiles-Pfad derselben Herkunft beseitigt die Abhängigkeit von fremden Basiskarten vollständig. Erzeuge eines mit tools/build_basemap_pmtiles.py; Archive anderer Herkunft blockiert die Content-Security-Policy dieser App."
+    "watch.watchlist": "Beobachtungsliste"
   }
 }

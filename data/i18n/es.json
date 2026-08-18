@@ -211,6 +211,7 @@
     "settings.basemapCarto": "CARTO Voyager (vectorial MapLibre)",
     "settings.basemapEsri": "ESRI Dark Gray (Leaflet)",
     "settings.basemapHelp": "CARTO y Stadia son estilos vectoriales MapLibre opcionales. Usa ?renderer=webgl para activarlos; la atribución permanece visible en el mapa.",
+    "settings.basemapPmtiles": "PMTiles autoalojado (vectorial MapLibre)",
     "settings.basemapStadia": "Stadia Alidade Smooth Dark (vectorial MapLibre)",
     "settings.browserNotifications": "Notificaciones del navegador",
     "settings.cancelDrawing": "Cancelar dibujo",
@@ -291,6 +292,9 @@
     "settings.overlays": "Capas (X10)",
     "settings.pluginCatalog": "Catálogo de plugins / capas (L7)",
     "settings.pluginCatalogHelp": "Capas y plugins opcionales respaldados por manifiesto. Cada entrada declara versión, licencia, clases de datos, capacidades y limpieza; los módulos JavaScript son del mismo origen, están desactivados de forma predeterminada y requieren un clic explícito en Cargar.",
+    "settings.pmtilesHelp": "Una ruta .pmtiles del mismo origen elimina por completo la dependencia de mapas base de terceros. Genera uno con tools/build_basemap_pmtiles.py; la Content-Security-Policy de esta aplicación bloquea los archivos de otro origen.",
+    "settings.pmtilesPath": "Archivo PMTiles",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
     "settings.receiverCoverage": "Cobertura del receptor (X13)",
     "settings.receiverCoverageHelp": "Introduzca una URL base de tar1090/readsb. VIPTrack lee receiver.json, aircraft.json y stats.json directamente; el receptor debe permitir CORS. No se envían datos del receptor a un proxy.",
     "settings.receiverUrl": "http://receiver.local/tar1090",
@@ -348,10 +352,6 @@
     "watch.addHint": "Pulse la estrella de una aeronave para añadirla",
     "watch.none": "No hay aeronaves en seguimiento",
     "watch.watch": "Seguir",
-    "watch.watchlist": "Seguimiento",
-    "settings.basemapPmtiles": "PMTiles autoalojado (vectorial MapLibre)",
-    "settings.pmtilesPath": "Archivo PMTiles",
-    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
-    "settings.pmtilesHelp": "Una ruta .pmtiles del mismo origen elimina por completo la dependencia de mapas base de terceros. Genera uno con tools/build_basemap_pmtiles.py; la Content-Security-Policy de esta aplicación bloquea los archivos de otro origen."
+    "watch.watchlist": "Seguimiento"
   }
 }

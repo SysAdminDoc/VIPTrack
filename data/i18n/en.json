@@ -211,6 +211,7 @@
     "settings.basemapCarto": "CARTO Voyager (MapLibre vector)",
     "settings.basemapEsri": "ESRI Dark Gray (Leaflet)",
     "settings.basemapHelp": "CARTO and Stadia are optional MapLibre vector styles. Use ?renderer=webgl to enable them; attribution remains visible in the map.",
+    "settings.basemapPmtiles": "Self-hosted PMTiles (MapLibre vector)",
     "settings.basemapStadia": "Stadia Alidade Smooth Dark (MapLibre vector)",
     "settings.browserNotifications": "Browser Notifications",
     "settings.cancelDrawing": "Cancel drawing",
@@ -291,6 +292,9 @@
     "settings.overlays": "Overlays (X10)",
     "settings.pluginCatalog": "Plugin / Overlay Catalog (L7)",
     "settings.pluginCatalogHelp": "Manifest-backed optional overlays and plugins. Every entry declares its version, license, data classes, capabilities, and cleanup hook; JavaScript modules are same-origin, disabled by default, and require an explicit Load click.",
+    "settings.pmtilesHelp": "A same-origin .pmtiles path removes the third-party basemap dependency entirely. Build one with tools/build_basemap_pmtiles.py; cross-origin archives are blocked by this app's Content-Security-Policy.",
+    "settings.pmtilesPath": "PMTiles archive",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
     "settings.receiverCoverage": "Receiver Coverage (X13)",
     "settings.receiverCoverageHelp": "Enter a tar1090/readsb base URL. VIPTrack reads receiver.json, aircraft.json, and stats.json directly; your feeder must allow browser CORS. No feeder data is sent to a proxy.",
     "settings.receiverUrl": "http://receiver.local/tar1090",
@@ -348,10 +352,6 @@
     "watch.addHint": "Click star on any aircraft to add",
     "watch.none": "No aircraft watched",
     "watch.watch": "Watch",
-    "watch.watchlist": "Watchlist",
-    "settings.basemapPmtiles": "Self-hosted PMTiles (MapLibre vector)",
-    "settings.pmtilesPath": "PMTiles archive",
-    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
-    "settings.pmtilesHelp": "A same-origin .pmtiles path removes the third-party basemap dependency entirely. Build one with tools/build_basemap_pmtiles.py; cross-origin archives are blocked by this app's Content-Security-Policy."
+    "watch.watchlist": "Watchlist"
   }
 }

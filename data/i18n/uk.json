@@ -211,6 +211,7 @@
     "settings.basemapCarto": "CARTO Voyager (вектор MapLibre)",
     "settings.basemapEsri": "ESRI Dark Gray (Leaflet)",
     "settings.basemapHelp": "CARTO і Stadia — додаткові векторні стилі MapLibre. Увімкніть їх через ?renderer=webgl; атрибуція залишається видимою на карті.",
+    "settings.basemapPmtiles": "Власний PMTiles (вектор MapLibre)",
     "settings.basemapStadia": "Stadia Alidade Smooth Dark (вектор MapLibre)",
     "settings.browserNotifications": "Сповіщення браузера",
     "settings.cancelDrawing": "Скасувати малювання",
@@ -291,6 +292,9 @@
     "settings.overlays": "Шари (X10)",
     "settings.pluginCatalog": "Каталог плагінів / шарів (L7)",
     "settings.pluginCatalogHelp": "Необов’язкові шари й плагіни з маніфесту. Кожен запис оголошує версію, ліцензію, класи даних, можливості та очищення; модулі JavaScript мають те саме джерело, типово вимкнені й потребують явного натискання «Завантажити».",
+    "settings.pmtilesHelp": "Шлях .pmtiles того самого джерела повністю знімає залежність від сторонніх підкладок. Зберіть архів командою tools/build_basemap_pmtiles.py; архіви з інших джерел блокує Content-Security-Policy застосунку.",
+    "settings.pmtilesPath": "Архів PMTiles",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
     "settings.receiverCoverage": "Покриття приймача (X13)",
     "settings.receiverCoverageHelp": "Введіть базову URL tar1090/readsb. VIPTrack напряму читає receiver.json, aircraft.json і stats.json; приймач має дозволяти CORS. Дані приймача не надсилаються проксі.",
     "settings.receiverUrl": "http://receiver.local/tar1090",
@@ -348,10 +352,6 @@
     "watch.addHint": "Натисніть на зірочку повітряного судна, щоб додати його",
     "watch.none": "Немає повітряних суден у спостереженні",
     "watch.watch": "Спостерігати",
-    "watch.watchlist": "Список спостереження",
-    "settings.basemapPmtiles": "Власний PMTiles (вектор MapLibre)",
-    "settings.pmtilesPath": "Архів PMTiles",
-    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
-    "settings.pmtilesHelp": "Шлях .pmtiles того самого джерела повністю знімає залежність від сторонніх підкладок. Зберіть архів командою tools/build_basemap_pmtiles.py; архіви з інших джерел блокує Content-Security-Policy застосунку."
+    "watch.watchlist": "Список спостереження"
   }
 }
