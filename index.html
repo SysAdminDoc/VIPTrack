@@ -16228,8 +16228,11 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
                 if (point.y < -radius || point.y > size.y + radius) continue;
                 const intensity = Math.min(1, Math.log1p(count) / Math.log1p(peak));
                 const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
-                gradient.addColorStop(0, 'rgba(0, 212, 255, ' + (0.16 + intensity * 0.55).toFixed(3) + ')');
-                gradient.addColorStop(0.55, 'rgba(255, 209, 102, ' + (intensity * 0.32).toFixed(3) + ')');
+                // Kept low on purpose: 'lighter' accumulates, so a busy corridor builds
+                // its own highlight. Higher per-cell alpha just clips the whole route to
+                // white and the gradient stops carrying any information.
+                gradient.addColorStop(0, 'rgba(0, 212, 255, ' + (0.09 + intensity * 0.26).toFixed(3) + ')');
+                gradient.addColorStop(0.55, 'rgba(255, 209, 102, ' + (intensity * 0.18).toFixed(3) + ')');
                 gradient.addColorStop(1, 'rgba(255, 92, 112, 0)');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(point.x - radius, point.y - radius, radius * 2, radius * 2);
