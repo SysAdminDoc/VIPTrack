@@ -20,3 +20,6 @@ AGENTS.md
 .ai/
 PROJECT_CONTEXT.md
 CONTINUATION_PROMPT.md
+
+# Self-hosted PMTiles basemap (built by tools/build_basemap_pmtiles.py)
+data/basemap/

@@ -348,6 +348,10 @@
     "watch.addHint": "Нажмите на звёздочку воздушного судна, чтобы добавить его",
     "watch.none": "Нет наблюдаемых воздушных судов",
     "watch.watch": "Наблюдать",
-    "watch.watchlist": "Список наблюдения"
+    "watch.watchlist": "Список наблюдения",
+    "settings.basemapPmtiles": "Собственный PMTiles (вектор MapLibre)",
+    "settings.pmtilesPath": "Архив PMTiles",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
+    "settings.pmtilesHelp": "Путь .pmtiles того же источника полностью снимает зависимость от сторонних подложек. Соберите архив командой tools/build_basemap_pmtiles.py; архивы с других источников блокирует Content-Security-Policy приложения."
   }
 }

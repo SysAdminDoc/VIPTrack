@@ -25,6 +25,8 @@ import contextlib
 import functools
 import http.server
 import json
+import os
+import re
 import socket
 import threading
 import unittest
@@ -48,9 +50,63 @@ PIA_FIXTURE = json.loads((FIXTURES / "adsb-pia.json").read_text(encoding="utf-8"
 BOOT_SETTLE_MS = 9000
 
 
+class _LimitedReader:
+    """Wraps a file object so only the requested byte range is sent."""
+
+    def __init__(self, handle, remaining: int) -> None:
+        self._handle = handle
+        self._remaining = remaining
+
+    def read(self, size: int = -1) -> bytes:
+        if self._remaining <= 0:
+            return b""
+        if size < 0 or size > self._remaining:
+            size = self._remaining
+        chunk = self._handle.read(size)
+        self._remaining -= len(chunk)
+        return chunk
+
+    def close(self) -> None:
+        self._handle.close()
+
+
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+    """Static handler with byte-range support.
+
+    `SimpleHTTPRequestHandler` ignores `Range` and answers 200 with the whole file.
+    GitHub Pages answers 206, and PMTiles is built entirely on range requests, so a
+    server without this tests a transport the app never actually uses.
+    """
+
     def log_message(self, *args, **kwargs) -> None:  # noqa: D102 - silence the server
         pass
+
+    def send_head(self):
+        header = self.headers.get("Range")
+        if not header:
+            return super().send_head()
+        path = self.translate_path(self.path)
+        if not os.path.isfile(path):
+            return super().send_head()
+        match = re.match(r"bytes=(\d+)-(\d*)$", header.strip())
+        if not match:
+            return super().send_head()
+        size = os.path.getsize(path)
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else size - 1
+        end = min(end, size - 1)
+        if start > end:
+            self.send_error(416)
+            return None
+        handle = open(path, "rb")
+        handle.seek(start)
+        self.send_response(206)
+        self.send_header("Content-Type", self.guess_type(path))
+        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        self.end_headers()
+        return _LimitedReader(handle, end - start + 1)
 
 
 @contextlib.contextmanager
@@ -391,6 +447,61 @@ class VipTrackRuntime(unittest.TestCase):
                 )
                 self.assertEqual(undersized, [], f"{width}x{height}")
                 self.assertEqual(crashes, [])
+
+    def test_self_hosted_basemap_serves_tiles_or_falls_back(self) -> None:
+        # The archive is gitignored, so both branches are real deployments: an
+        # operator who ran the build script, and a clean checkout that did not.
+        archive = ROOT / "data" / "basemap" / "basemap.pmtiles"
+        url = f"{self.base_url}/index.html?renderer=webgl&basemap=pmtiles-dark"
+        with self._page(url=url) as (page, crashes):
+            page.wait_for_function(
+                "() => typeof webglMapManager !== 'undefined' && webglMapManager.renderer"
+                " && webglMapManager.renderer.isStyleLoaded()",
+                timeout=45000,
+            )
+            style = page.evaluate("settings.mapStyle")
+            if not archive.exists():
+                self.assertEqual(style, "esri-gray", "a missing archive must fall back, not break the map")
+                self.assertEqual(crashes, [])
+                return
+
+            self.assertEqual(style, "pmtiles-dark")
+            source = page.evaluate("webglMapManager.renderer.getStyle().sources.protomaps.url")
+            self.assertTrue(source.startswith("pmtiles://" + self.base_url), source)
+            # Attribution is a licence obligation of the underlying OSM data.
+            self.assertIn("OpenStreetMap", page.evaluate(
+                "webglMapManager.renderer.getStyle().sources.protomaps.attribution"))
+            # The whole point is that no third-party host is involved.
+            self.assertNotIn("http", json.dumps(page.evaluate(
+                "webglMapManager.renderer.getStyle().layers")))
+
+            page.wait_for_function(
+                "() => webglMapManager.renderer"
+                ".querySourceFeatures('protomaps', {sourceLayer: 'earth'}).length > 0",
+                timeout=45000,
+            )
+            # Vector tiles overzoom, so a z6 archive still draws past its max zoom.
+            page.evaluate("webglMapManager.renderer.jumpTo({center: [-77.04, 38.90], zoom: 9})")
+            page.wait_for_function(
+                "() => webglMapManager.renderer"
+                ".querySourceFeatures('protomaps', {sourceLayer: 'roads'}).length > 0",
+                timeout=30000,
+            )
+            self.assertEqual(crashes, [])
+
+    def test_pmtiles_archive_path_stays_same_origin(self) -> None:
+        with self._page() as (page, crashes):
+            rejected = page.evaluate(
+                "() => ['https://evil.example/a.pmtiles', '//evil.example/a.pmtiles',"
+                " '/etc/a.pmtiles', '../../a.pmtiles', 'data/basemap/a.png']"
+                ".map(v => pmtilesBasemap.setPath(v))"
+            )
+            self.assertEqual(rejected, [False] * 5)
+            self.assertTrue(page.evaluate("pmtilesBasemap.setPath('data/basemap/other.pmtiles')"))
+            self.assertEqual(page.evaluate("pmtilesBasemap.path()"), "data/basemap/other.pmtiles")
+            self.assertTrue(page.evaluate("pmtilesBasemap.archiveUrl()").startswith(self.base_url))
+            page.evaluate("pmtilesBasemap.setPath('')")
+            self.assertEqual(crashes, [])
 
     def test_a_view_link_round_trips_filter_search_and_map_position(self) -> None:
         # A desk finding has to be shareable as a link, the way tar1090 does it.

@@ -127,6 +127,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
 | 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the live feed and selected historical traces get a Cesium clock scrubber |
 | WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers, `TripsLayer` history trails, and opt-in CARTO Voyager or Stadia Alidade Smooth Dark vector basemaps while Leaflet remains the default |
+| Self-Hosted Basemap | Optional PMTiles archive served from your own origin, removing every third-party basemap host — see [Self-hosted basemap](#self-hosted-basemap) |
 | Share Flight | Generate a current-trail PNG for supported Web Share clients, with a copy-link fallback |
 | Web Share Target | Accepts shared ICAO hexes or N-numbers and centers the map on a matching aircraft |
 | Map Bookmarks | Save named camera positions locally and jump back to them from the bottom panel |
@@ -165,6 +166,31 @@ Access via the gear icon. All settings persist in localStorage.
 Remote GeoJSON overlays require an explicit Load action, public HTTPS, a bounded response, and valid GeoJSON geometry; URL parameters only prefill the field for review. Webhooks also require a public HTTPS URL, show a redacted payload preview, and stay disabled for automatic alerts until explicitly enabled.
 
 The Historical Query Workspace accepts a version-1 JSON archive (`source` metadata with `id`, `name`, `license`, and `terms`, plus a `records` array) or CSV with the same fields declared in Settings. It keeps at most 20,000 normalized records / 8 MiB, supports time, bounding-box, hex, type, altitude, speed, and bearing filters, sorted pagination, gap summaries, source attribution, local query history, and CSV/JSON export. The existing OpenSky adapter remains a manual single-track source; it is never bulk-polled. Unsupported registration/operator/API fields are rejected, known PIA identities are redacted before IndexedDB caching and export, and no archive is fetched or redistributed automatically.
+
+### Self-hosted basemap
+
+Every basemap VIPTrack ships with belongs to somebody else. Esri serves the Leaflet default, OpenStreetMap serves the Cesium globe, CARTO and Stadia serve the optional vector styles, and each of them reserves the right to block a busy third-party site without notice. A [PMTiles](https://docs.protomaps.com/pmtiles/) archive removes that exposure: a single file on your own origin, read with HTTP range requests, no tile server and no API key.
+
+Build one from the repository root, then pick **Settings > Appearance > Basemap > Self-hosted PMTiles** or open `?renderer=webgl&basemap=pmtiles-dark`:
+
+```bash
+py -3.13 tools/build_basemap_pmtiles.py          # world, zoom 0-6, ~43 MB
+py -3.13 tools/build_basemap_pmtiles.py --check  # report what is installed
+```
+
+The archive is **not** committed. It is a rebuildable binary, and every refresh would add its full size to git history permanently, so `data/basemap/` is gitignored and you deploy it alongside the site. Without it the option stays disabled and the app keeps its normal basemap.
+
+Sizes measured against the Protomaps daily planet build (127.9 GB) on 2026-08-18:
+
+| Build | Size | Verdict |
+|-------|------|---------|
+| World, zoom 0–6 | 42.7 MB | Default. Vector tiles overzoom, so it still draws past zoom 6 with coarser detail. |
+| World, zoom 0–7 | 178.4 MB | Fits, but consumes a third of the remaining GitHub Pages budget. |
+| CONUS, zoom 0–10 | 361.1 MB | Rejected — US-only coverage for most of the budget. |
+
+The published tree is roughly 466 MB against the GitHub Pages 1 GB soft limit, which is why the build script refuses zoom levels above 6 and archives above 96 MB unless you pass `--allow-large`. Cold load of the zoom 0–6 world archive costs 10 range requests and about 480 KB — the client never downloads the whole file. The style carries no labels: glyph files would have to come from another external host, which is the dependency the archive exists to remove, so the app's own aircraft and airport labels sit on top of plain geometry.
+
+The archive path must be same-origin. `connect-src` is a real allowlist, so a cross-origin archive is blocked by the app's own CSP; hosting elsewhere means adding that host to both the meta CSP in `index.html` and `_headers`. Note also that `python -m http.server` ignores `Range` headers — use a static host that answers 206 (GitHub Pages does) when testing locally.
 
 ### Deployment security headers
 

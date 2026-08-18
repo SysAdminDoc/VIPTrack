@@ -2127,9 +2127,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <option value="esri-gray" data-i18n="settings.basemapEsri">ESRI Dark Gray (Leaflet)</option>
                     <option value="carto-voyager" data-i18n="settings.basemapCarto">CARTO Voyager (MapLibre vector)</option>
                     <option value="stadia-alidade-smooth-dark" data-i18n="settings.basemapStadia">Stadia Alidade Smooth Dark (MapLibre vector)</option>
+                    <option value="pmtiles-dark" id="basemapPmtilesOption" data-i18n="settings.basemapPmtiles">Self-hosted PMTiles (MapLibre vector)</option>
                 </select>
             </div>
             <div class="receiver-coverage-help" data-i18n="settings.basemapHelp">CARTO and Stadia are optional MapLibre vector styles. Use ?renderer=webgl to enable them; attribution remains visible in the map.</div>
+            <div class="setting-row">
+                <span class="setting-label" data-i18n="settings.pmtilesPath">PMTiles archive</span>
+                <input type="text" id="pmtilesPath" class="setting-select" spellcheck="false" autocomplete="off" placeholder="data/basemap/basemap.pmtiles" aria-label="Self-hosted PMTiles archive path" data-i18n-aria-label="settings.pmtilesPath" data-i18n-placeholder="settings.pmtilesPlaceholder">
+            </div>
+            <div class="receiver-coverage-help" id="pmtilesStatus" data-i18n="settings.pmtilesHelp">A same-origin .pmtiles path removes the third-party basemap dependency entirely. Build one with tools/build_basemap_pmtiles.py; cross-origin archives are blocked by this app's Content-Security-Policy.</div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.trailDisplay">Trail Display</div>
@@ -8103,6 +8109,139 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             url: 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json'
         }
     };
+    // L3: Optional self-hosted basemap. Every other basemap in this app belongs to a
+    // third party that may block a busy site without notice; a PMTiles archive served
+    // from this origin over range requests depends on nobody. The archive is built by
+    // `tools/build_basemap_pmtiles.py` and deliberately not committed - it is a large
+    // binary that has to be rebuilt as the data ages, and each rebuild would add its
+    // full size to git history forever. Absent archive means the option stays disabled.
+    const PMTILES_VERSION = '4.5.0';
+    const PMTILES_JS_URL = 'https://cdn.jsdelivr.net/npm/pmtiles@' + PMTILES_VERSION + '/dist/pmtiles.js';
+    const PMTILES_JS_INTEGRITY = 'sha512-sBzSBVcdQ0e2/j/l6+TcS+KVQVPHrZnun1eGiaHMu5MbKqLvOolKIFyRCL1dmJB5avyJTJ+6pMP5I2uVrq3PLg==';
+    const PMTILES_BASEMAP_KEY = 'pmtiles-dark';
+    const PMTILES_DEFAULT_PATH = 'data/basemap/basemap.pmtiles';
+    const PMTILES_PATH_STORAGE_KEY = 'viptrack_pmtiles_path';
+    const pmtilesBasemap = {
+        available: null,
+        manifest: null,
+        protocolRegistered: false,
+
+        // Same-origin only, by design: `connect-src` is a real allowlist, so a
+        // cross-origin archive would be blocked by the CSP rather than loaded.
+        // Operators hosting elsewhere have to add their host to the policy.
+        path() {
+            let stored = '';
+            try { stored = localStorage.getItem(PMTILES_PATH_STORAGE_KEY) || ''; } catch (e) { stored = ''; }
+            const candidate = stored.trim() || PMTILES_DEFAULT_PATH;
+            return this.isSameOriginPath(candidate) ? candidate : PMTILES_DEFAULT_PATH;
+        },
+
+        isSameOriginPath(value) {
+            if (typeof value !== 'string' || !value) return false;
+            if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return false;   // any scheme
+            if (value.startsWith('//') || value.startsWith('/')) return false;
+            if (value.split('/').includes('..')) return false;
+            return value.toLowerCase().endsWith('.pmtiles');
+        },
+
+        setPath(value) {
+            const trimmed = (value || '').trim();
+            if (trimmed && !this.isSameOriginPath(trimmed)) return false;
+            try {
+                if (trimmed) localStorage.setItem(PMTILES_PATH_STORAGE_KEY, trimmed);
+                else localStorage.removeItem(PMTILES_PATH_STORAGE_KEY);
+            } catch (e) { _dbg('PMTiles path not persisted:', e.message); }
+            this.available = null;
+            this.manifest = null;
+            return true;
+        },
+
+        archiveUrl() {
+            return new URL(this.path(), document.baseURI).href;
+        },
+
+        manifestUrl() {
+            return new URL('manifest.json', this.archiveUrl()).href;
+        },
+
+        // A single range request is enough to tell a deployed archive from a 404 or
+        // from GitHub Pages' HTML fallback, and it costs 127 bytes instead of 42 MB.
+        async probe() {
+            if (this.available !== null) return this.available;
+            try {
+                const response = await fetch(this.archiveUrl(), { headers: { Range: 'bytes=0-126' }, cache: 'no-store' });
+                if (!response.ok) { this.available = false; return false; }
+                const header = new Uint8Array(await response.arrayBuffer());
+                // PMTiles v3 magic: "PMTiles" followed by the spec version byte.
+                this.available = header.length >= 8 &&
+                    String.fromCharCode(...header.subarray(0, 7)) === 'PMTiles' && header[7] === 3;
+            } catch (e) {
+                _dbg('PMTiles probe failed:', e.message);
+                this.available = false;
+            }
+            if (this.available) this.loadManifest();
+            return this.available;
+        },
+
+        async loadManifest() {
+            if (this.manifest) return this.manifest;
+            try {
+                const response = await fetch(this.manifestUrl(), { cache: 'no-store' });
+                if (response.ok) this.manifest = await response.json();
+            } catch (e) { _dbg('PMTiles manifest unavailable:', e.message); }
+            return this.manifest;
+        },
+
+        attribution() {
+            return this.manifest?.attribution || '© OpenStreetMap contributors · Protomaps';
+        },
+
+        maxzoom() {
+            const value = Number(this.manifest?.maxzoom);
+            return Number.isFinite(value) && value > 0 ? value : 6;
+        },
+
+        registerProtocol(maplibregl) {
+            if (this.protocolRegistered || !globalThis.pmtiles?.Protocol) return;
+            const protocol = new globalThis.pmtiles.Protocol();
+            maplibregl.addProtocol('pmtiles', protocol.tile);
+            this.protocolRegistered = true;
+        },
+
+        // A compact dark style over the Protomaps basemap schema. Written inline
+        // rather than pulled from a theme package so the archive is the only new
+        // dependency, and so the palette matches the rest of the app.
+        style() {
+            const source = {
+                type: 'vector',
+                url: 'pmtiles://' + this.archiveUrl(),
+                attribution: this.attribution()
+            };
+            const line = (id, sourceLayer, filter, color, width) => ({
+                id, type: 'line', source: 'protomaps', 'source-layer': sourceLayer,
+                ...(filter ? { filter } : {}),
+                paint: { 'line-color': color, 'line-width': width }
+            });
+            // No symbol layers: glyph PBFs would have to come from another external
+            // host, which is the dependency this basemap exists to remove. The app
+            // draws its own aircraft and airport labels over the top.
+            return {
+                version: 8,
+                sources: { protomaps: source },
+                layers: [
+                    { id: 'background', type: 'background', paint: { 'background-color': '#05070f' } },
+                    { id: 'earth', type: 'fill', source: 'protomaps', 'source-layer': 'earth', paint: { 'fill-color': '#141b2c' } },
+                    { id: 'landcover', type: 'fill', source: 'protomaps', 'source-layer': 'landcover', paint: { 'fill-color': '#18202f', 'fill-opacity': 0.55 } },
+                    { id: 'landuse', type: 'fill', source: 'protomaps', 'source-layer': 'landuse', paint: { 'fill-color': '#1b2434', 'fill-opacity': 0.5 } },
+                    { id: 'water', type: 'fill', source: 'protomaps', 'source-layer': 'water', paint: { 'fill-color': '#050b16' } },
+                    line('roads-major', 'roads', ['in', ['get', 'kind'], ['literal', ['highway', 'major_road']]], '#2b3752',
+                        ['interpolate', ['linear'], ['zoom'], 4, 0.4, 10, 1.6]),
+                    line('boundaries-country', 'boundaries', ['<=', ['get', 'kind_detail'], 2], '#3a4766',
+                        ['interpolate', ['linear'], ['zoom'], 2, 0.5, 8, 1.4])
+                ]
+            };
+        }
+    };
     const webglMapManager = {
         requested: false,
         renderer: null,
@@ -8147,15 +8286,26 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
 
         supportsBasemap(key) {
-            return key === 'esri-gray' || Object.prototype.hasOwnProperty.call(MAPLIBRE_VECTOR_STYLES, key);
+            return key === 'esri-gray' || key === PMTILES_BASEMAP_KEY ||
+                Object.prototype.hasOwnProperty.call(MAPLIBRE_VECTOR_STYLES, key);
+        },
+
+        labelFor(key) {
+            if (key === PMTILES_BASEMAP_KEY) return 'Self-hosted PMTiles';
+            return MAPLIBRE_VECTOR_STYLES[key]?.label || 'ESRI Dark Gray';
         },
 
         styleFor(key = settings.mapStyle) {
+            if (key === PMTILES_BASEMAP_KEY) return pmtilesBasemap.style();
             return MAPLIBRE_VECTOR_STYLES[key]?.url || WEBGL_MAP_STYLE;
         },
 
         async setBasemap(key, announce = true) {
             if (!this.supportsBasemap(key)) return false;
+            if (key === PMTILES_BASEMAP_KEY && !(await pmtilesBasemap.probe())) {
+                if (announce) toast('No self-hosted basemap found at ' + pmtilesBasemap.path());
+                return false;
+            }
             settings.mapStyle = key;
             saveSettings();
             if (!this.renderer) {
@@ -8163,7 +8313,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 return false;
             }
             const style = this.styleFor(key);
-            this.setStatus('Loading ' + (MAPLIBRE_VECTOR_STYLES[key]?.label || 'ESRI Dark Gray') + '...');
+            this.setStatus('Loading ' + this.labelFor(key) + '...');
             if (this.overlay) this.overlay.setProps({ layers: [] });
             await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => reject(new Error('MapLibre basemap style load timed out')), 15000);
@@ -8172,7 +8322,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             });
             this.setStatus(Object.keys(aircraftCache).length.toLocaleString() + ' aircraft');
             this.sync();
-            if (announce) toast('Basemap: ' + (MAPLIBRE_VECTOR_STYLES[key]?.label || 'ESRI Dark Gray'));
+            if (announce) toast('Basemap: ' + this.labelFor(key));
             return true;
         },
 
@@ -8212,11 +8362,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             this.libraryPromise = Promise.all([
                 this.loadStylesheet(),
                 this.loadScript(MAPLIBRE_JS_URL, MAPLIBRE_JS_INTEGRITY, 'maplibre', 'maplibregl'),
-                this.loadScript(DECKGL_JS_URL, DECKGL_JS_INTEGRITY, 'deckgl', 'deck')
+                this.loadScript(DECKGL_JS_URL, DECKGL_JS_INTEGRITY, 'deckgl', 'deck'),
+                // 20 KB, and it has to be resolved before the first style load so a
+                // pmtiles:// source is never handed to MapLibre without its protocol.
+                this.loadScript(PMTILES_JS_URL, PMTILES_JS_INTEGRITY, 'pmtiles', 'pmtiles')
+                    .catch(error => { _dbg('PMTiles protocol unavailable:', error.message); })
             ]).then(() => {
                 if (!globalThis.maplibregl?.Map || !globalThis.deck?.MapboxOverlay || !globalThis.deck?.IconLayer || !globalThis.deck?.TripsLayer) {
                     throw new Error('WebGL libraries loaded without the required APIs');
                 }
+                pmtilesBasemap.registerProtocol(globalThis.maplibregl);
                 return { maplibregl: globalThis.maplibregl, deck: globalThis.deck };
             });
             return this.libraryPromise;
@@ -8226,6 +8381,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (!this.requested || this.renderer) return;
             this.setStatus('Loading WebGL renderer...');
             const { maplibregl, deck } = await this.loadLibrary();
+            if (settings.mapStyle === PMTILES_BASEMAP_KEY && !(await pmtilesBasemap.probe())) {
+                _dbg('Self-hosted basemap missing at', pmtilesBasemap.path(), '- falling back to ESRI Dark Gray');
+                settings.mapStyle = 'esri-gray';
+                saveSettings();
+            }
             const renderer = new maplibregl.Map({
                 container: _el('webglMap'),
                 style: this.styleFor(),
@@ -8591,7 +8751,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
     function _localStateSettings(value, label) {
         _localStateRequireKeys(value, ['mapStyle', 'showLabels', 'altitudeColors', 'showWiki', 'filter', 'followMode', 'compactMode'], label);
-        if (!['esri-gray', 'carto-voyager', 'stadia-alidade-smooth-dark'].includes(value.mapStyle)) throw new Error(label + '.mapStyle is unsupported');
+        if (!['esri-gray', 'carto-voyager', 'stadia-alidade-smooth-dark', 'pmtiles-dark'].includes(value.mapStyle)) throw new Error(label + '.mapStyle is unsupported');
         if (!['mil-vip', 'military', 'government', 'vip', 'curated'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
         return { mapStyle: value.mapStyle, showLabels: _localStateBoolean(value.showLabels, label + '.showLabels'), altitudeColors: _localStateBoolean(value.altitudeColors, label + '.altitudeColors'), showWiki: _localStateBoolean(value.showWiki, label + '.showWiki'), filter: value.filter, followMode: _localStateBoolean(value.followMode, label + '.followMode'), compactMode: _localStateBoolean(value.compactMode, label + '.compactMode') };
     }
@@ -10524,11 +10684,47 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         _dbg('MapLibre basemap switch failed:', error.message);
                     }
                 } else {
+                    if (next === PMTILES_BASEMAP_KEY && !(await pmtilesBasemap.probe())) {
+                        basemapStyle.value = previous;
+                        toast('No self-hosted basemap found at ' + pmtilesBasemap.path());
+                        return;
+                    }
                     settings.mapStyle = next;
                     saveSettings();
                     if (next !== 'esri-gray') toast('Vector basemap saved; reload with ?renderer=webgl&basemap=' + encodeURIComponent(next));
                 }
             });
+        }
+        const pmtilesPathInput = document.getElementById('pmtilesPath');
+        const pmtilesStatus = document.getElementById('pmtilesStatus');
+        if (pmtilesPathInput) {
+            let stored = '';
+            try { stored = localStorage.getItem(PMTILES_PATH_STORAGE_KEY) || ''; } catch (e) { stored = ''; }
+            pmtilesPathInput.value = stored;
+            const describe = async () => {
+                const option = document.getElementById('basemapPmtilesOption');
+                const found = await pmtilesBasemap.probe();
+                if (option) option.disabled = !found;
+                if (!pmtilesStatus) return;
+                if (!found) {
+                    pmtilesStatus.textContent = 'No archive at ' + pmtilesBasemap.path() +
+                        ' — build one with tools/build_basemap_pmtiles.py, then reload.';
+                    return;
+                }
+                const manifest = await pmtilesBasemap.loadManifest();
+                const megabytes = Number(manifest?.bytes) ? (Number(manifest.bytes) / (1024 * 1024)).toFixed(1) + ' MB, ' : '';
+                pmtilesStatus.textContent = 'Archive ready at ' + pmtilesBasemap.path() + ' (' + megabytes +
+                    'max zoom ' + pmtilesBasemap.maxzoom() + (manifest?.builtAt ? ', built ' + manifest.builtAt : '') + ').';
+            };
+            pmtilesPathInput.addEventListener('change', async () => {
+                if (!pmtilesBasemap.setPath(pmtilesPathInput.value)) {
+                    pmtilesPathInput.value = '';
+                    pmtilesBasemap.setPath('');
+                    toast('PMTiles path must be a same-origin .pmtiles file');
+                }
+                await describe();
+            });
+            describe();
         }
         document.getElementById('addBookmarkBtn').addEventListener('click', function() {
             const modal = document.getElementById('bookmarkModal');

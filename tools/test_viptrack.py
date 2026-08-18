@@ -54,7 +54,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_cdn_dependency_inventory_and_sanitizer_gate(self) -> None:
         summary = run_gate()
         self.assertEqual(summary["schemaVersion"], 1)
-        self.assertEqual(summary["dependencies"], 9)
+        self.assertEqual(summary["dependencies"], 10)
         for marker in (
             "cdn_dependencies.json",
             "reviewPolicyDays",
@@ -1302,6 +1302,45 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("api_key", section)
         self.assertIn("this.renderer.setStyle(style)", section)
         self.assertIn("saveSettings()", section)
+
+    def test_self_hosted_pmtiles_basemap_is_same_origin_and_uncommitted(self) -> None:
+        for marker in (
+            "const PMTILES_JS_URL =",
+            "const PMTILES_BASEMAP_KEY = 'pmtiles-dark'",
+            "const PMTILES_DEFAULT_PATH = 'data/basemap/basemap.pmtiles'",
+            "maplibregl.addProtocol('pmtiles'",
+            "'pmtiles://' + this.archiveUrl()",
+            "id=\"basemapPmtilesOption\"",
+            "id=\"pmtilesPath\"",
+            "'pmtiles-dark'",
+        ):
+            self.assertIn(marker, self.source)
+
+        start = self.source.index("const pmtilesBasemap = {")
+        section = self.source[start:self.source.index("const webglMapManager = {", start)]
+        # Any scheme, protocol-relative URL, or traversal must be refused: connect-src
+        # is a real allowlist, so a cross-origin archive would be blocked anyway, and
+        # accepting one would put an arbitrary host into the style at runtime.
+        self.assertIn("if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return false;", section)
+        self.assertIn("if (value.startsWith('//') || value.startsWith('/')) return false;", section)
+        self.assertIn("if (value.split('/').includes('..')) return false;", section)
+        self.assertIn("'PMTiles'", section)  # magic-byte probe, not a bare response.ok
+
+        # The archive is a rebuildable binary; committing it would grow git history by
+        # its full size on every refresh.
+        gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("data/basemap/", gitignore)
+        self.assertFalse((ROOT / "data" / "basemap" / "basemap.pmtiles").exists() and
+                         not any(line.strip() == "data/basemap/" for line in gitignore.splitlines()))
+
+        builder = (ROOT / "tools" / "build_basemap_pmtiles.py").read_text(encoding="utf-8")
+        for marker in ("DEFAULT_MAXZOOM = 6", "SIZE_BUDGET_MB", "--allow-large", "Refusing maxzoom"):
+            self.assertIn(marker, builder)
+
+        # The point of the lane is removing third-party basemap hosts, so it must not
+        # smuggle one back in via glyphs or sprites.
+        for smuggled in ("glyphs", "sprite", "protomaps.github.io", "https://"):
+            self.assertNotIn(smuggled, section[section.index("style() {"):])
 
     def test_cesium_playback_uses_trace_samples_and_scrubber(self) -> None:
         for marker in (

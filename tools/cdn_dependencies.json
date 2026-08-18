@@ -122,6 +122,20 @@
       "advisoryStatus": "reviewed-no-known-advisories",
       "reviewedAt": "2026-08-08",
       "sourceMarker": "DECKGL_JS_URL"
+    },
+    {
+      "id": "pmtiles-js",
+      "kind": "script",
+      "name": "PMTiles",
+      "version": "4.5.0",
+      "url": "https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js",
+      "integrity": "sha512-sBzSBVcdQ0e2/j/l6+TcS+KVQVPHrZnun1eGiaHMu5MbKqLvOolKIFyRCL1dmJB5avyJTJ+6pMP5I2uVrq3PLg==",
+      "license": "BSD-3-Clause",
+      "source": "https://github.com/protomaps/PMTiles",
+      "advisorySource": "https://github.com/protomaps/PMTiles/security",
+      "advisoryStatus": "reviewed-no-known-advisories",
+      "reviewedAt": "2026-08-18",
+      "sourceMarker": "PMTILES_JS_URL"
     }
   ]
 }

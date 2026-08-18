@@ -348,6 +348,10 @@
     "watch.addHint": "Pulse la estrella de una aeronave para añadirla",
     "watch.none": "No hay aeronaves en seguimiento",
     "watch.watch": "Seguir",
-    "watch.watchlist": "Seguimiento"
+    "watch.watchlist": "Seguimiento",
+    "settings.basemapPmtiles": "PMTiles autoalojado (vectorial MapLibre)",
+    "settings.pmtilesPath": "Archivo PMTiles",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
+    "settings.pmtilesHelp": "Una ruta .pmtiles del mismo origen elimina por completo la dependencia de mapas base de terceros. Genera uno con tools/build_basemap_pmtiles.py; la Content-Security-Policy de esta aplicación bloquea los archivos de otro origen."
   }
 }

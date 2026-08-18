@@ -348,6 +348,10 @@
     "watch.addHint": "Klicken Sie auf den Stern eines Flugzeugs, um es hinzuzufügen",
     "watch.none": "Keine Flugzeuge beobachtet",
     "watch.watch": "Beobachten",
-    "watch.watchlist": "Beobachtungsliste"
+    "watch.watchlist": "Beobachtungsliste",
+    "settings.basemapPmtiles": "Selbst gehostetes PMTiles (MapLibre-Vektor)",
+    "settings.pmtilesPath": "PMTiles-Archiv",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
+    "settings.pmtilesHelp": "Ein .pmtiles-Pfad derselben Herkunft beseitigt die Abhängigkeit von fremden Basiskarten vollständig. Erzeuge eines mit tools/build_basemap_pmtiles.py; Archive anderer Herkunft blockiert die Content-Security-Policy dieser App."
   }
 }

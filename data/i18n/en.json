@@ -348,6 +348,10 @@
     "watch.addHint": "Click star on any aircraft to add",
     "watch.none": "No aircraft watched",
     "watch.watch": "Watch",
-    "watch.watchlist": "Watchlist"
+    "watch.watchlist": "Watchlist",
+    "settings.basemapPmtiles": "Self-hosted PMTiles (MapLibre vector)",
+    "settings.pmtilesPath": "PMTiles archive",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
+    "settings.pmtilesHelp": "A same-origin .pmtiles path removes the third-party basemap dependency entirely. Build one with tools/build_basemap_pmtiles.py; cross-origin archives are blocked by this app's Content-Security-Policy."
   }
 }

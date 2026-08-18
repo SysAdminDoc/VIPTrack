@@ -348,6 +348,10 @@
     "watch.addHint": "Cliquez sur l’étoile d’un aéronef pour l’ajouter",
     "watch.none": "Aucun aéronef suivi",
     "watch.watch": "Suivre",
-    "watch.watchlist": "Suivi"
+    "watch.watchlist": "Suivi",
+    "settings.basemapPmtiles": "PMTiles auto-hébergé (vectoriel MapLibre)",
+    "settings.pmtilesPath": "Archive PMTiles",
+    "settings.pmtilesPlaceholder": "data/basemap/basemap.pmtiles",
+    "settings.pmtilesHelp": "Un chemin .pmtiles de même origine supprime entièrement la dépendance aux fonds de carte tiers. Générez-en un avec tools/build_basemap_pmtiles.py ; la Content-Security-Policy de cette application bloque les archives d'une autre origine."
   }
 }
