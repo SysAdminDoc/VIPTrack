@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Analyst views are shareable as links. A "Copy view link" control in the toolbar produces a URL carrying the filter mode, search query, map centre and zoom, and the selected aircraft, and opening it restores all of them — so a desk finding can be handed to someone else instead of described. A privacy-protected aircraft is never named in the URL, which a runtime test checks against the marker the product actually reads.
+
 ### Fixed
 - In-app back navigation works on Android 16. From API 33 the platform stops calling `onBackPressed()` once predictive back is enabled, and on API 36 — which this app targets — that is the default, so the back gesture was bypassing the WebView history handler entirely. Back now registers through `OnBackInvokedDispatcher` with the override kept for API 24–32, and the manifest opts in explicitly. The upgraded lint is what surfaced this.
 

@@ -392,6 +392,41 @@ class VipTrackRuntime(unittest.TestCase):
                 self.assertEqual(undersized, [], f"{width}x{height}")
                 self.assertEqual(crashes, [])
 
+    def test_a_view_link_round_trips_filter_search_and_map_position(self) -> None:
+        # A desk finding has to be shareable as a link, the way tar1090 does it.
+        with self._page() as (page, crashes):
+            page.evaluate("document.querySelector('.filter-btn[data-filter=\"military\"]').click()")
+            page.fill("#searchInput", "GLOBEMASTER")
+            page.evaluate("map.setView([51.5, -0.12], 8)")
+            page.wait_for_timeout(1000)
+            url = page.evaluate("shareManager.buildViewUrl()")
+            for expected in ("filter=military", "q=GLOBEMASTER", "zoom=8"):
+                self.assertIn(expected, url)
+            self.assertEqual(crashes, [])
+
+        with self._page(url=url) as (page, crashes):
+            self.assertEqual(page.evaluate("settings.filter"), "military")
+            self.assertEqual(page.evaluate("document.getElementById('searchInput').value"), "GLOBEMASTER")
+            self.assertEqual(page.evaluate("map.getZoom()"), 8)
+            self.assertAlmostEqual(page.evaluate("map.getCenter().lat"), 51.5, places=1)
+            self.assertEqual(crashes, [])
+
+    def test_a_view_link_never_names_a_privacy_protected_aircraft(self) -> None:
+        with self._page() as (page, crashes):
+            leaked = page.evaluate(
+                # isPrivacyProtectedAircraft() keys off privacyProtected / piaInfo / the hex
+                # range -- not dbFlags. Assert against the marker the product actually reads.
+                "() => { const hex = Object.keys(markers)[0]; if (!hex) return 'no aircraft';"
+                " selectedHex = hex; const ac = aircraftCache[hex] || (aircraftCache[hex] = {hex});"
+                " const before = shareManager.buildViewUrl();"
+                " if (!before.includes('hex=')) return 'inconclusive: hex absent before flagging';"
+                " ac.privacyProtected = true;"
+                " const after = shareManager.buildViewUrl(); delete ac.privacyProtected;"
+                " return after.includes('hex=') ? 'LEAKED' : 'ok'; }"
+            )
+            self.assertEqual(leaked, "ok")
+            self.assertEqual(crashes, [])
+
     def test_file_protocol_boot_degrades_without_throwing(self) -> None:
         page = self._new_page()
         crashes: list[str] = []

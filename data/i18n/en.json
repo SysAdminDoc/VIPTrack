@@ -317,6 +317,7 @@
     "settings.webhook": "Alert Webhook (X4)",
     "settings.webhookUrl": "https://…",
     "settings.wikipedia": "Wikipedia Info",
+    "share.copyView": "Copy view link",
     "spec.capacity": "Capacity",
     "spec.cruise": "Cruise",
     "spec.engines": "Engines",

@@ -317,6 +317,7 @@
     "settings.webhook": "Webhook оповещений (X4)",
     "settings.webhookUrl": "https://…",
     "settings.wikipedia": "Информация из Википедии",
+    "share.copyView": "Копировать ссылку на вид",
     "spec.capacity": "Вместимость",
     "spec.cruise": "Крейсерская скорость",
     "spec.engines": "Двигатели",

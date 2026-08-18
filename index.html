@@ -1662,6 +1662,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <!-- Primary Actions (always visible) -->
         <button class="header-btn" id="locateBtn" type="button" title="My Location" aria-label="My Location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button>
 
+        <button class="header-btn" id="copyViewBtn" type="button" title="Copy view link" aria-label="Copy view link" data-i18n-title="share.copyView" data-i18n-aria-label="share.copyView"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg></button>
         <button class="header-btn" id="settingsBtn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
         
         <div class="hv2-sep"></div>
@@ -8758,6 +8759,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             } else if (params.get('zoom')) {
                 map.setZoom(parseInt(params.get('zoom'), 10));
             }
+            const sharedQuery = params.get('q');
+            if (sharedQuery) {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.value = sharedQuery.slice(0, 120);
+                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
             const focus = params.get('focus');
             if (focus) setTimeout(() => { try { selectAircraft(focus.toUpperCase()); } catch(e){} }, 2500);
             const overlayUrl = params.get('overlay');
@@ -8767,6 +8776,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 toast('Overlay URL loaded for review; click Load to fetch it');
             }
         } catch(e) {}
+
+        document.getElementById('copyViewBtn')?.addEventListener('click', () => shareManager.copyViewLink());
 
         // Check URL params for shared flight links
         shareManager.checkUrlParams();
@@ -11389,6 +11400,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (hex) params.set('hex', hex);
             if (filter && filter !== 'all') params.set('filter', filter);
             if (emergency === 'last24h') params.set('emergency', emergency);
+            // A desk finding is only shareable if the search that produced it travels too.
+            const query = overrides.q !== undefined ? overrides.q : (document.getElementById('searchInput')?.value || '');
+            const trimmedQuery = String(query).trim().slice(0, 120);
+            if (trimmedQuery) params.set('q', trimmedQuery);
             
             // Include map position for shared links
             if (overrides.includeMap) {
@@ -11421,6 +11436,40 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             setTimeout(() => { this._suppressPopstate = false; }, 50);
         },
         
+        // The whole current view, not one aircraft: filter, search, map position, and the
+        // selection if there is one. PIA aircraft are never named in a shareable URL.
+        buildViewUrl() {
+            const params = new URLSearchParams();
+            if (settings.filter && settings.filter !== 'all') params.set('filter', settings.filter);
+            const query = (document.getElementById('searchInput')?.value || '').trim().slice(0, 120);
+            if (query) params.set('q', query);
+            if (selectedHex) {
+                const ac = aircraftCache[selectedHex];
+                if (!ac || !isPrivacyProtectedAircraft(ac)) params.set('hex', selectedHex);
+            }
+            if (map) {
+                const c = map.getCenter();
+                params.set('center', c.lat.toFixed(4) + ',' + c.lng.toFixed(4));
+                params.set('zoom', String(map.getZoom()));
+            }
+            const base = IS_VIPTRACK_ANDROID_APP
+                ? VIPTRACK_PUBLIC_START_URL
+                : window.location.origin + window.location.pathname;
+            return base + '?' + params.toString();
+        },
+
+        async copyViewLink() {
+            const url = this.buildViewUrl();
+            try {
+                await navigator.clipboard.writeText(url);
+                toast('View link copied');
+            } catch (e) {
+                // Clipboard access can be denied; show the link so it can still be copied.
+                window.prompt('Copy this view link', url);
+            }
+            return url;
+        },
+
         // Generate a shareable link (includes map position)
         generateLink(hex) {
             const ac = aircraftCache[hex];
