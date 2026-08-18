@@ -8,4 +8,6 @@
     <string name="offline_message">VIPTrack could not finish loading. Check your connection and try again.</string>
     <string name="retry">Retry</string>
     <string name="share_with">Share VIPTrack flight</string>
+    <string name="alert_channel_name">Aircraft alerts</string>
+    <string name="alert_channel_description">Watchlist and emergency squawk alerts.</string>
 </resources>

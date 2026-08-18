@@ -39,6 +39,8 @@ Zero-build, dependency-free static web application. The normal Leaflet 2D map wo
 
 The Settings panel includes a language selector. Locale catalogs live in `data/i18n/{lang}.json`, are loaded only from the app's own origin, and fall back to the English catalog (or the embedded English UI defaults when opened directly as `file://`).
 
+Two test lanes run locally. `py -3.13 tools/test_viptrack.py` is the offline contract suite over the shipped sources, and `py -3.13 tools/test_runtime.py` boots the page in headless Chromium with the network stubbed from the captures in `tools/fixtures/` and asserts observable behaviour. The runtime lane needs `playwright` plus its Chromium build and skips cleanly when either is missing.
+
 The `android/` project is a first-party Android app for the mockup-derived Map, Aircraft, Watch, and Settings workspace. It serves a compact copy of the mobile shell from an in-app HTTPS origin with AndroidX WebKit, retains the PWA cache, opens external links outside the app, and fetches live/large datasets over HTTPS. It does not require Chrome and deliberately packages neither the 192 MB aircraft-photo catalog nor the 85 MB FAA shard set. With JDK 17+ and the Android SDK configured, build unsigned artifacts with `gradlew.bat assembleRelease` and `gradlew.bat bundleRelease` from that directory. No release signing key is generated or committed.
 
 ## Features

@@ -3,6 +3,10 @@ package com.sysadmindoc.viptrack;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -60,6 +64,8 @@ public final class LauncherActivity extends Activity {
     private static final String LOG_TAG = "VIPTrack";
     private static final int LOCATION_PERMISSION_REQUEST = 4101;
     private static final int FILE_CHOOSER_REQUEST = 4102;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 4103;
+    private static final String ALERT_CHANNEL_ID = "viptrack-alerts";
     private static final long STARTUP_TIMEOUT_MS = 45_000L;
 
     private static final int COLOR_NAVY = Color.rgb(3, 16, 29);
@@ -449,6 +455,10 @@ public final class LauncherActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+            // Nothing to replay: the next alert posts normally once permission is held.
+            return;
+        }
         if (requestCode != LOCATION_PERMISSION_REQUEST || geolocationCallback == null) return;
         boolean granted = false;
         for (int result : grantResults) {
@@ -457,6 +467,57 @@ public final class LauncherActivity extends Activity {
         geolocationCallback.invoke(geolocationOrigin, granted, false);
         geolocationCallback = null;
         geolocationOrigin = null;
+    }
+
+    /**
+     * WebView ships no Web Notifications API, so `new Notification(...)` in the page is a
+     * no-op inside the app. The web layer calls through the bridge instead and we post a
+     * real one here. The runtime permission is requested on first use rather than at
+     * launch, matching how location is handled above.
+     */
+    private void postAlertNotification(String title, String body, String hex) {
+        if (title == null || title.isEmpty()) return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST);
+            return;
+        }
+
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && manager.getNotificationChannel(ALERT_CHANNEL_ID) == null) {
+            NotificationChannel channel = new NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    getString(R.string.alert_channel_name),
+                    NotificationManager.IMPORTANCE_HIGH);
+            channel.setDescription(getString(R.string.alert_channel_description));
+            manager.createNotificationChannel(channel);
+        }
+
+        // Reopening the app deep-links straight to the aircraft that fired the alert.
+        Intent intent = new Intent(this, LauncherActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (hex != null && !hex.isEmpty()) intent.putExtra("viptrack_hex", hex);
+        PendingIntent pending = PendingIntent.getActivity(this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, ALERT_CHANNEL_ID)
+                : new Notification.Builder(this);
+        builder.setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(body == null ? "" : body)
+                .setAutoCancel(true)
+                .setContentIntent(pending);
+
+        // One notification per aircraft, so repeated alerts replace rather than stack.
+        int id = hex == null || hex.isEmpty() ? 1 : hex.hashCode();
+        manager.notify(id, builder.build());
     }
 
     private void openExternalUrl(String rawUrl) {
@@ -672,6 +733,14 @@ public final class LauncherActivity extends Activity {
             LauncherActivity activity = activityReference.get();
             if (activity != null) {
                 activity.runOnUiThread(() -> activity.shareText(title, text, url));
+            }
+        }
+
+        @JavascriptInterface
+        public void notifyAlert(String title, String body, String hex) {
+            LauncherActivity activity = activityReference.get();
+            if (activity != null) {
+                activity.runOnUiThread(() -> activity.postAlertNotification(title, body, hex));
             }
         }
 

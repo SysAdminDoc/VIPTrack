@@ -4373,7 +4373,21 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
         
         showBrowserNotification(alert) {
-            if (Notification.permission !== 'granted') return;
+            // Android WebView implements no Web Notifications API, so `new Notification`
+            // is silently inert there. Hand the alert to the native bridge instead.
+            if (CONFIG.isAndroidApp && typeof window.VIPTrackAndroid?.notifyAlert === 'function') {
+                try {
+                    window.VIPTrackAndroid.notifyAlert(
+                        'VIPTrack: ' + alert.callsign,
+                        String(alert.message || ''),
+                        String(alert.aircraft?.hex || '')
+                    );
+                } catch (e) {
+                    _dbg('Native alert notification failed', e);
+                }
+                return;
+            }
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
             const notification = new Notification('VIPTrack: ' + alert.callsign, {
                 body: alert.message,
                 icon: 'assets/logo/VIPTrack_Mark-128x128.png',
@@ -4388,6 +4402,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
         
         async requestNotificationPermission() {
+            // The native host owns the Android 13+ runtime prompt and raises it on the
+            // first alert, so the in-page permission flow does not apply there.
+            if (CONFIG.isAndroidApp && typeof window.VIPTrackAndroid?.notifyAlert === 'function') {
+                this.notificationsEnabled = true;
+                this.saveSettings();
+                toast('Notifications enabled');
+                return true;
+            }
             if (!('Notification' in window)) {
                 toast('Notifications not supported');
                 return false;
