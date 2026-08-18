@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.8.0] - 2026-08-18
 
 ### Fixed
 - Android: an alert that arrives before notification permission is granted is no longer discarded. It is held and posted once the user grants it — with per-aircraft cooldowns running to ten minutes, dropping it meant staring at nothing long after saying yes. Tapping a notification now selects the aircraft that fired it, which the code has always promised but never did: the `viptrack_hex` extra was written and never read. Each notification also gets its own PendingIntent slot, so two concurrent alerts no longer share one intent. Hardware acceptance is still outstanding — no device is attached to the build machine.
