@@ -3219,6 +3219,55 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     };
 
+    // Relay health is tracked apart from source health. Every aggregator is reached
+    // through the relay now, so a relay-side 429 or outage makes all four look
+    // "unhealthy" at once -- a signature that means "relay throttled", not "feeds down".
+    const relayHealth = {
+        activeIndex: 0,
+        lastError: null,
+        lastErrorAt: 0,
+        lastSuccessAt: 0,
+        throttledUntil: 0,
+
+        name(index = this.activeIndex) {
+            try { return new URL(CONFIG.corsProxies[index]('https://example.com')).host; }
+            catch (e) { return 'relay ' + (index + 1); }
+        },
+        isThrottled() { return Date.now() < this.throttledUntil; },
+        recordSuccess(index) {
+            this.activeIndex = index;
+            this.lastSuccessAt = Date.now();
+            this.lastError = null;
+            this.throttledUntil = 0;
+        },
+        recordFailure(status) {
+            this.lastErrorAt = Date.now();
+            if (status === 429) {
+                this.lastError = 'rate limited (HTTP 429)';
+                // Back off rather than hammering a relay that is already refusing us.
+                this.throttledUntil = Date.now() + 120000;
+            } else if (status) {
+                this.lastError = 'HTTP ' + status;
+            } else {
+                this.lastError = 'unreachable';
+            }
+        },
+        status() {
+            if (this.isThrottled()) return 'degraded';
+            if (this.lastSuccessAt && this.lastSuccessAt >= this.lastErrorAt) return 'healthy';
+            if (this.lastError) return 'unhealthy';
+            return 'unknown';
+        },
+        describe() {
+            if (this.isThrottled()) {
+                return this.name() + ' backing off for ' + Math.ceil((this.throttledUntil - Date.now()) / 1000) + 's (' + this.lastError + ')';
+            }
+            if (this.status() === 'healthy') return this.name() + ' relaying';
+            if (this.lastError) return this.name() + ': ' + this.lastError;
+            return 'not used yet';
+        }
+    };
+
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
@@ -3305,14 +3354,23 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     source.status = 'healthy';
                     source.lastSuccess = Date.now();
                     source.errorCount = 0;
+                    source.blockedByRelay = false;
                 } else {
                     throw new Error('HTTP ' + response.status);
                 }
             } catch (e) {
-                source.status = source.errorCount > 3 ? 'unhealthy' : 'degraded';
                 source.lastError = Date.now();
-                source.errorCount++;
                 source.latency = 9999;
+                if (source.cors === false && relayHealth.status() !== 'healthy') {
+                    // The relay could not deliver the request, so this says nothing about
+                    // the aggregator. Hold the source at 'degraded' and don't count it out.
+                    source.status = 'degraded';
+                    source.blockedByRelay = true;
+                } else {
+                    source.status = source.errorCount > 3 ? 'unhealthy' : 'degraded';
+                    source.errorCount++;
+                    source.blockedByRelay = false;
+                }
             }
         },
         
@@ -3392,7 +3450,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 '<span class="source-name">' + best.name + '</span>' +
                 '<span class="source-status ' + level + '">' + healthy + '/' + total + '</span>' +
                 '<span class="source-latency">' + (best.latency < 9999 ? best.latency + 'ms' : '--') + '</span>');
-            indicator.title = healthy + ' of ' + total + ' sources healthy. ' + best.coverage + ' ' + best.limitations;
+            indicator.title = relayHealth.status() !== 'healthy' && this.enabledSources().every(source => source.blockedByRelay)
+                ? 'No source reachable: ' + relayHealth.describe()
+                : healthy + ' of ' + total + ' sources healthy. ' + best.coverage + ' ' + best.limitations;
             this.renderDetail();
         },
 
@@ -3402,6 +3462,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const rows = this.sources.map(source => {
                 const meta = source.disabled
                     ? source.disabledReason
+                    : source.blockedByRelay
+                    ? 'not reached: the relay is ' + (relayHealth.isThrottled() ? 'backing off' : 'failing')
                     : 'last ok ' + this.describeAge(source.lastSuccess)
                         + (source.errorCount ? ' | ' + source.errorCount + ' recent error' + (source.errorCount === 1 ? '' : 's') : '')
                         + (source.cors === false ? ' | relayed' : '');
@@ -3410,10 +3472,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     + '<span class="dsd-meta">' + meta + '</span></span>'
                     + '<span class="dsd-latency">' + (source.latency && source.latency < 9999 ? source.latency + 'ms' : '--') + '</span></div>';
             }).join('');
+            const relayRow = '<div class="dsd-row"><span class="dsd-dot ' + relayHealth.status()
+                + '"></span><span class="dsd-name">CORS relay<span class="dsd-meta">'
+                + relayHealth.describe() + '</span></span><span class="dsd-latency"></span></div>';
             const feedAge = '<div class="dsd-row"><span class="dsd-dot ' + (Date.now() - lastFetchTime > 60000 ? 'degraded' : 'healthy')
                 + '"></span><span class="dsd-name">Aircraft data<span class="dsd-meta">updated '
                 + this.describeAge(lastFetchTime) + '</span></span><span class="dsd-latency"></span></div>';
-            body.innerHTML = safeHTML(rows + feedAge);
+            body.innerHTML = safeHTML(rows + relayRow + feedAge);
         },
 
         toggleDetail(force) {
@@ -8235,15 +8300,25 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (!CONFIG.isLocalFile && !skipDirect) {
             try { const response = await fetchWithTimeout(target.href, options); if (response?.ok) return response; } catch (e) {}
         }
+        let lastStatus = null;
         for (let i = 0; i < CONFIG.corsProxies.length; i++) {
             const index = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length;
             try {
                 const proxyUrl = egressPolicy.validateUrl(CONFIG.corsProxies[index](target.href), { kind: 'proxy' });
                 if (!proxyUrl) continue;
                 const response = await fetchWithTimeout(proxyUrl.href, { cache: 'no-cache', credentials: 'omit' });
-                if (response?.ok) { lastSuccessfulProxy = index; return response; }
-            } catch (e) {}
+                if (response?.ok) {
+                    lastSuccessfulProxy = index;
+                    relayHealth.recordSuccess(index);
+                    return response;
+                }
+                lastStatus = response?.status ?? null;
+            } catch (e) {
+                lastStatus = null;
+            }
         }
+        // Every relay refused: that is a relay fault, not a fault of the upstream host.
+        relayHealth.recordFailure(lastStatus);
         return null;
     }
     async function fetchWithTimeout(url, options, timeout = 10000) { const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); try { const r = await fetch(url, { ...(options || {}), signal: controller.signal }); clearTimeout(id); return r; } catch (e) { clearTimeout(id); throw e; } }

@@ -309,6 +309,53 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertFalse(page.evaluate("radarActive()"))
             self.assertEqual(crashes, [])
 
+    def test_a_throttled_relay_is_not_reported_as_dead_feeds(self) -> None:
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        host = self.base_url.split("//", 1)[1]
+
+        def handler(route):
+            url = route.request.url
+            if host in url or url.startswith("file://"):
+                route.fallback()
+                return
+            if "corsproxy.io" in url or "allorigins.win" in url:
+                route.fulfill(status=429, content_type="text/plain",
+                              headers={"Access-Control-Allow-Origin": "*"}, body="Too Many Requests")
+                return
+            route.fallback()
+
+        # Playwright runs routes last-registered-first, so the relay override has to be
+        # registered after the base stub or the base stub answers the relay instead.
+        self._route_external(page)
+        page.route("**/*", handler)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            # The relay is flagged on the first request; wait for the source sweep too.
+            page.wait_for_function(
+                "() => relayHealth.isThrottled() && dataSourceManager.enabledSources()"
+                ".some(s => s.blockedByRelay)", timeout=45000)
+            self.assertTrue(page.evaluate("relayHealth.isThrottled()"))
+            self.assertIn("429", page.evaluate("relayHealth.describe()"))
+            # Relayed sources must not be counted out over a fault that is not theirs.
+            relayed = page.evaluate(
+                "dataSourceManager.enabledSources().filter(s => s.cors === false)"
+                ".map(s => ({status: s.status, blocked: !!s.blockedByRelay}))"
+            )
+            self.assertTrue(relayed)
+            for source in relayed:
+                self.assertEqual(source["status"], "degraded")
+                self.assertTrue(source["blocked"])
+            # The tooltip must name the relay and the reason, not blame the feeds.
+            title = page.evaluate("document.getElementById('dataSourceIndicator').title").lower()
+            self.assertIn("no source reachable", title)
+            self.assertIn("429", title)
+            self.assertIn(page.evaluate("relayHealth.name()").lower(), title)
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_file_protocol_boot_degrades_without_throwing(self) -> None:
         page = self._new_page()
         crashes: list[str] = []
