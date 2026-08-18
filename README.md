@@ -69,7 +69,7 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 | OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
 | OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
-| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 342 UI keys |
+| Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 360+ UI keys |
 | Type Photos | Local representative aircraft-type images with a silhouette fallback | 522 manifest entries |
 
 ### Aircraft Type Photo Enrichment

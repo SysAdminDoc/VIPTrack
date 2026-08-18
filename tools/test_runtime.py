@@ -448,6 +448,124 @@ class VipTrackRuntime(unittest.TestCase):
                 self.assertEqual(undersized, [], f"{width}x{height}")
                 self.assertEqual(crashes, [])
 
+    def test_csv_export_quotes_and_defuses_spreadsheet_formulas(self) -> None:
+        # Feed-controlled callsigns land straight in an analyst's spreadsheet, where
+        # a leading = executes. Quoting was also inconsistent: an embedded quote
+        # broke the row and a comma shifted every column after it.
+        with self._page() as (page, crashes):
+            cells = page.evaluate(
+                """() => [csvCell('=HYPERLINK("x")'), csvCell('A,B"C'), csvCell('+1'),
+                          csvCell('-7'), csvCell('@here'), csvCell('RCH419'), csvCell(null)]"""
+            )
+            # This one needs quoting too, so the guard sits inside the quotes.
+            self.assertEqual(cells[0], '"\'=HYPERLINK(""x"")"')
+            self.assertEqual(cells[1], '"A,B""C"')
+            self.assertTrue(cells[2].startswith("'+"))
+            self.assertTrue(cells[3].startswith("'-"))
+            self.assertTrue(cells[4].startswith("'@"))
+            # An ordinary value must stay untouched.
+            self.assertEqual(cells[5], "RCH419")
+            self.assertEqual(cells[6], "")
+            self.assertEqual(crashes, [])
+
+    def test_mobile_pan_control_meets_target_size_and_clears_the_nav(self) -> None:
+        # The pan grid is the SC 2.5.7 non-drag alternative, so it must stay on
+        # touch -- but it rendered as 30px desktop chrome floating mid-screen.
+        with self._page(viewport={"width": 360, "height": 640}) as (page, crashes):
+            layout = page.evaluate(
+                """() => {
+                    const pan = document.querySelector('.map-pan-control');
+                    if (!pan) return { missing: true };
+                    const button = pan.querySelector('button:not(.map-pan-spacer)');
+                    const b = button.getBoundingClientRect();
+                    const r = pan.getBoundingClientRect();
+                    const nav = document.querySelector('.mobile-bottom-nav, .mobile-nav');
+                    const navTop = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+                    return { width: Math.round(b.width), height: Math.round(b.height),
+                             bottom: Math.round(r.bottom), navTop: Math.round(navTop),
+                             right: Math.round(r.right), viewportWidth: window.innerWidth,
+                             visible: r.width > 0 };
+                }"""
+            )
+            self.assertFalse(layout.get("missing"), "the SC 2.5.7 pan alternative disappeared on mobile")
+            self.assertTrue(layout["visible"])
+            self.assertGreaterEqual(layout["width"], 44)
+            self.assertGreaterEqual(layout["height"], 44)
+            self.assertLessEqual(layout["bottom"], layout["navTop"], "pan grid overlaps the bottom nav")
+            self.assertLessEqual(layout["right"], layout["viewportWidth"])
+            self.assertEqual(crashes, [])
+
+    def test_sweep_work_is_not_repeated_per_aircraft_or_per_poll(self) -> None:
+        with self._page() as (page, crashes):
+            # A named list's callsign regex was recompiled for every aircraft on
+            # every 6 s sweep -- thousands of identical RegExp constructions.
+            compiles = page.evaluate(
+                """() => {
+                    alertSystem.namedWatchlists.clear();
+                    alertSystem.createNamedWatchlist('Audit', { callsignRegex: '^RCH' });
+                    const Real = window.RegExp;
+                    let count = 0;
+                    const Counted = function (...args) { count++; return new Real(...args); };
+                    Counted.prototype = Real.prototype;
+                    window.RegExp = Counted;
+                    const list = [...alertSystem.namedWatchlists.values()][0];
+                    for (const ac of Object.values(aircraftCache)) {
+                        alertSystem.matchesNamedRules(ac, list.rules);
+                    }
+                    window.RegExp = Real;
+                    alertSystem.namedWatchlists.clear();
+                    return { count, aircraft: Object.keys(aircraftCache).length };
+                }"""
+            )
+            self.assertGreater(compiles["aircraft"], 1, "no aircraft to sweep")
+            self.assertLessEqual(compiles["count"], 1,
+                                 f"regex compiled {compiles['count']} times for {compiles['aircraft']} aircraft")
+
+            # The watchlist panel was torn down and rebuilt on every poll even when
+            # closed and unchanged.
+            rebuilds = page.evaluate(
+                """() => {
+                    alertSystem.watchlist.clear();
+                    alertSystem.watchlist.set('ABC123',
+                        { hex: 'ABC123', name: 'Audit', notes: '', addedAt: Date.now() });
+                    alertSystem._watchlistSignature = '';
+                    alertSystem.updateWatchlistUI();
+                    const container = document.getElementById('watchlistItems');
+                    let mutations = 0;
+                    const observer = new MutationObserver(records => { mutations += records.length; });
+                    observer.observe(container, { childList: true, subtree: true });
+                    for (let i = 0; i < 5; i++) alertSystem.updateWatchlistUI();
+                    observer.disconnect();
+                    return mutations;
+                }"""
+            )
+            self.assertEqual(rebuilds, 0, "the closed, unchanged watchlist was rebuilt")
+            self.assertEqual(crashes, [])
+
+    def test_local_state_import_preserves_settings_it_does_not_carry(self) -> None:
+        # The backup schema is a subset of `settings`; a straight overwrite reset
+        # every key it does not carry rather than merely excluding it.
+        with self._page() as (page, crashes):
+            preserved = page.evaluate(
+                """async () => {
+                    settings.coverageMode = 'tracks';
+                    settings.coverageWindow = 24;
+                    settings.coverageInterval = 60;
+                    saveSettings();
+                    const state = localStateManager.buildState();
+                    await localStateManager._persist(state);
+                    const stored = JSON.parse(localStorage.getItem('viptrack_settings_v3'));
+                    return { mode: stored.coverageMode, window: stored.coverageWindow,
+                             interval: stored.coverageInterval, filter: stored.filter };
+                }"""
+            )
+            self.assertEqual(preserved["mode"], "tracks")
+            self.assertEqual(preserved["window"], 24)
+            self.assertEqual(preserved["interval"], 60)
+            # The keys the backup does carry are still applied.
+            self.assertIsNotNone(preserved["filter"])
+            self.assertEqual(crashes, [])
+
     def test_opensky_credential_slot_can_actually_hold_a_credential(self) -> None:
         # The credentials surface watched two storage keys nothing ever wrote, so the
         # slot read "not configured" forever and its Clear button was unreachable.

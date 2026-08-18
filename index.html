@@ -1150,10 +1150,36 @@
                 height: 24px;
             }
             
-            /* Hide desktop-only elements */
+            /* Hide desktop-only elements. The pan grid stays: it is the SC 2.5.7
+               single-pointer alternative to dragging and applies on touch too. */
             .mobile-view .bottom-panels,
             .mobile-view .leaflet-control-zoom {
                 display: none !important;
+            }
+
+            /* Re-home the pan grid as mobile chrome: above the nav, clear of the
+               selected-aircraft peek card, with targets that meet SC 2.5.8. */
+            .mobile-view .leaflet-top.leaflet-left {
+                top: auto !important;
+                bottom: calc(var(--mobile-nav-clearance, 78px) + 46px) !important;
+                right: 10px !important;
+                left: auto !important;
+            }
+            body.mobile-view:has(.mobile-map-peek) .leaflet-top.leaflet-left {
+                bottom: calc(var(--mobile-nav-clearance, 78px) + 172px) !important;
+            }
+            .mobile-view .map-pan-control {
+                grid-template-columns: repeat(3, 44px);
+                grid-template-rows: repeat(3, 44px);
+                gap: 3px;
+            }
+            .mobile-view .map-pan-control button {
+                width: 44px;
+                height: 44px;
+                font-size: 16px;
+                border-radius: 10px;
+                background: var(--bg-panel);
+                backdrop-filter: blur(8px);
             }
             
             /* Adjust modal for mobile */
@@ -2135,7 +2161,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <span class="setting-label" data-i18n="settings.pmtilesPath">PMTiles archive</span>
                 <input type="text" id="pmtilesPath" class="setting-select" spellcheck="false" autocomplete="off" placeholder="data/basemap/basemap.pmtiles" aria-label="Self-hosted PMTiles archive path" data-i18n-aria-label="settings.pmtilesPath" data-i18n-placeholder="settings.pmtilesPlaceholder">
             </div>
-            <div class="receiver-coverage-help" id="pmtilesStatus" data-i18n="settings.pmtilesHelp">A same-origin .pmtiles path removes the third-party basemap dependency entirely. Build one with tools/build_basemap_pmtiles.py; cross-origin archives are blocked by this app's Content-Security-Policy.</div>
+            <div class="receiver-coverage-help" data-i18n="settings.pmtilesHelp">A same-origin .pmtiles path removes the third-party basemap dependency entirely. Build one with tools/build_basemap_pmtiles.py; cross-origin archives are blocked by this app's Content-Security-Policy.</div>
+            <div class="receiver-coverage-status" id="pmtilesStatus" role="status" aria-live="polite"></div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.trailDisplay">Trail Display</div>
@@ -3736,271 +3763,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     };
 
-    // ============ PHASE 16: AUTO-RETRY SYSTEM ============
-    const retrySystem = {
-        defaultConfig: {
-            maxRetries: 3,
-            baseDelay: 1000,
-            maxDelay: 30000,
-            backoffMultiplier: 2,
-            retryOn: [408, 429, 500, 502, 503, 504]
-        },
-        
-        async withRetry(fn, config = {}) {
-            const options = { ...this.defaultConfig, ...config };
-            let lastError;
-            let delay = options.baseDelay;
-            
-            for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
-                try {
-                    return await fn();
-                } catch (error) {
-                    lastError = error;
-                    
-                    const shouldRetry = this.shouldRetry(error, options, attempt);
-                    
-                    if (!shouldRetry) {
-                        throw error;
-                    }
-                    
-                    _dbg('Retry attempt ' + (attempt + 1) + '/' + options.maxRetries + ' after ' + delay + 'ms');
-                    
-                    await new Promise(r => setTimeout(r, delay));
-                    
-                    delay = Math.min(
-                        options.maxDelay,
-                        delay * options.backoffMultiplier * (0.5 + Math.random())
-                    );
-                }
-            }
-            
-            throw lastError;
-        },
-        
-        shouldRetry(error, options, attempt) {
-            if (attempt >= options.maxRetries) return false;
-            
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                return true;
-            }
-            
-            if (error.status && options.retryOn.includes(error.status)) {
-                return true;
-            }
-            
-            if (error.name === 'AbortError' || error.message.includes('timeout')) {
-                return true;
-            }
-            
-            return false;
-        },
-        
-        async fetch(url, options = {}) {
-            return this.withRetry(async () => {
-                const response = await fetch(url, {
-                    ...options,
-                    signal: options.signal || AbortSignal.timeout(options.timeout || 10000)
-                });
-                
-                if (!response.ok) {
-                    const error = new Error('HTTP ' + response.status);
-                    error.status = response.status;
-                    throw error;
-                }
-                
-                return response;
-            }, options.retry);
-        }
-    };
-
-    // ============ PHASE 16: ERROR RECOVERY SYSTEM ============
-    const errorRecovery = {
-        errorCounts: new Map(),
-        recoveryActions: new Map(),
-        
-        init() {
-            this.registerRecovery('data-load', this.recoverDataLoad.bind(this));
-            this.registerRecovery('database', this.recoverDatabase.bind(this));
-            this.registerRecovery('map', this.recoverMap.bind(this));
-        },
-        
-        registerRecovery(type, action) {
-            this.recoveryActions.set(type, action);
-        },
-        
-        async handleError(type, error, context = {}) {
-            const count = (this.errorCounts.get(type) || 0) + 1;
-            this.errorCounts.set(type, count);
-            
-            errorHandler.log(type, error.message, count > 5 ? 'error' : 'warn');
-            
-            const recovery = this.recoveryActions.get(type);
-            if (recovery && count <= 3) {
-                try {
-                    await recovery(error, context);
-                    this.errorCounts.set(type, 0);
-                    return true;
-                } catch (recoveryError) {
-                    console.error('Recovery failed:', recoveryError);
-                }
-            }
-            
-            if (count === 3) {
-                toast('Having trouble with ' + type + '. Will keep trying...');
-            } else if (count === 10) {
-                toast('Persistent ' + type + ' issues. Check your connection.');
-            }
-            
-            return false;
-        },
-        
-        async recoverDataLoad(error, context) {
-            _dbg('Attempting data load recovery...');
-            
-            const nextSource = dataSourceManager.enabledSources().find(s => 
-                s.name !== dataSourceManager.currentSource?.name && s.status !== 'unhealthy'
-            );
-            
-            if (nextSource) {
-                toast('Switching to ' + nextSource.name + '...');
-                return true;
-            }
-            
-            offlineManager.showCachedPositions();
-            return false;
-        },
-        
-        async recoverDatabase(error, context) {
-            _dbg('Attempting database recovery...');
-            
-            try {
-                await skytrackDB.init();
-                toast('Database reconnected');
-                return true;
-            } catch (e) {
-                _dbg('Falling back to localStorage');
-                return false;
-            }
-        },
-        
-        async recoverMap(error, context) {
-            _dbg('Attempting map recovery...');
-            
-            if (map) {
-                map.invalidateSize();
-                
-                map.eachLayer(layer => {
-                    if (layer._url && typeof layer.redraw === 'function') {
-                        layer.redraw();
-                    }
-                });
-            }
-            
-            return true;
-        },
-        
-        resetCounts() {
-            this.errorCounts.clear();
-        }
-    };
-
-    // ============ PHASE 16: CIRCUIT BREAKER ============
-    class CircuitBreaker {
-        constructor(options = {}) {
-            this.name = options.name || 'unnamed';
-            this.failureThreshold = options.failureThreshold || 5;
-            this.resetTimeout = options.resetTimeout || 30000;
-            this.monitorInterval = options.monitorInterval || 10000;
-            
-            this.state = 'closed';
-            this.failures = 0;
-            this.lastFailure = 0;
-            this.successCount = 0;
-        }
-        
-        async execute(fn) {
-            if (this.state === 'open') {
-                if (Date.now() - this.lastFailure > this.resetTimeout) {
-                    this.state = 'half-open';
-                    _dbg('Circuit breaker ' + this.name + ' half-open');
-                } else {
-                    const error = new Error('Circuit breaker ' + this.name + ' is open');
-                    error.circuitBreakerOpen = true;
-                    throw error;
-                }
-            }
-            
-            try {
-                const result = await fn();
-                this.onSuccess();
-                return result;
-            } catch (error) {
-                this.onFailure();
-                throw error;
-            }
-        }
-        
-        onSuccess() {
-            this.failures = 0;
-            
-            if (this.state === 'half-open') {
-                this.successCount++;
-                if (this.successCount >= 3) {
-                    this.state = 'closed';
-                    this.successCount = 0;
-                    _dbg('Circuit breaker ' + this.name + ' closed');
-                    this.hideWarning();
-                }
-            }
-        }
-        
-        onFailure() {
-            this.failures++;
-            this.lastFailure = Date.now();
-            this.successCount = 0;
-            
-            if (this.failures >= this.failureThreshold) {
-                this.state = 'open';
-                _dbg('Circuit breaker ' + this.name + ' opened');
-                this.showWarning();
-            }
-        }
-        
-        showWarning() {
-            // Disabled per user request - don't show retry popup
-            // const warning = document.getElementById('circuitBreakerWarning');
-            // if (warning) {
-            //     warning.textContent = 'Data source temporarily unavailable - retrying...';
-            //     warning.classList.add('show');
-            // }
-        }
-        
-        hideWarning() {
-            const warning = document.getElementById('circuitBreakerWarning');
-            if (warning) {
-                warning.classList.remove('show');
-            }
-        }
-        
-        getState() {
-            return {
-                name: this.name,
-                state: this.state,
-                failures: this.failures,
-                lastFailure: this.lastFailure
-            };
-        }
-    }
-
-    const circuitBreakers = {
-        aircraft: new CircuitBreaker({ name: 'aircraft', failureThreshold: 5, resetTimeout: 30000 }),
-        weather: new CircuitBreaker({ name: 'weather', failureThreshold: 3, resetTimeout: 60000 }),
-        database: new CircuitBreaker({ name: 'database', failureThreshold: 10, resetTimeout: 120000 })
-    };
-
-    // Reset error counts periodically
-    setInterval(() => errorRecovery.resetCounts(), 300000);
-
     // ============ INDEXEDDB STORAGE ============
     const skytrackDB = {
         dbName: 'VIPTrackDB',
@@ -4102,24 +3864,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             });
         },
         
-        async saveTrailHistory(hex, trailData) {
-            if (!this.db) await this.init();
-            return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(['trailHistory'], 'readwrite');
-                const store = transaction.objectStore('trailHistory');
-                const request = store.add({
-                    hex,
-                    data: trailData,
-                    timestamp: Date.now()
-                });
-                request.onsuccess = () => resolve(true);
-                request.onerror = () => reject(request.error);
-            });
-        },
-        
-        // One transaction for the whole sweep. The per-point method above opens a
-        // transaction each call, which is fine for a single save and unusable when
-        // several hundred aircraft are sampled on every tick.
         async saveTrailPoints(points) {
             if (!points.length) return 0;
             if (!this.db) await this.init();
@@ -4164,23 +3908,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             });
         },
 
-        async getTrailHistory(hex, limit = 10) {
-            if (!this.db) await this.init();
-            return new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(['trailHistory'], 'readonly');
-                const store = transaction.objectStore('trailHistory');
-                const index = store.index('hex');
-                const request = index.getAll(hex);
-                request.onsuccess = () => {
-                    const results = request.result
-                        .sort((a, b) => b.timestamp - a.timestamp)
-                        .slice(0, limit);
-                    resolve(results);
-                };
-                request.onerror = () => reject(request.error);
-            });
-        },
-        
         async clearOldData(maxAgeDays = 7) {
             if (!this.db) await this.init();
             const cutoff = Date.now() - (maxAgeDays * 86400000);
@@ -4320,13 +4047,23 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             toast('Removed named watchlist: ' + entry.name);
         },
 
+        // Compiled once per rule set and cached on it. Recompiling per aircraft cost
+        // thousands of identical RegExp constructions on every sweep.
+        compiledRule(rules) {
+            if (rules._compiled && rules._compiledFor === rules.callsignRegex) return rules._compiled;
+            let compiled = null;
+            try { compiled = new RegExp(rules.callsignRegex, 'i'); } catch (e) { compiled = null; }
+            rules._compiled = compiled;
+            rules._compiledFor = rules.callsignRegex;
+            return compiled;
+        },
+
         matchesNamedRules(ac, rules) {
             if (!ac || !rules) return false;
             if (rules.hexes.length && !rules.hexes.includes(String(ac.hex || '').toUpperCase())) return false;
             if (rules.callsignRegex) {
-                let matches = false;
-                try { matches = new RegExp(rules.callsignRegex, 'i').test(String(ac.flight || '').trim()); } catch (e) { return false; }
-                if (!matches) return false;
+                const pattern = this.compiledRule(rules);
+                if (!pattern || !pattern.test(String(ac.flight || '').trim())) return false;
             }
             const typeValues = [ac.t, ac.desc, ac.category, ac.category_type, ac.interesting?.type, ac.militaryInfo?.type].filter(Boolean).map(value => String(value).toUpperCase());
             if (rules.types.length && !rules.types.some(rule => typeValues.some(value => value === rule || value.startsWith(rule)))) return false;
@@ -4671,12 +4408,23 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             return this.notificationsEnabled;
         },
         
+        _watchlistSignature: '',
+
         updateWatchlistUI() {
             const container = document.getElementById('watchlistItems');
             const countEl = document.getElementById('watchlistCount');
             
             if (countEl) countEl.textContent = this.watchlist.size;
             if (!container) return;
+
+            // Called from every 6 s sweep. Skip the teardown when nothing the panel
+            // renders has changed and the panel is not on screen anyway.
+            const signature = Array.from(this.watchlist.values())
+                .map(entry => entry.hex + ':' + entry.name + ':' + (aircraftCache[entry.hex] ? '1' : '0'))
+                .join('|');
+            const visible = container.offsetParent !== null;
+            if (signature === this._watchlistSignature && !visible) return;
+            this._watchlistSignature = signature;
             
             if (this.watchlist.size === 0) {
                 container.innerHTML = safeHTML('<div class="watchlist-empty">No aircraft watched<br><span>Click star on any aircraft to add</span></div>');
@@ -9054,7 +8802,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             return { ...migrated, state: _localStateCanonicalState(migrated.state) };
         },
         async _persist(state) {
-            try { localStorage.setItem('viptrack_settings_v3', JSON.stringify(state.settings)); localStorage.setItem('viptrack_map', JSON.stringify(state.map)); localStorage.setItem('viptrack_bookmarks', JSON.stringify(state.bookmarks)); localStorage.setItem('viptrack_alert_settings', JSON.stringify(state.alerts)); localStorage.setItem('viptrack_trail_options', JSON.stringify({ colorBy: state.trail.colorBy, showDirection: state.trail.showDirection, trailWidth: state.trail.trailWidth, opacity: state.trail.opacity })); localStorage.setItem('viptrack_trail_retention_days', String(state.trail.retentionDays)); localStorage.setItem('viptrack_heading_proj', state.trail.headingEnabled ? '1' : '0'); localStorage.setItem('viptrack_heading_lookahead', String(state.trail.headingLookaheadSec)); localStorage.setItem('viptrack_coincidence', state.trail.coincidenceEnabled ? '1' : '0'); localStorage.setItem('viptrack_curated_overlays_v1', JSON.stringify(state.overlays.curatedIds)); } catch (e) { throw new Error('Browser storage rejected the imported state; free space and retry'); }
+            // Merge over what is stored: the backup schema is a subset of `settings`,
+            // and a straight overwrite silently reset every key it does not carry.
+            let storedSettings = {};
+            try { storedSettings = JSON.parse(localStorage.getItem('viptrack_settings_v3') || '{}') || {}; } catch (e) { storedSettings = {}; }
+            try { localStorage.setItem('viptrack_settings_v3', JSON.stringify({ ...storedSettings, ...state.settings })); localStorage.setItem('viptrack_map', JSON.stringify(state.map)); localStorage.setItem('viptrack_bookmarks', JSON.stringify(state.bookmarks)); localStorage.setItem('viptrack_alert_settings', JSON.stringify(state.alerts)); localStorage.setItem('viptrack_trail_options', JSON.stringify({ colorBy: state.trail.colorBy, showDirection: state.trail.showDirection, trailWidth: state.trail.trailWidth, opacity: state.trail.opacity })); localStorage.setItem('viptrack_trail_retention_days', String(state.trail.retentionDays)); localStorage.setItem('viptrack_heading_proj', state.trail.headingEnabled ? '1' : '0'); localStorage.setItem('viptrack_heading_lookahead', String(state.trail.headingLookaheadSec)); localStorage.setItem('viptrack_coincidence', state.trail.coincidenceEnabled ? '1' : '0'); localStorage.setItem('viptrack_curated_overlays_v1', JSON.stringify(state.overlays.curatedIds)); } catch (e) { throw new Error('Browser storage rejected the imported state; free space and retry'); }
             localStorage.setItem('viptrack_watchlist', JSON.stringify(state.watchlist));
             localStorage.setItem('viptrack_named_watchlists', JSON.stringify(state.namedWatchlists));
             localStorage.setItem('viptrack_geofences', JSON.stringify(state.geofences));
@@ -9348,6 +9100,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ AIRCRAFT DATA ============
     // VIPTrack: Use dedicated /mil and /pia endpoints for global military data in a single request
     const gridFetch = { inProgress: false, abortController: null };
+    // Every source failing at once is the signature of a throttled relay, not of
+    // four dead aggregators. The health indicator already says so; this used to
+    // contradict it with a flat "No sources".
+    function _noSourceLabel() {
+        if (typeof relayHealth !== 'undefined' && relayHealth.status && relayHealth.status() !== 'healthy') {
+            return relayHealth.describe ? relayHealth.describe() : 'Relay throttled';
+        }
+        return 'No sources';
+    }
     async function loadAircraft() {
         if(!map)return;
         if(gridFetch.inProgress)return;
@@ -9359,7 +9120,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // The Android build used to pin airplanes.live first; that endpoint now needs
             // approved access and returns 403, so every platform follows measured health.
             const allSrc=dataSourceManager.enabledSources().filter(s=>s.status!=='unhealthy');
-            if(!allSrc.length){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();return;}
+            if(!allSrc.length){_el('dataSource').textContent=_noSourceLabel();statsDashboard.recordFailure();return;}
             let success=false;
             const attemptedSources = [];
             // Try each source until one succeeds - fetch mil + pia in parallel
@@ -9375,7 +9136,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     let allAc=[];
                     try{ if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
                     try{ if(piaResp?.ok){const d=await piaResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
-                    if(allAc.length){
+                    const answered = Boolean(milResp?.ok || piaResp?.ok);
+                    if(allAc.length || answered){
                         const sourceFetchedAt = Date.now();
                         const sourceLatencyMs = sourceFetchedAt - sourceStartedAt;
                         const provenance = { source: src, sourceFetchedAt, sourceLatencyMs, fallbackChain: attemptedSources };
@@ -9389,7 +9151,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     }
                 }catch(e){dataSourceManager.recordFailure(src);}
             }
-            if(!success){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();connectionMonitor.recordFailure();}
+            if(!success){_el('dataSource').textContent=_noSourceLabel();statsDashboard.recordFailure();connectionMonitor.recordFailure();}
         }finally{
             lastFetchTime=Date.now();gridFetch.inProgress=false;fetchInProgress=false;
         }
@@ -11342,7 +11104,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // Phase 6: Visual feature handlers
     }
     function geolocate() { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], CONFIG.localZoom); toast('Location updated'); }, () => toast('Location denied')); } }
-    function toast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
+    let _toastTimer = 0;
+    function toast(msg) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        // Without clearing, the previous toast's timer hides this one early.
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+    }
 
     // ============ PHASE 8: ENHANCED SEARCH SYSTEM ============
     const searchSystem = {
@@ -13829,7 +13599,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ PHASE 16: INITIALIZE RELIABILITY SYSTEMS ============
     offlineManager.init();
     dataSourceManager.init();
-    errorRecovery.init();
     
     // Phase 16: Cache positions periodically when online
     setInterval(() => {
@@ -13837,15 +13606,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             offlineManager.cachePositions();
         }
     }, 60000);
-    
-    // Phase 16: Log circuit breaker states periodically for debugging
-    setInterval(() => {
-        const states = Object.entries(circuitBreakers).map(([name, cb]) => {
-            const state = cb.getState();
-            return name + ':' + state.state;
-        }).join(', ');
-        _dbg('Circuit breakers:', states);
-    }, 120000);
     
     // Phase 16: Keyboard shortcut for data source stats (Ctrl+Shift+D)
     document.addEventListener('keydown', (e) => {
@@ -16650,6 +16410,16 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
 
     // ============ NEW: VIEWPORT CSV DUMP ============
     // Snapshot every aircraft in the current viewport to a CSV — useful for OSINT field notes.
+    // Spreadsheets execute a cell that starts with = + - or @, and feed text lands
+    // straight in one. Quote and escape properly while we are here: an embedded
+    // quote used to break the row and a comma shifted every column after it.
+    function csvCell(value) {
+        let text = value === null || value === undefined ? '' : String(value);
+        if (/^[=+\-@]/.test(text)) text = "'" + text;
+        if (/[",\r\n]/.test(text)) text = '"' + text.replace(/"/g, '""') + '"';
+        return text;
+    }
+
     function exportViewportCsv() {
         if (!map) return;
         const bounds = map.getBounds();
@@ -16662,11 +16432,11 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             if (!bounds.contains([safe.lat, safe.lon])) continue;
             const cls = (typeof classifyAircraft === 'function') ? classifyAircraft(ac) : '';
             rows.push([
-                safe.hex || '', '"' + (safe.flight?.trim() || '') + '"', safe.r || '',
-                safe.t || '', '"' + (safe.ownOp || '').replace(/"/g,'""') + '"',
+                safe.hex || '', safe.flight?.trim() || '', safe.r || '',
+                safe.t || '', safe.ownOp || '',
                 safe.lat, safe.lon, safe.alt_baro ?? '', safe.gs ?? '', safe.track ?? '',
                 safe.squawk || '', cls, safe.from || '', safe.to || '', now
-            ].join(','));
+            ].map(csvCell).join(','));
         }
         if (rows.length === 1) { toast('No aircraft in viewport'); return; }
         const blob = new Blob([rows.join('\n') + '\n'], { type: 'text/csv' });

@@ -795,7 +795,7 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
         start = self.source.index("const statsDashboard =")
-        end = self.source.index("// ============ PHASE 16: AUTO-RETRY SYSTEM", start)
+        end = self.source.index("// ============ INDEXEDDB STORAGE", start)
         section = self.source[start:end]
         self.assertNotIn("localStorage", section)
         self.assertIn("this.rolling.slice(-12)", section)

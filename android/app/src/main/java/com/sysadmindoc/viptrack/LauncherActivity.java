@@ -67,6 +67,7 @@ public final class LauncherActivity extends Activity {
     private static final int LOCATION_PERMISSION_REQUEST = 4101;
     private static final int FILE_CHOOSER_REQUEST = 4102;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4103;
+    private static final String ALERT_HEX_EXTRA = "viptrack_hex";
     private static final String ALERT_CHANNEL_ID = "viptrack-alerts";
     private static final long STARTUP_TIMEOUT_MS = 45_000L;
 
@@ -83,6 +84,10 @@ public final class LauncherActivity extends Activity {
 
     private WebView webView;
     private WebViewAssetLoader assetLoader;
+    private String pendingAlertTitle;
+    private String pendingAlertBody;
+    private String pendingAlertHex;
+    private String pendingSelectHex;
     private ProgressBar pageProgress;
     private FrameLayout launchOverlay;
     private TextView overlayTitle;
@@ -355,7 +360,21 @@ public final class LauncherActivity extends Activity {
 
     private void loadIntent(Intent intent) {
         showLoading();
+        // The notification promised a deep link to the aircraft that fired the alert;
+        // nothing consumed the extra, so a tap only foregrounded the app. Stash it and
+        // apply once the page can accept the call.
+        pendingSelectHex = intent == null ? ""
+                : VipTrackNavigation.sanitizeIcaoHex(intent.getStringExtra(ALERT_HEX_EXTRA));
         webView.loadUrl(resolveIntentUrl(intent));
+    }
+
+    /** Selects the alerted aircraft in the page, once the document is ready for it. */
+    private void applyPendingSelection() {
+        if (pendingSelectHex == null || pendingSelectHex.isEmpty() || webView == null) return;
+        String hex = pendingSelectHex;
+        pendingSelectHex = null;
+        webView.evaluateJavascript(
+                "try { selectAircraft('" + hex + "'); } catch (e) {}", null);
     }
 
     private String resolveIntentUrl(Intent intent) {
@@ -459,7 +478,19 @@ public final class LauncherActivity extends Activity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
-            // Nothing to replay: the next alert posts normally once permission is held.
+            boolean notificationsGranted = false;
+            for (int result : grantResults) {
+                notificationsGranted |= result == PackageManager.PERMISSION_GRANTED;
+            }
+            String title = pendingAlertTitle;
+            String body = pendingAlertBody;
+            String hex = pendingAlertHex;
+            pendingAlertTitle = null;
+            pendingAlertBody = null;
+            pendingAlertHex = null;
+            if (notificationsGranted && title != null) {
+                postAlertNotification(title, body, hex);
+            }
             return;
         }
         if (requestCode != LOCATION_PERMISSION_REQUEST || geolocationCallback == null) return;
@@ -484,6 +515,12 @@ public final class LauncherActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
+            // Hold the alert rather than dropping it: per-aircraft cooldowns run to
+            // ten minutes, so discarding this one leaves the user staring at nothing
+            // long after they granted permission.
+            pendingAlertTitle = title;
+            pendingAlertBody = body;
+            pendingAlertHex = hex;
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
                     NOTIFICATION_PERMISSION_REQUEST);
             return;
@@ -505,8 +542,9 @@ public final class LauncherActivity extends Activity {
         // Reopening the app deep-links straight to the aircraft that fired the alert.
         Intent intent = new Intent(this, LauncherActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        if (hex != null && !hex.isEmpty()) intent.putExtra("viptrack_hex", hex);
-        PendingIntent pending = PendingIntent.getActivity(this, 0, intent,
+        if (hex != null && !hex.isEmpty()) intent.putExtra(ALERT_HEX_EXTRA, hex);
+        int notificationId = hex == null || hex.isEmpty() ? 1 : hex.hashCode();
+        PendingIntent pending = PendingIntent.getActivity(this, notificationId, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
@@ -519,8 +557,7 @@ public final class LauncherActivity extends Activity {
                 .setContentIntent(pending);
 
         // One notification per aircraft, so repeated alerts replace rather than stack.
-        int id = hex == null || hex.isEmpty() ? 1 : hex.hashCode();
-        manager.notify(id, builder.build());
+        manager.notify(notificationId, builder.build());
     }
 
     private void openExternalUrl(String rawUrl) {
@@ -559,6 +596,15 @@ public final class LauncherActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        // A notification tap on a running app should select the aircraft in place
+        // rather than reloading the document and losing the session's state.
+        String alertHex = intent == null ? ""
+                : VipTrackNavigation.sanitizeIcaoHex(intent.getStringExtra(ALERT_HEX_EXTRA));
+        if (!alertHex.isEmpty() && webView != null) {
+            pendingSelectHex = alertHex;
+            applyPendingSelection();
+            return;
+        }
         loadIntent(intent);
     }
 
@@ -691,6 +737,7 @@ public final class LauncherActivity extends Activity {
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
             if (!mainFrameFailed) pageProgress.setProgress(92);
+            if (!mainFrameFailed) applyPendingSelection();
         }
 
         @Override

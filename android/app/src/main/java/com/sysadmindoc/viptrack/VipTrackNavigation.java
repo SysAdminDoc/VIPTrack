@@ -82,6 +82,25 @@ public final class VipTrackNavigation {
         return ASSET_START_URL + (query.length() == 0 ? "" : "?" + query);
     }
 
+    /**
+     * An ICAO hex from a notification extra is injected into a JavaScript call, so it
+     * must be exactly six hex digits and nothing else. Returns "" for anything that
+     * is not, rather than passing a partially-cleaned value through.
+     */
+    public static String sanitizeIcaoHex(String rawHex) {
+        if (rawHex == null) return "";
+        String trimmed = rawHex.trim();
+        if (trimmed.length() != 6) return "";
+        for (int index = 0; index < 6; index++) {
+            char character = trimmed.charAt(index);
+            boolean isHex = (character >= '0' && character <= '9')
+                    || (character >= 'a' && character <= 'f')
+                    || (character >= 'A' && character <= 'F');
+            if (!isHex) return "";
+        }
+        return trimmed.toUpperCase(java.util.Locale.ROOT);
+    }
+
     public static String truncate(String value, int maxLength) {
         if (value == null || maxLength <= 0) return "";
         String normalized = value.trim();

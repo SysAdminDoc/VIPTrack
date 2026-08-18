@@ -50,6 +50,21 @@ public final class VipTrackNavigationTest {
     }
 
     @Test
+    public void alertHexFromANotificationIsSanitizedBeforeInjection() {
+        // The value is interpolated into a selectAircraft('...') call, so anything
+        // that is not exactly six hex digits must be rejected outright.
+        assertEquals("AE1234", VipTrackNavigation.sanitizeIcaoHex("ae1234"));
+        assertEquals("ADF7C8", VipTrackNavigation.sanitizeIcaoHex("  ADF7C8  "));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex(null));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex(""));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex("AE123"));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex("AE12345"));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex("AE12G4"));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex("');alert(1);//"));
+        assertEquals("", VipTrackNavigation.sanitizeIcaoHex("AE12'4"));
+    }
+
+    @Test
     public void onlyExplicitExternalSchemesAreOpenable() {
         assertTrue(VipTrackNavigation.isSafeExternalUrl("https://aviationweather.gov/"));
         assertTrue(VipTrackNavigation.isSafeExternalUrl("mailto:ops@example.test"));

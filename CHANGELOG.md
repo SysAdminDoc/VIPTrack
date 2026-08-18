@@ -3,6 +3,21 @@
 ## [Unreleased]
 
 ### Fixed
+- Android: an alert that arrives before notification permission is granted is no longer discarded. It is held and posted once the user grants it — with per-aircraft cooldowns running to ten minutes, dropping it meant staring at nothing long after saying yes. Tapping a notification now selects the aircraft that fired it, which the code has always promised but never did: the `viptrack_hex` extra was written and never read. Each notification also gets its own PendingIntent slot, so two concurrent alerts no longer share one intent. Hardware acceptance is still outstanding — no device is attached to the build machine.
+- Successive toasts each get their full display time. The previous toast's hide timer was never cleared, so a message that arrived 2.5 seconds later vanished after half a second.
+- Importing a local-state backup no longer resets settings the backup does not carry. It wrote the whole settings object, which destroyed the coverage preferences rather than merely excluding them.
+- The viewport CSV export quotes every cell properly and defuses spreadsheet formulas. A callsign containing a quote broke the row, a comma in an origin shifted every column after it, and a callsign beginning with `=` executed when the file was opened.
+- The settings panel no longer shows English archive status over the localized PMTiles help; the archive state has its own line.
+- "No sources" now reads as relay throttling when that is what happened, instead of contradicting the health indicator, and a feed that answers with no aircraft counts as a quiet feed rather than a failure.
+
+### Changed
+- The map pan control — the non-drag alternative required by WCAG 2.2 SC 2.5.7 — is styled as mobile chrome on phones: 44 px targets above the bottom nav, clear of the selected-aircraft card, instead of a 30 px desktop grid floating mid-screen.
+- Named-watchlist callsign patterns compile once per rule set instead of once per aircraft per six-second sweep, and the watchlist panel skips its rebuild when nothing it renders has changed and it is not on screen.
+
+### Removed
+- Roughly 300 lines of Phase-16 reliability scaffolding that guarded nothing: `retrySystem`, `CircuitBreaker`/`circuitBreakers` and `errorRecovery` had no callers, and between them ran two live timers that only logged. The live loop's source failover already provides the behaviour they implied. Also removed the two `trailHistory` methods left unused when the coverage lane replaced them.
+
+### Fixed
 - Keyboard shortcuts M, V and A were clicking the hidden mobile filter chips instead of the desktop filter, because both control sets share a `data-filter` attribute and the chips come first in the document. Pressing M toasted "Military only" while the filter never changed, and repeated presses accumulated invisible chip state that dimmed markers with nothing on screen explaining why.
 - Going offline no longer re-toasts and rebuilds every marker on each 6-second poll. Cached positions render once per offline episode; later polls only refresh the age readout.
 - Alert sounds share one AudioContext instead of constructing and abandoning one per alert. Browsers cap how many a page may hold, so a long-running tab used to hit the cap and lose alert sounds for the rest of the session.
