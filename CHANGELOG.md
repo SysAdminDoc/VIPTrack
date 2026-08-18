@@ -11,6 +11,12 @@
 - Skipped the guaranteed-to-fail direct fetch before relaying for hosts known not to send CORS headers, removing one failed round-trip per poll.
 - Repaired the weather radar overlay. NOAA retired the nowCOAST ArcGIS MapServer path (HTTP 403); the layer now uses the GeoServer `base_reflectivity_mosaic`, which also covers Alaska, Hawaii, the Caribbean and Guam. A tile failure now falls back to RainViewer's global mosaic instead of leaving the overlay blank, and the toggle and its button state track whichever layer is live.
 
+### Accessibility
+- Pinch zoom works again: the viewport meta carried `maximum-scale=1.0, user-scalable=no`, a WCAG 2.1 SC 1.4.4 failure that mattered more once the mobile flight deck became a first-class surface.
+- Added a skip link as the first element in the body; it becomes visible on focus and moves focus to the map, which Leaflet keeps keyboard-operable.
+- `prefers-reduced-motion` is now honoured in `assets/viptrack-ui.css`, which owns the mobile deck and had no handling at all, and aircraft marker interpolation snaps to position instead of animating.
+- Added `forced-colors: active` support so borders, focus rings and status dots survive Windows High Contrast, where author colours are discarded and several controls are distinguished by colour alone; `prefers-contrast: more` raises border and dim-text contrast.
+
 ### Added
 - `tools/test_runtime.py`: behavioural acceptance that boots the real page in Chromium with the network stubbed from captured fixtures. Eight tests cover feed rendering, filter switching, the aircraft detail panel, the degraded-source indicator, keyboard operation of the status panel, a settings toggle actually changing and persisting the setting it names, radar on/off, and a `file://` boot. Service workers are blocked at the context level so nothing reaches the real network. Mutation-verified: with two regressions injected the runtime suite fails while the 51-test static suite stays green.
 - Android watchlist alerts now raise real notifications. WebView implements no Web Notifications API, so `new Notification(...)` was silently inert in the app; alerts route through a `VIPTrackAndroid.notifyAlert` bridge that creates a high-importance channel, requests `POST_NOTIFICATIONS` on first use rather than at launch, and deep-links back to the aircraft that fired. One notification per aircraft, so repeats replace instead of stacking.

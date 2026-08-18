@@ -681,6 +681,25 @@ class VipTrackContracts(unittest.TestCase):
         # Escape closes the panel and focus returns to the control that opened it.
         self.assertIn("this.toggleDetail(false);", self.source)
 
+    def test_accessibility_preferences_and_skip_link(self) -> None:
+        # user-scalable=no / maximum-scale block pinch zoom (WCAG 2.1 SC 1.4.4), and the
+        # mobile flight deck is now a first-class surface.
+        viewport = re.search(r'<meta name="viewport" content="([^"]+)"', self.source)
+        self.assertIsNotNone(viewport)
+        self.assertNotIn("user-scalable=no", viewport.group(1))
+        self.assertNotIn("maximum-scale", viewport.group(1))
+        # Skip link is the first element in the body and targets the main content.
+        body = self.source.split("<body>", 1)[1].lstrip()
+        self.assertTrue(body.startswith('<a class="skip-link" href="#map"'), body[:80])
+        # OS preferences, in the inline styles and in the sheet that owns the mobile deck.
+        ui_css = (ROOT / "assets" / "viptrack-ui.css").read_text(encoding="utf-8")
+        for sheet, text in (("index.html", self.source), ("viptrack-ui.css", ui_css)):
+            self.assertIn("prefers-reduced-motion: reduce", text, sheet)
+            self.assertIn("forced-colors: active", text, sheet)
+        self.assertIn("prefers-contrast: more", self.source)
+        # Marker interpolation has to honour the setting too, not just CSS transitions.
+        self.assertIn("_prefersReducedMotion()", self.source)
+
     def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

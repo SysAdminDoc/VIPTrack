@@ -2340,3 +2340,23 @@
         font-size: 9px;
     }
 }
+
+/* The mobile workspace added its own transitions; honour the OS motion preference
+   here too, since this sheet owns the flight-deck presentation. */
+@media (prefers-reduced-motion: reduce) {
+    body.mobile-view *,
+    body.mobile-view *::before,
+    body.mobile-view *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media (forced-colors: active) {
+    body.mobile-view .mobile-map-peek,
+    body.mobile-view .mobile-nav,
+    body.mobile-view .mobile-app-bar {
+        border: 1px solid CanvasText;
+    }
+}

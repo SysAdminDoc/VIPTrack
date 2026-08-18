@@ -1596,7 +1596,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 </script>
 </head>
 <body>
-    <a class="skip-link" href="#aircraftListContent" data-i18n="a11y.skipToList">Skip to aircraft list</a>
+    <a class="skip-link" href="#map" data-i18n="a11y.skipToMap">Skip to map</a>
     <div class="loading-overlay" id="loading">
         <div class="loading-logo">
             <img src="assets/logo/VIPTrack_Mark-128x128.png" alt="VIPTrack">
@@ -12604,7 +12604,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     </select>
                     <span>ALT</span><span>SPD</span><span>DIST</span>
                 </div>
-                <div class="sheet-content" id="aircraftListContent" tabindex="-1"></div>
+                <div class="sheet-content" id="aircraftListContent"></div>
             `);
             document.body.appendChild(sheet);
             sheet.querySelector('#listSort')?.addEventListener('change', () => this.updateAircraftList());

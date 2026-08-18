@@ -3,6 +3,7 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "a11y.skipToMap": "Skip to map",
     "actions.csvTitle": "Export track as CSV",
     "actions.geojsonTitle": "Export track as GeoJSON",
     "actions.gpxTitle": "Export track as GPX",

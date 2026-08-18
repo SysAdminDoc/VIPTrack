@@ -3,6 +3,7 @@
   "language": "uk",
   "name": "Українська",
   "messages": {
+    "a11y.skipToMap": "Перейти до карти",
     "actions.csvTitle": "Експортувати трек у CSV",
     "actions.geojsonTitle": "Експортувати трек у GeoJSON",
     "actions.gpxTitle": "Експортувати трек у GPX",

@@ -3,6 +3,7 @@
   "language": "fr",
   "name": "Français",
   "messages": {
+    "a11y.skipToMap": "Aller à la carte",
     "actions.csvTitle": "Exporter la trace en CSV",
     "actions.geojsonTitle": "Exporter la trace en GeoJSON",
     "actions.gpxTitle": "Exporter la trace en GPX",

@@ -3,6 +3,7 @@
   "language": "es",
   "name": "Español",
   "messages": {
+    "a11y.skipToMap": "Saltar al mapa",
     "actions.csvTitle": "Exportar ruta como CSV",
     "actions.geojsonTitle": "Exportar ruta como GeoJSON",
     "actions.gpxTitle": "Exportar ruta como GPX",

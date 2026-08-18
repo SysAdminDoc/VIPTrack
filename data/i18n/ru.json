@@ -3,6 +3,7 @@
   "language": "ru",
   "name": "Русский",
   "messages": {
+    "a11y.skipToMap": "Перейти к карте",
     "actions.csvTitle": "Экспортировать трек в CSV",
     "actions.geojsonTitle": "Экспортировать трек в GeoJSON",
     "actions.gpxTitle": "Экспортировать трек в GPX",

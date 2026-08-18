@@ -3,6 +3,7 @@
   "language": "de",
   "name": "Deutsch",
   "messages": {
+    "a11y.skipToMap": "Zur Karte springen",
     "actions.csvTitle": "Spur als CSV exportieren",
     "actions.geojsonTitle": "Spur als GeoJSON exportieren",
     "actions.gpxTitle": "Spur als GPX exportieren",
