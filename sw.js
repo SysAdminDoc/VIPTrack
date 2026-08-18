@@ -18,17 +18,18 @@ const STATIC_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
     'https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/aircraft.png',
+    'assets/silhouettes/aircraft.png',
     'data/aircraft/registrations.json',
     'workers/registration-opfs-worker.js'
 ];
 // Public reference files only: no watchlist identifiers, telemetry, or live
-// aircraft queries are sent by the background refresh.
+// aircraft queries are sent by the background refresh. Same-origin copies are
+// refreshed first; the upstream plane-alert-db mirrors follow as the fallback.
 const PERIODIC_REFRESH_ASSETS = [
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-mil.csv',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-gov.csv',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-pol.csv',
-    'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-pia.csv',
+    'data/military/plane-alert-mil.csv',
+    'data/military/plane-alert-gov.csv',
+    'data/military/plane-alert-pol.csv',
+    'data/military/plane-alert-pia.csv',
     'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-mil.csv',
     'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-gov.csv',
     'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pol.csv',

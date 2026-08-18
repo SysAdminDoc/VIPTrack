@@ -35,6 +35,8 @@ python -m http.server 8000
 # Or use the opt-in GPU renderer: http://127.0.0.1:8000/index.html?renderer=webgl
 ```
 
+Reference data (aircraft, airlines, airports, military/government catalogues, images) is served from this repository, so a checkout is self-contained and `file://` works without reaching a second repo. The upstream `plane-alert-db` mirrors remain configured as fallbacks.
+
 Zero-build, dependency-free static web application. The normal Leaflet 2D map works from `index.html`; the optional Cesium globe (`?3d=1`) and MapLibre/deck.gl GPU renderer (`?renderer=webgl`) are lazy-loaded from pinned CDN assets and need HTTP(S) hosting. The WebGL lane accepts `?renderer=webgl&basemap=carto-voyager` or `?renderer=webgl&basemap=stadia-alidade-smooth-dark` for opt-in vector basemaps.
 
 The Settings panel includes a language selector. Locale catalogs live in `data/i18n/{lang}.json`, are loaded only from the app's own origin, and fall back to the English catalog (or the embedded English UI defaults when opened directly as `file://`).

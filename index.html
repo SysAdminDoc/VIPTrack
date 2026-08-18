@@ -48,7 +48,7 @@
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preload" href="https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/silhouettes/aircraft.png" as="image">
+    <link rel="preload" href="assets/silhouettes/aircraft.png" as="image">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" as="style" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" as="script" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous">
     <link rel="icon" href="data:image/x-icon;base64,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">
@@ -2557,9 +2557,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         isLocalFile: window.location.protocol === 'file:',
         isAndroidApp: IS_VIPTRACK_ANDROID_APP,
         // Self-hosted asset URLs
-        silhouetteUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
-        airlineBannerUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
-        flagUrl: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/flags/',
+        silhouetteUrl: 'assets/silhouettes/',
+        airlineBannerUrl: 'assets/airlines/',
+        flagUrl: 'assets/flags/',
         // External APIs (cannot self-host)
         traceUrl: 'https://globe.airplanes.live/data/traces/',
         planespottersApi: 'https://api.planespotters.net/pub/photos/hex/'
@@ -2606,106 +2606,113 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // Aircraft Registration (tar1090-db)
         registrations: {
             compact: 'data/aircraft/registrations.json',
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/registrations.csv',
+            primary: 'data/aircraft/registrations.csv',
             fallback: null
         },
         types: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/types.json',
+            primary: 'data/aircraft/types.json',
             fallback: 'https://raw.githubusercontent.com/wiedehopf/tar1090-db/master/icao_aircraft_types.json'
         },
         
         // Interesting Aircraft (plane-alert-db)
         interesting: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/interesting.csv',
+            primary: 'data/aircraft/interesting.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-db.csv'
         },
         categories: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/categories/plane-alert-categories.csv',
+            primary: 'data/categories/plane-alert-categories.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-categories.csv'
         },
         badgersBest: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/badgers-best.csv',
+            primary: 'data/aircraft/badgers-best.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/badgers-best.csv'
         },
         civilianInteresting: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/aircraft/plane-alert-civ.csv',
+            primary: 'data/aircraft/plane-alert-civ.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-civ.csv'
         },
         planeImages: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/images/plane_images.csv',
+            primary: 'data/images/plane_images.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane_images.csv'
         },
         
         // Military/Government (plane-alert-db)
         military: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-mil.csv',
+            primary: 'data/military/plane-alert-mil.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-mil.csv'
         },
         militaryImages: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/images/plane-alert-mil-images.csv',
+            primary: 'data/images/plane-alert-mil-images.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-mil-images.csv'
         },
         government: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-gov.csv',
+            primary: 'data/military/plane-alert-gov.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-gov.csv'
         },
         governmentImages: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/images/plane-alert-gov-images.csv',
+            primary: 'data/images/plane-alert-gov-images.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-gov-images.csv'
         },
         police: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-pol.csv',
+            primary: 'data/military/plane-alert-pol.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pol.csv'
         },
         policeImages: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/images/plane-alert-pol-images.csv',
+            primary: 'data/images/plane-alert-pol-images.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pol-images.csv'
         },
         pia: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/military/plane-alert-pia.csv',
+            primary: 'data/military/plane-alert-pia.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-pia.csv'
         },
         civilianImages: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/images/plane-alert-civ-images.csv',
+            primary: 'data/images/plane-alert-civ-images.csv',
             fallback: 'https://raw.githubusercontent.com/sdr-enthusiasts/plane-alert-db/main/plane-alert-civ-images.csv'
         },
         
         // Airlines
         airlines: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airlines/airlines.csv',
+            primary: 'data/airlines/airlines.csv',
             fallback: 'https://raw.githubusercontent.com/jpatokal/openflights/master/data/airlines.dat'
         },
         callsignPrefix: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airlines/callsign-prefix.json',
+            primary: 'data/airlines/callsign-prefix.json',
             fallback: null
         },
         
         // Airports
         airports: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airports/airports.csv',
+            primary: 'data/airports/airports.csv',
             fallback: 'https://davidmegginson.github.io/ourairports-data/airports.csv'
         },
         airportCoords: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airports/airport-coords.json',
+            primary: 'data/airports/airport-coords.json',
             fallback: 'https://raw.githubusercontent.com/wiedehopf/tar1090-db/master/airport-coords.json'
         },
         frequencies: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/airports/frequencies.csv',
+            primary: 'data/airports/frequencies.csv',
             fallback: 'https://davidmegginson.github.io/ourairports-data/airport-frequencies.csv'
         },
         // Routes
         routes: {
-            primary: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/data/routes/routes.csv',
+            primary: 'data/routes/routes.csv',
             fallback: 'https://raw.githubusercontent.com/jpatokal/openflights/master/data/routes.dat'
         },
         
         // Images (self-hosted)
-        aircraftPhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/aircraft_photos/',
+        aircraftPhotos: 'assets/aircraft_photos/',
         typePhotos: 'assets/type_photos/',
-        typePhotosFallback: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/type_photos/',
-        airlineLogos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
-        silhouettes: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
-        flags: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/flags/'
+        typePhotosFallback: 'assets/type_photos/',
+        airlineLogos: 'assets/airlines/',
+        silhouettes: 'assets/silhouettes/',
+        flags: 'assets/flags/',
+        // Same-origin first; these mirrors cover hosts that trim the bulk media
+        // trees (the Android bundle ships neither photos nor silhouettes).
+        remoteAircraftPhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/aircraft_photos/',
+        remoteTypePhotos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/type_photos/',
+        remoteAirlineLogos: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/airlines/',
+        remoteSilhouettes: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/silhouettes/',
+        remoteFlags: 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/assets/flags/'
     };
 
     // ============ DEBUG LOGGING ============
@@ -9030,7 +9037,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function _easeOut(p) { return 1 - (1 - p) * (1 - p); }
     function animateAircraft(ts) { let active = false; Object.entries(aircraftAnimation).forEach(([hex, a]) => { const m = markers[hex]; if (!m) { delete aircraftAnimation[hex]; return; } const raw = Math.min((ts - a.startTime) / a.duration, 1); const p = _easeOut(raw); if (raw < 1) { active = true; const lat = a.startLat + (a.targetLat - a.startLat) * p, lon = a.startLon + (a.targetLon - a.startLon) * p; m.setLatLng([lat, lon]); if (hex === selectedHex && trailLine?._lastSegment) { const ll = trailLine._lastSegment.getLatLngs(); if (ll.length) { ll[ll.length - 1] = L.latLng(lat, lon); trailLine._lastSegment.setLatLngs(ll); } } } else { m.setLatLng([a.targetLat, a.targetLon]); delete aircraftAnimation[hex]; } }); if (active) requestAnimationFrame(animateAircraft); else animationRunning = false; }
     // ============ TAR1090 SPRITE ICON SYSTEM ============
-    const SPRITE_URL = 'https://raw.githubusercontent.com/SysAdminDoc/SkyTrack/refs/heads/main/assets/silhouettes/aircraft.png';
+    const SPRITE_URL = 'assets/silhouettes/aircraft.png';
     
     // Sprite sheet: 16 cols x 6 rows, 86x86px each
     const SPRITE_INDEX = {

@@ -26,6 +26,8 @@
 - `connect-src` is an allowlist again. Both the meta policy and `_headers` carried bare `http:` and `https:` sources, which match every origin and made the 28-entry list that followed them decorative. Removed them, added the vector-basemap and OurAirports hosts the app actually fetches, and added `object-src 'none'` to the meta policy. `img-src` deliberately stays scheme-wide, documented in place.
 
 ### Changed
+- Reference data now loads from this repository instead of a sibling one. Every dataset was configured with `primary:` pointing at `raw.githubusercontent.com/SysAdminDoc/SkyTrack/main/…`, with no local path anywhere in the chain — so a tagged release's behaviour could change without a VIPTrack commit, `file://` and offline never really worked, and every user's browser hit a personal repo's raw endpoint. All 21 dataset primaries, the six image base URLs and the silhouette sprite now resolve same-origin, with the upstream `plane-alert-db` mirrors kept as fallbacks and the SkyTrack mirrors retained only for hosts that trim the bulk media trees (the Android bundle ships neither photos nor silhouettes). `sw.js` caches the same-origin copies too. Outbound requests to `raw.githubusercontent.com` on a cold load drop from 28 to 6.
+
 - Airplanes.live is disabled by default and carries a machine-readable reason: its public endpoint returns HTTP 403 pending approved API access.
 
 
