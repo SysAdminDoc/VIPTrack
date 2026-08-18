@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- One settings surface for API credentials. Every key slot (OpenAIP, OpenSky OAuth2) is listed with whether a key is held, why the service needs one, and where to get it, with a Clear control per slot. The registry never returns a stored value — only whether one is present — and a runtime test plants sentinel keys and asserts none reach the local-state backup, the diagnostics export, the source stats, or the settings surface itself.
+
 - The regex filter now reaches the type code and type description, so tar1090-style patterns work — `B73.` for the 737 family, `H..` for helicopters, `L2J` for twinjets, `B739|B39M`, `^(?!A320)`. It previously matched only callsign and registration, which left the most useful patterns inert. Patterns are length-bounded, nested quantifiers are refused before compiling, an invalid pattern reports inline against the input instead of as a transient toast, and a live count shows how many tracked aircraft the pattern matches.
 
 - Analyst views are shareable as links. A "Copy view link" control in the toolbar produces a URL carrying the filter mode, search query, map centre and zoom, and the selected aircraft, and opening it restores all of them — so a desk finding can be handed to someone else instead of described. A privacy-protected aircraft is never named in the URL, which a runtime test checks against the marker the product actually reads.

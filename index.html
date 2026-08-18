@@ -192,6 +192,15 @@
         .source-status.degraded { background: rgba(251,191,36,0.2); color: #fbbf24; }
         .source-status.unhealthy { background: rgba(239,68,68,0.2); color: var(--danger); }
         .source-latency { color: var(--text-muted); }
+        .cred-status-body { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+        .cred-row { display: grid; grid-template-columns: 8px 1fr auto; gap: 8px; align-items: baseline; font-size: 11px; padding: 6px 0; border-top: 1px solid var(--border); }
+        .cred-row:first-child { border-top: 0; }
+        .cred-dot { width: 7px; height: 7px; border-radius: 50%; align-self: center; background: var(--text-muted); }
+        .cred-dot.set { background: var(--success); }
+        .cred-name { color: var(--text); font-weight: 600; }
+        .cred-meta { display: block; margin-top: 2px; color: var(--text-muted); font-weight: 400; line-height: 1.4; }
+        .cred-clear { min-height: 24px; padding: 2px 10px; background: var(--bg-darker); color: var(--text-dim); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 11px; }
+        .cred-clear:hover, .cred-clear:focus-visible { border-color: var(--accent); color: var(--accent); }
         .filter-regex-status { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 11px; }
         #filterRegexCount { color: var(--text-muted); }
         .filter-regex-error { color: var(--danger, #ff5364); }
@@ -2302,6 +2311,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 <button class="btn-secondary" id="faaSuaClearBtn" type="button" data-i18n="common.clear">Clear</button>
             </div>
             <div class="receiver-coverage-status" id="faaSuaStatus" role="status" aria-live="polite" data-i18n="settings.faaSuaOff">FAA SUA off · manual 28-day refresh</div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-section-title" data-i18n="settings.credentialsTitle">API credentials</div>
+            <div class="receiver-coverage-help" data-i18n="settings.credentialsHelp">Keys are stored in this browser only. They are never sent anywhere except the service they belong to, and are excluded from local-state backups and the diagnostics export.</div>
+            <div class="cred-status-body" id="credentialStatusBody"></div>
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.openAipTitle">OpenAIP Airspace (L6)</div>
@@ -5808,6 +5822,59 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     }
 
+    // Credentials live only in this browser. Keeping every slot in one registry is what
+    // makes "no key ever leaves the device" checkable rather than assumed: the local-state
+    // backup and the diagnostics export both read from an allowlist that excludes these,
+    // and a runtime test asserts none of these values appear in either artifact.
+    const credentialRegistry = {
+        slots: [
+            { id: 'openaip', label: 'OpenAIP airspace', storageKeys: ['viptrack_openaip_api_key_v1'],
+              why: 'Optional Class A-G airspace tiles.', obtain: 'https://www.openaip.net/' },
+            { id: 'opensky', label: 'OpenSky historical', storageKeys: ['viptrack_opensky_client_id', 'viptrack_opensky_client_secret'],
+              why: 'Historical replay. OAuth2 client credentials; anonymous access is capped at 400 credits/day.',
+              obtain: 'https://opensky-network.org/my-opensky/account' }
+        ],
+
+        // Never returns a value -- only whether one is present.
+        isConfigured(slot) {
+            return slot.storageKeys.some(key => {
+                try { return Boolean(localStorage.getItem(key)); } catch (e) { return false; }
+            });
+        },
+
+        allStorageKeys() {
+            return this.slots.flatMap(slot => slot.storageKeys);
+        },
+
+        clear(slotId) {
+            const slot = this.slots.find(entry => entry.id === slotId);
+            if (!slot) return false;
+            slot.storageKeys.forEach(key => { try { localStorage.removeItem(key); } catch (e) {} });
+            this.render();
+            return true;
+        },
+
+        render() {
+            const body = document.getElementById('credentialStatusBody');
+            if (!body) return;
+            body.innerHTML = safeHTML(this.slots.map(slot => {
+                const configured = this.isConfigured(slot);
+                return '<div class="cred-row"><span class="cred-dot ' + (configured ? 'set' : 'unset') + '"></span>'
+                    + '<span class="cred-name">' + slot.label
+                    + '<span class="cred-meta">' + (configured ? 'key stored in this browser only' : 'keyless — not configured')
+                    + ' · ' + slot.why + '</span></span>'
+                    + (configured ? '<button type="button" class="cred-clear" data-cred-clear="' + slot.id + '">Clear</button>' : '')
+                    + '</div>';
+            }).join(''));
+            body.querySelectorAll('[data-cred-clear]').forEach(button => {
+                button.addEventListener('click', () => {
+                    this.clear(button.dataset.credClear);
+                    toast('Credential cleared');
+                });
+            });
+        }
+    };
+
     function isPrivacyProtectedAircraft(ac) {
         return !!ac && (ac.privacyProtected === true || ac.piaInfo || isPrivacyProtectedHex(ac.hex));
     }
@@ -8800,6 +8867,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
         } catch(e) {}
 
+        credentialRegistry.render();
+        document.getElementById('settingsBtn')?.addEventListener('click', () => credentialRegistry.render());
         document.getElementById('copyViewBtn')?.addEventListener('click', () => shareManager.copyViewLink());
 
         // Check URL params for shared flight links

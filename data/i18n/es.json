@@ -225,6 +225,8 @@
     "settings.copySourceDiagnostics": "Copiar diagnósticos de fuentes",
     "settings.countriesPlaceholder": "Países: US, UK",
     "settings.createWatchlist": "Crear lista de seguimiento",
+    "settings.credentialsHelp": "Las claves se guardan solo en este navegador. Nunca se envían a ningún sitio salvo al servicio correspondiente y se excluyen de las copias de seguridad y del informe de diagnóstico.",
+    "settings.credentialsTitle": "Credenciales de API",
     "settings.curatedTemplates": "Plantillas de patrones seleccionadas (X12)",
     "settings.curatedTemplatesHelp": "Geometría ilustrativa opcional solo para anotaciones del analista. No son tareas activas, límites NOTAM ni datos oficiales de espacio aéreo.",
     "settings.dataSources": "Fuentes de datos (fase 16)",

@@ -451,6 +451,39 @@ class VipTrackRuntime(unittest.TestCase):
                 "document.getElementById('filterRegex').getAttribute('aria-invalid')"), "true")
             self.assertEqual(crashes, [])
 
+    def test_credentials_stay_out_of_backups_and_diagnostics(self) -> None:
+        # The promise is "keys never leave this browser". Assert it against the artifacts
+        # that do leave: the local-state backup and the diagnostics export.
+        with self._page() as (page, crashes):
+            page.evaluate(
+                "() => { credentialRegistry.allStorageKeys()"
+                ".forEach((k, i) => localStorage.setItem(k, 'SENTINEL_KEY_' + i)); }"
+            )
+            page.evaluate("credentialRegistry.render()")
+            page.wait_for_timeout(400)
+
+            rendered = page.evaluate("document.getElementById('credentialStatusBody').textContent")
+            self.assertIn("stored in this browser only", rendered)
+            self.assertNotIn("SENTINEL_KEY_", rendered, "the status surface must never print a key")
+
+            # Build each outbound artifact for real. A swallowed exception here would
+            # make this assertion vacuous, so every part must produce actual content.
+            artifacts = page.evaluate(
+                "() => ({"
+                " backup: JSON.stringify(localStateManager.buildState()),"
+                " diagnostics: JSON.stringify(dataSourceManager.getDiagnostics()),"
+                " stats: JSON.stringify(dataSourceManager.getStats()) })"
+            )
+            for name, payload in artifacts.items():
+                self.assertGreater(len(payload), 20, f"{name} produced no content to check")
+                self.assertNotIn("SENTINEL_KEY_", payload, name)
+
+            # Clearing a slot removes every key it owns.
+            page.evaluate("credentialRegistry.clear('openaip')")
+            self.assertFalse(page.evaluate(
+                "credentialRegistry.isConfigured(credentialRegistry.slots.find(s => s.id === 'openaip'))"))
+            self.assertEqual(crashes, [])
+
     def test_file_protocol_boot_degrades_without_throwing(self) -> None:
         page = self._new_page()
         crashes: list[str] = []

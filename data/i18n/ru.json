@@ -225,6 +225,8 @@
     "settings.copySourceDiagnostics": "Скопировать диагностику источников",
     "settings.countriesPlaceholder": "Страны: US, UK",
     "settings.createWatchlist": "Создать список наблюдения",
+    "settings.credentialsHelp": "Ключи хранятся только в этом браузере. Они отправляются исключительно соответствующему сервису и исключены из локальных резервных копий и диагностического экспорта.",
+    "settings.credentialsTitle": "Учётные данные API",
     "settings.curatedTemplates": "Подобранные шаблоны паттернов (X12)",
     "settings.curatedTemplatesHelp": "Необязательная иллюстративная геометрия только для заметок аналитика. Это не задания, границы NOTAM и не официальные данные о воздушном пространстве.",
     "settings.dataSources": "Источники данных (фаза 16)",

@@ -225,6 +225,8 @@
     "settings.copySourceDiagnostics": "Copy source diagnostics",
     "settings.countriesPlaceholder": "Countries: US, UK",
     "settings.createWatchlist": "Create named watchlist",
+    "settings.credentialsHelp": "Keys are stored in this browser only. They are never sent anywhere except the service they belong to, and are excluded from local-state backups and the diagnostics export.",
+    "settings.credentialsTitle": "API credentials",
     "settings.curatedTemplates": "Curated Pattern Templates (X12)",
     "settings.curatedTemplatesHelp": "Opt-in illustrative geometry for analyst annotation only. These templates are not live tasking, NOTAM boundaries, or authoritative airspace data.",
     "settings.dataSources": "Data Sources (Phase 16)",

@@ -225,6 +225,8 @@
     "settings.copySourceDiagnostics": "Copier les diagnostics des sources",
     "settings.countriesPlaceholder": "Pays : US, UK",
     "settings.createWatchlist": "Créer une liste de suivi",
+    "settings.credentialsHelp": "Les clés sont stockées uniquement dans ce navigateur. Elles ne sont envoyées qu'au service concerné et sont exclues des sauvegardes locales et de l'export de diagnostic.",
+    "settings.credentialsTitle": "Identifiants d'API",
     "settings.curatedTemplates": "Modèles de motifs sélectionnés (X12)",
     "settings.curatedTemplatesHelp": "Géométrie illustrative facultative pour les annotations de l’analyste uniquement. Ces modèles ne sont ni des missions, ni des limites NOTAM, ni des données officielles d’espace aérien.",
     "settings.dataSources": "Sources de données (phase 16)",

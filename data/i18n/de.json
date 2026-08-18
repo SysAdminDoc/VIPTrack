@@ -225,6 +225,8 @@
     "settings.copySourceDiagnostics": "Quellendiagnose kopieren",
     "settings.countriesPlaceholder": "Länder: US, UK",
     "settings.createWatchlist": "Beobachtungsliste erstellen",
+    "settings.credentialsHelp": "Schlüssel werden nur in diesem Browser gespeichert. Sie werden ausschließlich an den zugehörigen Dienst gesendet und aus lokalen Sicherungen und dem Diagnose-Export ausgeschlossen.",
+    "settings.credentialsTitle": "API-Zugangsdaten",
     "settings.curatedTemplates": "Ausgewählte Mustervorlagen (X12)",
     "settings.curatedTemplatesHelp": "Optionale illustrative Geometrie nur für Analysten-Annotationen. Diese Vorlagen sind weder Einsatzziele noch NOTAM-Grenzen noch verbindliche Luftraumdaten.",
     "settings.dataSources": "Datenquellen (Phase 16)",
