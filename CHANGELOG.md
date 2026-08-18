@@ -11,6 +11,9 @@
 - Skipped the guaranteed-to-fail direct fetch before relaying for hosts known not to send CORS headers, removing one failed round-trip per poll.
 - Repaired the weather radar overlay. NOAA retired the nowCOAST ArcGIS MapServer path (HTTP 403); the layer now uses the GeoServer `base_reflectivity_mosaic`, which also covers Alaska, Hawaii, the Caribbean and Guam. A tile failure now falls back to RainViewer's global mosaic instead of leaving the overlay blank, and the toggle and its button state track whichever layer is live.
 
+### Security
+- `connect-src` is an allowlist again. Both the meta policy and `_headers` carried bare `http:` and `https:` sources, which match every origin and made the 28-entry list that followed them decorative. Removed them, added the vector-basemap and OurAirports hosts the app actually fetches, and added `object-src 'none'` to the meta policy. `img-src` deliberately stays scheme-wide, documented in place.
+
 ### Changed
 - Airplanes.live is disabled by default and carries a machine-readable reason: its public endpoint returns HTTP 403 pending approved API access.
 

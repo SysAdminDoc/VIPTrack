@@ -643,6 +643,28 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("'https://api.airplanes.live/v2/point/0/0/1'", self.source)
         self.assertIn("skipDirect", self.source)
 
+    def test_connect_src_is_a_real_allowlist(self) -> None:
+        meta = re.search(r'http-equiv="Content-Security-Policy" content="(.*?)"', self.source, re.S)
+        self.assertIsNotNone(meta)
+        policy = meta.group(1)
+        # CSP has no comment syntax: an HTML comment inside content=" silently invalidates
+        # the directives around it and the page falls back to default-src 'self'.
+        self.assertNotIn("<!--", policy)
+        self.assertNotIn("-->", policy)
+        headers = (ROOT / "_headers").read_text(encoding="utf-8")
+        for name, text in (("meta", policy), ("_headers", headers)):
+            connect = re.search(r"connect-src ([^;]+);", text)
+            self.assertIsNotNone(connect, name)
+            tokens = connect.group(1).split()
+            # Bare scheme sources match every origin and make the allowlist decorative.
+            self.assertNotIn("http:", tokens, name)
+            self.assertNotIn("https:", tokens, name)
+            self.assertIn("'self'", tokens, name)
+            for required in ("https://api.adsb.lol", "https://opendata.adsb.fi", "https://corsproxy.io",
+                             "https://nowcoast.noaa.gov", "https://api.rainviewer.com"):
+                self.assertIn(required, tokens, f"{name}: {required}")
+        self.assertIn("object-src 'none'", policy)
+
     def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

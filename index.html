@@ -4,16 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- N3: Content Security Policy via meta tag (GitHub Pages cannot set headers).
-         Allows only the feeds, CDN, and reference domains the app actually uses. -->
+         connect-src is an explicit allowlist: bare `http:`/`https:` were removed because
+         they matched every origin and made the list that followed them decorative.
+         img-src stays scheme-wide on purpose - aircraft photos fall through several
+         third-party hosts and raster basemaps are user-selectable, so an allowlist there
+         would silently blank images instead of failing loudly.
+         Note: CSP has no comment syntax, so nothing explanatory may go inside content=". -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
+        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://davidmegginson.github.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.stadiamaps.com https://corsproxy.io https://api.allorigins.win https://api.rainviewer.com https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
         worker-src 'self' blob: https://cdn.jsdelivr.net;
         frame-src 'self';
         manifest-src 'self' blob:;
+        object-src 'none';
         base-uri 'self';
         form-action 'self';
         trusted-types viptrack default dompurify;
