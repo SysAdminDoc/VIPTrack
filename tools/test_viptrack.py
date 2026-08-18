@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 import struct
@@ -714,6 +715,21 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("const { name, owner, ownerName, city, state, ...rest } = record;", self.source)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("tools/build_faa_registry.py", readme)
+
+    def test_vendored_reference_database_declares_its_vintage(self) -> None:
+        # registrations.csv ships with the release, so it drifts silently unless the
+        # refresh is documented and gated. It had sat five months behind upstream.
+        manifest = json.loads((ROOT / "data" / "aircraft" / "manifest.json").read_text(encoding="utf-8"))
+        for key in ("source", "sourceUrl", "license", "dbVersion", "refreshedAt", "rows", "refreshCommand"):
+            self.assertIn(key, manifest)
+        version_file = (ROOT / "data" / "aircraft" / "dbversion.txt").read_text(encoding="utf-8").strip()
+        self.assertEqual(manifest["dbVersion"], version_file)
+        self.assertGreater(manifest["rows"], 100_000)
+        refreshed = datetime.date.fromisoformat(manifest["refreshedAt"])
+        age = (datetime.date.today() - refreshed).days
+        self.assertLessEqual(age, manifest.get("staleAfterDays", 120),
+                             "run: py -3.13 tools/refresh_reference_data.py")
+        self.assertTrue((ROOT / "tools" / "refresh_reference_data.py").is_file())
 
     def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")

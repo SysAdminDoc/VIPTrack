@@ -37,6 +37,8 @@ python -m http.server 8000
 
 Reference data (aircraft, airlines, airports, military/government catalogues, images) is served from this repository, so a checkout is self-contained and `file://` works without reaching a second repo. The upstream `plane-alert-db` mirrors remain configured as fallbacks.
 
+The aircraft database is a vendored build of [tar1090-db](https://github.com/wiedehopf/tar1090-db) (ODbL-1.0). Refresh it with `py -3.13 tools/refresh_reference_data.py`; `--check` reports its age without downloading, and the contract suite fails once the recorded build is more than 120 days old. `data/aircraft/manifest.json` records the upstream version, row count and refresh date.
+
 Zero-build, dependency-free static web application. The normal Leaflet 2D map works from `index.html`; the optional Cesium globe (`?3d=1`) and MapLibre/deck.gl GPU renderer (`?renderer=webgl`) are lazy-loaded from pinned CDN assets and need HTTP(S) hosting. The WebGL lane accepts `?renderer=webgl&basemap=carto-voyager` or `?renderer=webgl&basemap=stadia-alidade-smooth-dark` for opt-in vector basemaps.
 
 The Settings panel includes a language selector. Locale catalogs live in `data/i18n/{lang}.json`, are loaded only from the app's own origin, and fall back to the English catalog (or the embedded English UI defaults when opened directly as `file://`).

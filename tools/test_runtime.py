@@ -332,10 +332,12 @@ class VipTrackRuntime(unittest.TestCase):
         page.route("**/*", handler)
         try:
             page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
-            # The relay is flagged on the first request; wait for the source sweep too.
+            # checkAllSources() awaits each source in turn, so waiting for the *first*
+            # blocked source races the rest still sitting at 'unknown'. Wait for the
+            # whole sweep to land before asserting on all of them.
             page.wait_for_function(
                 "() => relayHealth.isThrottled() && dataSourceManager.enabledSources()"
-                ".some(s => s.blockedByRelay)", timeout=45000)
+                ".every(s => s.status !== 'unknown')", timeout=45000)
             self.assertTrue(page.evaluate("relayHealth.isThrottled()"))
             self.assertIn("429", page.evaluate("relayHealth.describe()"))
             # Relayed sources must not be counted out over a fault that is not theirs.

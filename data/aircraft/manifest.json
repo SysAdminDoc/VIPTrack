@@ -1,0 +1,11 @@
+{
+ "schemaVersion": 1,
+ "source": "wiedehopf/tar1090-db (csv branch)",
+ "sourceUrl": "https://raw.githubusercontent.com/wiedehopf/tar1090-db/csv/aircraft.csv.gz",
+ "license": "ODbL-1.0 (upstream aggregates OpenSky and community data)",
+ "dbVersion": "3.14.1713",
+ "refreshedAt": "2026-08-18",
+ "rows": 614965,
+ "staleAfterDays": 120,
+ "refreshCommand": "py -3.13 tools/refresh_reference_data.py"
+}
