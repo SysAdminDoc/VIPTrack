@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v0.7.0] - 2026-08-18
 
 ### Added
 - A coverage view. Accumulated local observations now render as either a density heatmap or persistent tracks over a selectable window — last hour, 6 hours, 24 hours, or 7 days — with a configurable 15 s to 5 min sample interval and a Clear control. The `trailHistory` store existed but nothing ever wrote to it, so the previous heatmap only ever showed the current in-memory session; sampling now persists positions that actually changed, in one transaction per sweep rather than one per point. Points are aggregated into cells during the read, so a redraw is bounded by what is on screen rather than by how long the store has been running — measured under 250 ms at 60,000 stored points — and the walk stops at 250,000 points and says so instead of locking the tab. Privacy-protected aircraft are excluded when sampled and again when drawn, so a store written before a hex became known-PIA still redacts it, and the status line reports how many points were withheld. The style and window participate in shared view links; no identities do.
