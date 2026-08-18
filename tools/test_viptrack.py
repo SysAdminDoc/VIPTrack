@@ -607,9 +607,41 @@ class VipTrackContracts(unittest.TestCase):
         store_icon = (ANDROID_DIR / "store_icon.png").read_bytes()
         self.assertEqual(store_icon[:8], b"\x89PNG\r\n\x1a\n")
         self.assertEqual(struct.unpack(">II", store_icon[16:24]), (512, 512))
-        self.assertIn("CONFIG.isAndroidApp && source.key !== 'airplaneslive'", self.source)
-        self.assertIn("const androidSourceOrder={airplaneslive:0", self.source)
+        # The Android build no longer pins airplanes.live: that endpoint requires
+        # approved API access and answers 403, so every platform follows measured health.
+        self.assertNotIn("CONFIG.isAndroidApp && source.key !== 'airplaneslive'", self.source)
+        self.assertNotIn("androidSourceOrder", self.source)
         self.assertIn("const VIPTRACK_ANDROID_QA_MODE = IS_VIPTRACK_ANDROID_APP", self.source)
+
+    def test_live_feed_relay_contract_survives_cors_removal(self) -> None:
+        # Verified 2026-08-18 from a browser on the live origin: no public ADS-B
+        # aggregator sends Access-Control-Allow-Origin, so every feed must be marked
+        # `cors: false` and relayed, and the health check must not skip relayed sources.
+        for key in ("adsbone", "adsblol", "airplaneslive", "adsbfi"):
+            descriptor = re.search(r"\{ key: '" + key + r"'.*?limitations:", self.source, re.S)
+            self.assertIsNotNone(descriptor, key)
+            self.assertIn("cors: false", descriptor.group(0), key)
+        self.assertNotIn("source.cors === false && location.hostname.includes('github.io')", self.source)
+        # api.codetabs.com stopped answering; corsproxy.io is the verified-fastest relay.
+        self.assertNotIn("api.codetabs.com", self.source)
+        self.assertIn("https://corsproxy.io/?url=", self.source)
+        self.assertIn("https://api.allorigins.win/raw?url=", self.source)
+        # adsb.fi uses /lat/../lon/../dist/..; the /point/ shape returns HTTP 400.
+        self.assertIn("'https://opendata.adsb.fi/api/v2/lat/'", self.source)
+        self.assertNotIn("'https://opendata.adsb.fi/api/v2/point/'", self.source)
+        # airplanes.live is opt-out until an operator holds approved API access.
+        self.assertIn("disabled: true", self.source)
+        self.assertIn("disabledReason:", self.source)
+        self.assertIn("if (source.disabled)", self.source)
+        self.assertIn("enabledSources()", self.source)
+
+    def test_connectivity_probe_follows_the_healthiest_source(self) -> None:
+        # Both former probe hosts now answer 403, which reported "offline" on a healthy
+        # connection. The probe must derive its target from the source manager instead.
+        self.assertIn("getProbeSource()", self.source)
+        self.assertNotIn("'https://api.adsb.one/v2/point/0/0/1'", self.source)
+        self.assertNotIn("'https://api.airplanes.live/v2/point/0/0/1'", self.source)
+        self.assertIn("skipDirect", self.source)
 
     def test_release_version_is_synchronized_across_shell_docs_and_android(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")

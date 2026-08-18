@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Restored live aircraft loading. Every public ADS-B aggregator has dropped `Access-Control-Allow-Origin`, and the source manager was short-circuiting relayed sources to "degraded" on GitHub Pages, so the hosted build could not reach a single feed. All four feeds are now marked relay-only and checked through the CORS relay.
+- Reordered the CORS relay list and removed `api.codetabs.com`, which no longer answers and only consumed the request timeout.
+- Corrected the ADSB.fi endpoint shape: it serves `/lat/{lat}/lon/{lon}/dist/{d}`, not `/point/...`, so every health check against it had been failing with HTTP 400. ADSB.fi has no `/pia` endpoint, which is now modelled rather than fetched twice.
+- The connectivity probe followed two hardcoded hosts that now answer HTTP 403, reporting "offline" on a healthy connection. It now probes whichever source the manager currently prefers.
+- Dropped the Android-only pin to Airplanes.live, which now requires approved API access; every platform follows measured source health.
+- Skipped the guaranteed-to-fail direct fetch before relaying for hosts known not to send CORS headers, removing one failed round-trip per poll.
+
+### Changed
+- Airplanes.live is disabled by default and carries a machine-readable reason: its public endpoint returns HTTP 403 pending approved API access.
+
+
 All notable changes to VIPTrack will be documented in this file.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).

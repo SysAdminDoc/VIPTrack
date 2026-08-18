@@ -10,7 +10,7 @@
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://api.codetabs.com https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
+        connect-src 'self' blob: http: https: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://globe.airplanes.live https://api.adsbdb.com https://hexdb.io https://api.planespotters.net https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://corsproxy.io https://api.allorigins.win https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
         worker-src 'self' blob: https://cdn.jsdelivr.net;
         frame-src 'self';
         manifest-src 'self' blob:;
@@ -2502,9 +2502,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         refreshInterval: 6000,
         cacheExpiry: 300000,
         debug: (new URLSearchParams(window.location.search)).has('debug'),
+        // Ordered fastest-first, verified 2026-08-18 from a browser on the live origin.
+        // No public ADS-B aggregator sends Access-Control-Allow-Origin any more, so this
+        // relay is the only path to live data for a static, backend-free deployment.
+        // The former codetabs relay was removed: it no longer answers and only burned the timeout.
         corsProxies: [
-            url => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(url),
-            url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+            url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
             url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
         ],
         isLocalFile: window.location.protocol === 'file:',
@@ -2998,12 +3001,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         
         async checkConnection() {
             try {
-                const probeUrl = CONFIG.isAndroidApp
-                    ? 'https://api.airplanes.live/v2/point/0/0/1'
-                    : 'https://api.adsb.one/v2/point/0/0/1';
-                const response = CONFIG.isLocalFile
-                    ? await fetchWithProxy(probeUrl)
-                    : await fetch(probeUrl, { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+                // Probe whichever feed the source manager currently prefers rather than a
+                // hardcoded host. Both former probe targets started returning HTTP 403,
+                // so this reported "offline" on a perfectly healthy connection.
+                const probeSource = dataSourceManager.getProbeSource();
+                const probeUrl = probeSource.buildUrl({ lat: 0, lng: 0 }, 1);
+                const response = (CONFIG.isLocalFile || probeSource.cors === false)
+                    ? await fetchWithProxy(probeUrl, {}, { skipDirect: probeSource.cors === false && !CONFIG.isLocalFile })
+                    : await fetch(probeUrl, { cache: 'no-cache', signal: AbortSignal.timeout(8000) });
 
                 if (response?.ok && !this.isOnline) {
                     this.handleOnline();
@@ -3148,31 +3153,46 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
-            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: true, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
-            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
-            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
-            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: 'https://opendata.adsb.fi/api/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 4, cors: true, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
+            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
+            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unavailable', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 9, cors: false, disabled: true, disabledReason: 'Airplanes.live now requires approved API access requested by email; the public endpoint returns HTTP 403.', rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
+            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/lat/' + c.lat.toFixed(4) + '/lon/' + c.lng.toFixed(4) + '/dist/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: null, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
         ],
         
         currentSource: null,
         healthCheckInterval: null,
-        
+
+        // Enabled sources only, best-known first. checkAllSources() keeps `sources`
+        // sorted by health then latency then priority, so index 0 is the current best.
+        enabledSources() {
+            return this.sources.filter(source => !source.disabled);
+        },
+
+        getProbeSource() {
+            const enabled = this.enabledSources();
+            return enabled.find(source => source.status === 'healthy') || enabled[0] || this.sources[0];
+        },
+
         init() {
             this.healthCheckInterval = setInterval(() => this.checkAllSources(), 60000);
             setTimeout(() => this.checkAllSources(), 5000);
         },
         
         async checkAllSources() {
+            // Every public ADS-B aggregator dropped Access-Control-Allow-Origin, so a
+            // `cors: false` source is the normal case rather than a reason to skip the
+            // check -- fetchWithProxy() relays it. Previously this short-circuited every
+            // proxied source to 'degraded' on github.io, which left the hosted build with
+            // no usable feed at all. Sources marked `disabled` stay out until re-enabled.
             for (const source of this.sources) {
-                if (CONFIG.isAndroidApp && source.key !== 'airplaneslive') {
-                    source.status = 'degraded';
+                if (source.disabled) {
+                    source.status = 'unavailable';
                     source.latency = 9999;
                     continue;
                 }
-                if (!CONFIG.isAndroidApp && source.cors === false && location.hostname.includes('github.io')) { source.status = 'degraded'; source.latency = 9999; continue; }
                 await this.checkSource(source);
             }
-            
+
             this.sources.sort((a, b) => {
                 if (a.status === 'healthy' && b.status !== 'healthy') return -1;
                 if (b.status === 'healthy' && a.status !== 'healthy') return 1;
@@ -3191,7 +3211,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 
                 let response;
                 if (source.cors && !CONFIG.isLocalFile) { response = await fetch(testUrl, { method: 'GET', cache: 'no-cache', signal: AbortSignal.timeout(8000) }); }
-                else { response = await fetchWithProxy(testUrl); if (!response) throw new Error('No proxy'); }
+                else { response = await fetchWithProxy(testUrl, {}, { skipDirect: source.cors === false && !CONFIG.isLocalFile }); if (!response) throw new Error('No proxy'); }
                 
                 source.latency = Date.now() - startTime;
                 
@@ -3211,17 +3231,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
         
         getBestSource() {
-            const healthy = this.sources.find(s => s.status === 'healthy');
+            const enabled = this.enabledSources();
+            const healthy = enabled.find(s => s.status === 'healthy');
             if (healthy) return healthy;
-            
-            const degraded = this.sources.find(s => s.status === 'degraded');
+
+            const degraded = enabled.find(s => s.status === 'degraded');
             if (degraded) return degraded;
-            
-            return this.sources[0];
+
+            return enabled[0] || this.sources[0];
         },
         
         getSourcesInOrder() {
-            return [...this.sources].sort((a, b) => {
+            return [...this.enabledSources()].sort((a, b) => {
                 if (a.status === 'healthy' && b.status !== 'healthy') return -1;
                 if (b.status === 'healthy' && a.status !== 'healthy') return 1;
                 if (a.latency !== b.latency) return a.latency - b.latency;
@@ -3543,7 +3564,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         async recoverDataLoad(error, context) {
             _dbg('Attempting data load recovery...');
             
-            const nextSource = dataSourceManager.sources.find(s => 
+            const nextSource = dataSourceManager.enabledSources().find(s => 
                 s.name !== dataSourceManager.currentSource?.name && s.status !== 'unhealthy'
             );
             
@@ -7986,10 +8007,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             return url;
         }
     };
-    async function fetchWithProxy(url, options = {}) {
+    // `skipDirect` avoids burning a guaranteed CORS failure (and its round-trip) on
+    // every poll for hosts already known not to send Access-Control-Allow-Origin.
+    async function fetchWithProxy(url, options = {}, { skipDirect = false } = {}) {
         const target = egressPolicy.validateUrl(url);
         if (!target) return null;
-        if (!CONFIG.isLocalFile) {
+        if (!CONFIG.isLocalFile && !skipDirect) {
             try { const response = await fetchWithTimeout(target.href, options); if (response?.ok) return response; } catch (e) {}
         }
         for (let i = 0; i < CONFIG.corsProxies.length; i++) {
@@ -8561,23 +8584,21 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         const statsStartedAt = Date.now();
         gridFetch.inProgress=true;fetchInProgress=true;
         try{
-            const eligibleSources=dataSourceManager.sources.filter(s=>s.status!=='unhealthy');
-            const androidSourceOrder={airplaneslive:0,adsbone:1,adsblol:2,adsbfi:3};
-            const allSrc=CONFIG.isAndroidApp
-                ? [...eligibleSources].sort((a,b)=>(androidSourceOrder[a.key]??99)-(androidSourceOrder[b.key]??99))
-                : eligibleSources;
+            // The Android build used to pin airplanes.live first; that endpoint now needs
+            // approved access and returns 403, so every platform follows measured health.
+            const allSrc=dataSourceManager.enabledSources().filter(s=>s.status!=='unhealthy');
             if(!allSrc.length){_el('dataSource').textContent='No sources';statsDashboard.recordFailure();return;}
             let success=false;
             const attemptedSources = [];
             // Try each source until one succeeds - fetch mil + pia in parallel
-            const _fetch = (url, cors) => (cors && !CONFIG.isLocalFile) ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url);
+            const _fetch = (url, cors) => (cors && !CONFIG.isLocalFile) ? fetchWithTimeout(url, {cache:'no-cache'}).catch(()=>null) : fetchWithProxy(url, {}, { skipDirect: cors === false && !CONFIG.isLocalFile });
             for(const src of allSrc){
                 attemptedSources.push(src);
                 const sourceStartedAt = Date.now();
                 try{
                     const [milResp,piaResp]=await Promise.all([
-                        _fetch(src.milUrl, src.cors),
-                        _fetch(src.piaUrl, src.cors)
+                        src.milUrl ? _fetch(src.milUrl, src.cors) : null,
+                        src.piaUrl ? _fetch(src.piaUrl, src.cors) : null
                     ]);
                     let allAc=[];
                     try{ if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
