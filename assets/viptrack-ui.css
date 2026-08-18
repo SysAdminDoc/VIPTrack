@@ -2365,3 +2365,18 @@
 body.mobile-view .mobile-settings-search input {
     min-height: 24px;
 }
+
+/* X14 coverage view. The canvas is a data surface, not chrome: it must never take
+   pointer events away from the map, and it sits under the marker pane so aircraft
+   stay selectable through it. Forced-colors cannot restyle canvas pixels, so the
+   density wash is toned down there rather than left to compete with the OS palette. */
+.coverage-canvas {
+    pointer-events: none;
+    z-index: 200;
+}
+
+@media (forced-colors: active) {
+    .coverage-canvas {
+        opacity: 0.55;
+    }
+}

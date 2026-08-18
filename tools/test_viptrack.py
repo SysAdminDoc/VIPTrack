@@ -1303,6 +1303,43 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("this.renderer.setStyle(style)", section)
         self.assertIn("saveSettings()", section)
 
+    def test_coverage_view_is_local_aggregated_and_pia_redacted(self) -> None:
+        for marker in (
+            "const COVERAGE_MODES = ['off', 'density', 'tracks']",
+            "const COVERAGE_WINDOW_HOURS = [1, 6, 24, 168]",
+            "const COVERAGE_INTERVAL_SECONDS = [15, 30, 60, 300]",
+            "const coverageRecorder = {",
+            "const coverageView = {",
+            "async saveTrailPoints(points)",
+            "async streamTrailHistory(since, onRecord",
+            "async clearTrailHistory()",
+            "id=\"coverageMode\"",
+            "id=\"coverageWindow\"",
+            "id=\"coverageInterval\"",
+            "id=\"coverageClearBtn\"",
+            "coverageView.applyUrlState(params)",
+            "coverageView.writeUrlState(params)",
+        ):
+            self.assertIn(marker, self.source)
+
+        recorder = self.source[self.source.index("const coverageRecorder = {"):self.source.index("const coverageView = {")]
+        # Redaction at write time: the store must never hold a PIA position at all.
+        self.assertIn("if (!ac || isPrivacyProtectedAircraft(ac)) continue;", recorder)
+        # Sampling, not mirroring - an unchanged position writes nothing.
+        self.assertIn("if (previous && previous[0] === lat && previous[1] === lon) continue;", recorder)
+
+        view = self.source[self.source.index("const coverageView = {"):self.source.index("// ============ X3: PLANE-ALERT-DB")]
+        # Redaction again at read time, because the store may predate a hex being PIA.
+        self.assertIn("isPrivacyProtectedHex(hex) || isPrivacyProtectedAircraft(aircraftCache[hex])", view)
+        # Aggregate during the walk; never materialise the raw window.
+        self.assertIn("streamTrailHistory(since", view)
+        self.assertIn("COVERAGE_POINT_LIMIT", view)
+        self.assertIn("cells.set(key,", view)
+        self.assertNotIn("getAll(", view)
+        # Local only: nothing about this view may reach the network.
+        for forbidden in ("fetch(", "XMLHttpRequest", "http://", "https://"):
+            self.assertNotIn(forbidden, view)
+
     def test_self_hosted_pmtiles_basemap_is_same_origin_and_uncommitted(self) -> None:
         for marker in (
             "const PMTILES_JS_URL =",

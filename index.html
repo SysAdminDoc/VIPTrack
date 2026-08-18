@@ -1579,7 +1579,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
-const SW_CACHE_SCHEMA = '4.26';
+const SW_CACHE_SCHEMA = '4.27';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const SW_CONTEXT_SUPPORTED = location.protocol !== 'file:' &&
@@ -2296,7 +2296,34 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="setting-row"><span class="setting-label" id="toggleHeadingProjLabel" data-i18n="settings.headingLine">Direction-of-flight line (X8)</span><button type="button" class="toggle" id="toggleHeadingProj" role="switch" aria-checked="false" aria-labelledby="toggleHeadingProjLabel"></button></div>
             <div class="setting-row"><span class="setting-label" id="toggleNexradLabel" data-i18n="settings.nexrad">NEXRAD radar (US)</span><button type="button" class="toggle" id="toggleNexrad" role="switch" aria-checked="false" aria-labelledby="toggleNexradLabel"></button></div>
             <div class="setting-row"><span class="setting-label" id="toggleTFRLabel" data-i18n="settings.tfr">FAA TFR polygons</span><button type="button" class="toggle" id="toggleTFR" role="switch" aria-checked="false" aria-labelledby="toggleTFRLabel"></button></div>
-            <div class="setting-row"><span class="setting-label" id="toggleHeatmapLabel" data-i18n="settings.heatmap">Heatmap (from trail history)</span><button type="button" class="toggle" id="toggleHeatmap" role="switch" aria-checked="false" aria-labelledby="toggleHeatmapLabel"></button></div>
+            <div class="setting-row"><span class="setting-label" id="toggleHeatmapLabel" data-i18n="settings.heatmap">Coverage view (from trail history)</span><button type="button" class="toggle" id="toggleHeatmap" role="switch" aria-checked="false" aria-labelledby="toggleHeatmapLabel"></button></div>
+            <div class="setting-row">
+                <span class="setting-label" data-i18n="settings.coverageMode">Coverage style</span>
+                <select id="coverageMode" class="setting-select" aria-label="Coverage style" data-i18n-aria-label="settings.coverageMode">
+                    <option value="density" data-i18n="settings.coverageDensity">Density heatmap</option>
+                    <option value="tracks" data-i18n="settings.coverageTracks">Persistent tracks</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label" data-i18n="settings.coverageWindow">Coverage window</span>
+                <select id="coverageWindow" class="setting-select" aria-label="Coverage window" data-i18n-aria-label="settings.coverageWindow">
+                    <option value="1" data-i18n="settings.coverage1h">Last hour</option>
+                    <option value="6" selected data-i18n="settings.coverage6h">Last 6 hours</option>
+                    <option value="24" data-i18n="settings.coverage24h">Last 24 hours</option>
+                    <option value="168" data-i18n="settings.coverage7d">Last 7 days</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label" data-i18n="settings.coverageInterval">Sample interval</span>
+                <select id="coverageInterval" class="setting-select" aria-label="Coverage sample interval" data-i18n-aria-label="settings.coverageInterval">
+                    <option value="15">15 s</option>
+                    <option value="30" selected>30 s</option>
+                    <option value="60">60 s</option>
+                    <option value="300">5 min</option>
+                </select>
+            </div>
+            <div class="setting-row"><span class="setting-label" data-i18n="settings.coverageClear">Coverage history</span><button type="button" class="settings-btn secondary" id="coverageClearBtn" data-i18n="settings.coverageClearAction">Clear</button></div>
+            <div class="receiver-coverage-help" id="coverageStatus" data-i18n="settings.coverageHelp">Coverage is built only from what this browser has observed. Nothing is fetched or transmitted, and privacy-protected aircraft are excluded when sampled and again when drawn. Retention follows the trail retention setting.</div>
             <div class="setting-row"><span class="setting-label" data-i18n="settings.headingLookahead">Heading lookahead</span>
                 <select id="headingLookahead" class="setting-select">
                     <option value="60">1 min</option>
@@ -4058,6 +4085,53 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             });
         },
         
+        // One transaction for the whole sweep. The per-point method above opens a
+        // transaction each call, which is fine for a single save and unusable when
+        // several hundred aircraft are sampled on every tick.
+        async saveTrailPoints(points) {
+            if (!points.length) return 0;
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['trailHistory'], 'readwrite');
+                const store = transaction.objectStore('trailHistory');
+                const timestamp = Date.now();
+                for (const point of points) store.add({ hex: point.hex, data: point.data, timestamp });
+                transaction.oncomplete = () => resolve(points.length);
+                transaction.onerror = () => reject(transaction.error);
+            });
+        },
+
+        // Streams a time window through a callback instead of materialising it.
+        // A week of samples is easily hundreds of thousands of rows; the caller
+        // aggregates as it goes and never holds the raw set.
+        async streamTrailHistory(since, onRecord, limit = 250000) {
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['trailHistory'], 'readonly');
+                const index = transaction.objectStore('trailHistory').index('timestamp');
+                const request = index.openCursor(IDBKeyRange.lowerBound(since));
+                let seen = 0;
+                request.onsuccess = event => {
+                    const cursor = event.target.result;
+                    if (!cursor || seen >= limit) { resolve({ seen, truncated: Boolean(cursor) }); return; }
+                    seen++;
+                    onRecord(cursor.value);
+                    cursor.continue();
+                };
+                request.onerror = () => reject(request.error);
+            });
+        },
+
+        async clearTrailHistory() {
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['trailHistory'], 'readwrite');
+                const request = transaction.objectStore('trailHistory').clear();
+                request.onsuccess = () => resolve(true);
+                request.onerror = () => reject(request.error);
+            });
+        },
+
         async getTrailHistory(hex, limit = 10) {
             if (!this.db) await this.init();
             return new Promise((resolve, reject) => {
@@ -7069,7 +7143,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     let lastFetchTime = 0, fetchInProgress = false, lastSuccessfulSource = null, lastSuccessfulProxy = 0, animationRunning = false;
     const aircraftAnimation = {}, photoCache = {}, photoFailCache = {};
     let bookmarks = [];
-    const settings = { mapStyle: 'esri-gray', showLabels: false, altitudeColors: true, showWiki: true, filter: 'mil-vip', followMode: false, compactMode: false };
+    const settings = { mapStyle: 'esri-gray', showLabels: false, altitudeColors: true, showWiki: true, filter: 'mil-vip', followMode: false, compactMode: false, coverageMode: 'off', coverageWindow: 6, coverageInterval: 30, coverageRecording: false };
     const baseMaps = {};
     const MILITARY_TYPES = ['F16', 'F15', 'F18', 'F22', 'F35', 'KC35', 'K35R', 'KC10', 'B52', 'A400', 'EUFI', 'RFAL', 'TORD', 'P8', 'U2', 'RC35', 'E6', 'E8', 'EA18', 'EP3', 'T38', 'T45'];
     const MILITARY_TYPES_EXACT = ['C17', 'C130', 'C5', 'C5M', 'B1', 'B1B', 'B2', 'A10', 'A10A', 'E3CF', 'E3TF', 'E3', 'V22', 'C2', 'C12', 'C30J', 'H60', 'C295', 'CN35', 'HAWK', 'MIAG', 'TUCA', 'F117', 'U28A', 'C146', 'C37A', 'C37B', 'C40A', 'C40B', 'P3', 'P8A', 'T6', 'T6A', 'T6B'];
@@ -8634,7 +8708,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
     function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
     function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to supported curated subsets
-        if (!['mil-vip','military','government','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip'; }
+        if (!['mil-vip','military','government','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip';
+        if (!COVERAGE_MODES.includes(settings.coverageMode)) settings.coverageMode = 'off';
+        if (!COVERAGE_WINDOW_HOURS.includes(Number(settings.coverageWindow))) settings.coverageWindow = 6;
+        if (!COVERAGE_INTERVAL_SECONDS.includes(Number(settings.coverageInterval))) settings.coverageInterval = 30;
+        settings.coverageRecording = Boolean(settings.coverageRecording); }
     function loadBookmarks() { try { const s = localStorage.getItem('viptrack_bookmarks'); if (s) bookmarks = JSON.parse(s); } catch(e) { bookmarks = []; } renderBookmarks(); }
     function saveBookmarks() { localStorage.setItem('viptrack_bookmarks', JSON.stringify(bookmarks)); renderBookmarks(); }
     function addBookmark(name) { const c = map.getCenter(); bookmarks.push({ id: Date.now(), name, lat: c.lat, lng: c.lng, zoom: map.getZoom() }); saveBookmarks(); toast('Saved: ' + name); }
@@ -9019,6 +9097,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
             const focus = params.get('focus');
             if (focus) setTimeout(() => { try { selectAircraft(focus.toUpperCase()); } catch(e){} }, 2500);
+            coverageView.applyUrlState(params);
             const overlayUrl = params.get('overlay');
             if (overlayUrl) {
                 const overlayInput = document.getElementById('overlayUrlInput');
@@ -10969,12 +11048,34 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             tfrOverlay.toggle();
         });
 
-        // X14: Heatmap toggle
-        const _heatToggle = document.getElementById('toggleHeatmap');
-        _heatToggle?.addEventListener('click', () => {
-            _heatToggle.classList.toggle('on');
-            heatmapLayer.toggle();
+        // X14: Coverage view (persistent tracks / density) from local trail history
+        const _coverageToggle = document.getElementById('toggleHeatmap');
+        const _coverageMode = document.getElementById('coverageMode');
+        const _coverageWindow = document.getElementById('coverageWindow');
+        const _coverageInterval = document.getElementById('coverageInterval');
+        const _syncCoverageControls = () => {
+            const active = coverageView.isActive();
+            _coverageToggle?.classList.toggle('on', active);
+            _coverageToggle?.setAttribute('aria-checked', String(active));
+            if (_coverageMode) _coverageMode.value = active ? coverageView.mode() : (settings.coverageMode === 'tracks' ? 'tracks' : 'density');
+            if (_coverageWindow) _coverageWindow.value = String(coverageView.windowHours());
+            if (_coverageInterval) _coverageInterval.value = String(coverageRecorder.intervalSeconds());
+        };
+        _coverageToggle?.addEventListener('click', async () => {
+            const next = coverageView.isActive() ? 'off' : (_coverageMode?.value || 'density');
+            await coverageView.setMode(next);
+            _syncCoverageControls();
         });
+        _coverageMode?.addEventListener('change', async event => {
+            if (!coverageView.isActive()) { settings.coverageMode = event.target.value; saveSettings(); return; }
+            await coverageView.setMode(event.target.value);
+            _syncCoverageControls();
+        });
+        _coverageWindow?.addEventListener('change', event => coverageView.setWindow(event.target.value));
+        _coverageInterval?.addEventListener('change', event => coverageView.setInterval(event.target.value));
+        document.getElementById('coverageClearBtn')?.addEventListener('click', () => coverageView.clear());
+        _syncCoverageControls();
+        coverageRecorder.start();
 
         // X10: GeoJSON overlay loader
         const _fileInput = document.getElementById('overlayFileInput');
@@ -11755,6 +11856,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 params.set('center', c.lat.toFixed(4) + ',' + c.lng.toFixed(4));
                 params.set('zoom', String(map.getZoom()));
             }
+            // The coverage view is part of what a shared finding means, but it carries
+            // no identities: only the mode and the window travel in the link.
+            coverageView.writeUrlState(params);
             const base = IS_VIPTRACK_ANDROID_APP
                 ? VIPTRACK_PUBLIC_START_URL
                 : window.location.origin + window.location.pathname;
@@ -15848,70 +15952,329 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         }
     };
 
-    // ============ X14: HEATMAP / DENSITY LAYER (uses existing trailHistory) ============
-    // Lightweight canvas heatmap built without an external plugin.
-    const heatmapLayer = {
+    // ============ X14: COVERAGE VIEW (persistent tracks / density from trail history) ============
+    // The live map answers "where is it now". This answers "where has traffic been",
+    // which is the question tar1090's ?pTracks and ?heatmap views exist for. Points
+    // come from this browser's own observations only - nothing is fetched, nothing is
+    // sent - and privacy-protected aircraft are dropped at write time and again at
+    // render time, so a store written before a hex became known-PIA still redacts.
+    const COVERAGE_MODES = ['off', 'density', 'tracks'];
+    const COVERAGE_WINDOW_HOURS = [1, 6, 24, 168];
+    const COVERAGE_INTERVAL_SECONDS = [15, 30, 60, 300];
+    // Cursor cap. A week at 15s intervals with 400 aircraft in view is ~1.6M rows;
+    // the walk stops long before that and says so rather than locking the tab.
+    const COVERAGE_POINT_LIMIT = 250000;
+    const COVERAGE_TRACK_LIMIT = 250;
+    const COVERAGE_TRACK_POINTS = 400;
+    // Aggregation cell in degrees. Fine enough to read as a track at city scale,
+    // coarse enough that a week of world traffic stays in the tens of thousands.
+    const COVERAGE_CELL_DEGREES = 0.05;
+
+    const coverageRecorder = {
+        timer: 0,
+        lastByHex: new Map(),
+
+        intervalSeconds() {
+            const value = Number(settings.coverageInterval);
+            return COVERAGE_INTERVAL_SECONDS.includes(value) ? value : 30;
+        },
+
+        start() {
+            this.stop();
+            if (!settings.coverageRecording) return;
+            this.timer = setInterval(() => this.tick(), this.intervalSeconds() * 1000);
+            this.tick();
+        },
+
+        stop() {
+            if (this.timer) clearInterval(this.timer);
+            this.timer = 0;
+        },
+
+        restart() {
+            this.start();
+        },
+
+        // Sampling, not mirroring: an unchanged position writes nothing, so a
+        // parked aircraft costs one row rather than one row per tick.
+        async tick() {
+            if (!settings.coverageRecording || typeof skytrackDB === 'undefined') return 0;
+            const batch = [];
+            for (const ac of Object.values(aircraftCache || {})) {
+                if (!ac || isPrivacyProtectedAircraft(ac)) continue;
+                const lat = Number(ac.lat), lon = Number(ac.lon);
+                if (!Number.isFinite(lat) || lat < -90 || lat > 90) continue;
+                if (!Number.isFinite(lon) || lon < -180 || lon > 180) continue;
+                const key = String(ac.hex || '').toUpperCase();
+                if (!key) continue;
+                const previous = this.lastByHex.get(key);
+                if (previous && previous[0] === lat && previous[1] === lon) continue;
+                this.lastByHex.set(key, [lat, lon]);
+                const altitude = Number(ac.alt_baro ?? ac.alt_geom ?? ac.altitude);
+                batch.push({ hex: key, data: [lat, lon, Number.isFinite(altitude) ? altitude : null] });
+            }
+            if (!batch.length) return 0;
+            try {
+                return await skytrackDB.saveTrailPoints(batch);
+            } catch (e) {
+                _dbg('Coverage sampling failed:', e.message);
+                return 0;
+            }
+        }
+    };
+
+    const coverageView = {
         layer: null,
         canvas: null,
-        async toggle() {
-            if (this.layer) { map.removeLayer(this.layer); this.layer = null; toast('Heatmap off'); return; }
-            toast('Building heatmap…');
-            const points = await this._collectPoints();
-            if (!points.length) { toast('No trail history yet'); return; }
-            this.layer = this._buildOverlay(points);
-            this.layer.addTo(map);
-            toast(points.length + ' points rendered');
+        cells: null,
+        tracks: null,
+        stats: null,
+        loading: false,
+
+        mode() {
+            return COVERAGE_MODES.includes(settings.coverageMode) ? settings.coverageMode : 'off';
         },
-        async _collectPoints() {
-            // Pull from in-memory aircraft.history first; supplement from IDB if available
-            const out = [];
-            for (const ac of Object.values(aircraftCache || {})) {
-                if (Array.isArray(ac.history)) {
-                    for (const p of ac.history) {
-                        if (Number.isFinite(p[0]) && Number.isFinite(p[1])) out.push([p[0], p[1]]);
-                    }
-                }
+
+        windowHours() {
+            const value = Number(settings.coverageWindow);
+            return COVERAGE_WINDOW_HOURS.includes(value) ? value : 6;
+        },
+
+        isActive() {
+            return this.mode() !== 'off';
+        },
+
+        async setMode(mode, announce = true) {
+            const next = COVERAGE_MODES.includes(mode) ? mode : 'off';
+            settings.coverageMode = next;
+            if (next !== 'off') settings.coverageRecording = true;
+            saveSettings();
+            coverageRecorder.start();
+            if (next === 'off') {
+                this.detach();
+                if (announce) toast('Coverage off');
+                return true;
             }
-            return out;
+            await this.refresh(announce);
+            return true;
         },
-        _buildOverlay(points) {
+
+        async setWindow(hours, announce = true) {
+            const value = Number(hours);
+            settings.coverageWindow = COVERAGE_WINDOW_HOURS.includes(value) ? value : 6;
+            saveSettings();
+            if (this.isActive()) await this.refresh(announce);
+        },
+
+        setInterval(seconds) {
+            const value = Number(seconds);
+            settings.coverageInterval = COVERAGE_INTERVAL_SECONDS.includes(value) ? value : 30;
+            saveSettings();
+            coverageRecorder.restart();
+        },
+
+        detach() {
+            if (this.layer && map) { try { map.removeLayer(this.layer); } catch (e) {} }
+            this.layer = null;
+            this.cells = null;
+            this.tracks = null;
+            this.stats = null;
+            this.render();
+        },
+
+        async clear() {
+            try { await skytrackDB.clearTrailHistory(); } catch (e) { _dbg('Coverage clear failed:', e.message); }
+            coverageRecorder.lastByHex.clear();
+            if (this.isActive()) await this.refresh(false);
+            toast('Coverage history cleared');
+        },
+
+        // One pass over the window builds both representations, so switching modes
+        // is a repaint rather than another walk of the store.
+        async collect() {
+            const since = Date.now() - this.windowHours() * 3600 * 1000;
+            const cells = new Map();
+            const tracks = new Map();
+            let kept = 0, redacted = 0;
+            const result = await skytrackDB.streamTrailHistory(since, record => {
+                const hex = String(record?.hex || '').toUpperCase();
+                const point = record?.data;
+                if (!hex || !Array.isArray(point)) return;
+                // Second redaction pass: the store may predate a hex being known-PIA.
+                if (isPrivacyProtectedHex(hex) || isPrivacyProtectedAircraft(aircraftCache[hex])) { redacted++; return; }
+                const lat = Number(point[0]), lon = Number(point[1]);
+                if (!Number.isFinite(lat) || lat < -90 || lat > 90) return;
+                if (!Number.isFinite(lon) || lon < -180 || lon > 180) return;
+                kept++;
+                const key = Math.round(lat / COVERAGE_CELL_DEGREES) + ':' + Math.round(lon / COVERAGE_CELL_DEGREES);
+                const cell = cells.get(key);
+                if (cell) cell[2]++;
+                else cells.set(key, [lat, lon, 1]);
+                let track = tracks.get(hex);
+                if (!track) { track = []; tracks.set(hex, track); }
+                if (track.length < COVERAGE_TRACK_POINTS) track.push([lat, lon]);
+            }, COVERAGE_POINT_LIMIT);
+            const ordered = [...tracks.entries()].slice(-COVERAGE_TRACK_LIMIT);
+            return {
+                cells: [...cells.values()],
+                tracks: ordered,
+                points: kept,
+                redacted,
+                aircraft: tracks.size,
+                truncated: Boolean(result?.truncated)
+            };
+        },
+
+        async refresh(announce = true) {
+            if (this.loading) return;
+            this.loading = true;
+            this.render();
+            try {
+                const collected = await this.collect();
+                this.cells = collected.cells;
+                this.tracks = collected.tracks;
+                this.stats = collected;
+                if (!this.layer && map) {
+                    this.layer = this._buildOverlay();
+                    this.layer.addTo(map);
+                }
+                this._draw();
+                if (announce) {
+                    toast(collected.points
+                        ? collected.points.toLocaleString() + ' points · ' + collected.aircraft.toLocaleString() + ' aircraft'
+                        : 'No coverage history in this window yet');
+                }
+            } catch (e) {
+                _dbg('Coverage refresh failed:', e.message);
+                if (announce) toast('Coverage unavailable');
+            } finally {
+                this.loading = false;
+                this.render();
+            }
+        },
+
+        render() {
+            const status = _el('coverageStatus');
+            if (!status) return;
+            if (this.loading) { status.textContent = 'Reading coverage history…'; return; }
+            if (!this.isActive()) {
+                status.textContent = settings.coverageRecording
+                    ? 'Coverage off. Sampling continues every ' + coverageRecorder.intervalSeconds() + 's.'
+                    : 'Coverage off. Turn it on to start sampling this browser’s observations.';
+                return;
+            }
+            const stats = this.stats;
+            if (!stats) { status.textContent = 'Coverage on.'; return; }
+            const parts = [
+                stats.points.toLocaleString() + ' points',
+                stats.aircraft.toLocaleString() + ' aircraft',
+                'last ' + (this.windowHours() >= 24 ? (this.windowHours() / 24) + 'd' : this.windowHours() + 'h')
+            ];
+            if (stats.redacted) parts.push(stats.redacted.toLocaleString() + ' PIA points withheld');
+            if (stats.truncated) parts.push('truncated at ' + COVERAGE_POINT_LIMIT.toLocaleString());
+            status.textContent = parts.join(' · ');
+        },
+
+        _buildOverlay() {
             const self = this;
-            const Heat = L.Layer.extend({
-                onAdd(map) {
-                    self.canvas = L.DomUtil.create('canvas', 'leaflet-zoom-animated');
+            const Coverage = L.Layer.extend({
+                onAdd(target) {
+                    self.canvas = L.DomUtil.create('canvas', 'leaflet-zoom-animated coverage-canvas');
                     self.canvas.style.position = 'absolute';
                     self.canvas.style.pointerEvents = 'none';
-                    map.getPanes().overlayPane.appendChild(self.canvas);
-                    map.on('moveend zoomend resize', this._draw, this);
-                    this._draw();
+                    target.getPanes().overlayPane.appendChild(self.canvas);
+                    target.on('moveend zoomend resize', self._draw, self);
+                    self._draw();
                 },
-                onRemove(map) {
-                    map.off('moveend zoomend resize', this._draw, this);
+                onRemove(target) {
+                    target.off('moveend zoomend resize', self._draw, self);
                     if (self.canvas?.parentNode) self.canvas.parentNode.removeChild(self.canvas);
                     self.canvas = null;
-                },
-                _draw() {
-                    if (!self.canvas) return;
-                    const size = map.getSize();
-                    const topLeft = map.containerPointToLayerPoint([0, 0]);
-                    L.DomUtil.setPosition(self.canvas, topLeft);
-                    self.canvas.width = size.x; self.canvas.height = size.y;
-                    const ctx = self.canvas.getContext('2d');
-                    ctx.clearRect(0, 0, size.x, size.y);
-                    ctx.globalAlpha = 0.45;
-                    for (const [lat, lon] of points) {
-                        const pt = map.latLngToContainerPoint([lat, lon]);
-                        if (pt.x < -10 || pt.x > size.x + 10 || pt.y < -10 || pt.y > size.y + 10) continue;
-                        const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, 14);
-                        grad.addColorStop(0, 'rgba(255, 215, 0, 0.85)');
-                        grad.addColorStop(0.6, 'rgba(255, 149, 0, 0.4)');
-                        grad.addColorStop(1, 'rgba(74, 144, 217, 0)');
-                        ctx.fillStyle = grad;
-                        ctx.fillRect(pt.x - 14, pt.y - 14, 28, 28);
-                    }
                 }
             });
-            return new Heat();
+            return new Coverage();
+        },
+
+        _context() {
+            if (!this.canvas || !map) return null;
+            const size = map.getSize();
+            L.DomUtil.setPosition(this.canvas, map.containerPointToLayerPoint([0, 0]));
+            this.canvas.width = size.x;
+            this.canvas.height = size.y;
+            const ctx = this.canvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, size.x, size.y);
+            return ctx ? { ctx, size } : null;
+        },
+
+        _draw() {
+            const surface = this._context();
+            if (!surface) return;
+            if (this.mode() === 'tracks') this._drawTracks(surface);
+            else this._drawDensity(surface);
+        },
+
+        // Aggregated cells, not raw points: the work per frame is bounded by how much
+        // of the world is on screen, not by how long the store has been running.
+        _drawDensity({ ctx, size }) {
+            const cells = this.cells || [];
+            if (!cells.length) return;
+            let peak = 1;
+            for (const cell of cells) if (cell[2] > peak) peak = cell[2];
+            const radius = Math.max(6, Math.min(22, 4 + map.getZoom() * 1.6));
+            ctx.globalCompositeOperation = 'lighter';
+            for (const [lat, lon, count] of cells) {
+                const point = map.latLngToContainerPoint([lat, lon]);
+                if (point.x < -radius || point.x > size.x + radius) continue;
+                if (point.y < -radius || point.y > size.y + radius) continue;
+                const intensity = Math.min(1, Math.log1p(count) / Math.log1p(peak));
+                const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+                gradient.addColorStop(0, 'rgba(0, 212, 255, ' + (0.16 + intensity * 0.55).toFixed(3) + ')');
+                gradient.addColorStop(0.55, 'rgba(255, 209, 102, ' + (intensity * 0.32).toFixed(3) + ')');
+                gradient.addColorStop(1, 'rgba(255, 92, 112, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(point.x - radius, point.y - radius, radius * 2, radius * 2);
+            }
+            ctx.globalCompositeOperation = 'source-over';
+        },
+
+        _drawTracks({ ctx, size }) {
+            const tracks = this.tracks || [];
+            if (!tracks.length) return;
+            ctx.lineWidth = 1.2;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(0, 212, 255, 0.42)';
+            for (const [, points] of tracks) {
+                if (points.length < 2) continue;
+                let drawing = false;
+                ctx.beginPath();
+                for (const [lat, lon] of points) {
+                    const point = map.latLngToContainerPoint([lat, lon]);
+                    if (point.x < -size.x || point.x > size.x * 2 || point.y < -size.y || point.y > size.y * 2) {
+                        drawing = false;
+                        continue;
+                    }
+                    if (drawing) ctx.lineTo(point.x, point.y);
+                    else { ctx.moveTo(point.x, point.y); drawing = true; }
+                }
+                ctx.stroke();
+            }
+        },
+
+        applyUrlState(params) {
+            const mode = params.get('coverage');
+            if (mode && COVERAGE_MODES.includes(mode)) {
+                const hours = Number(params.get('coverageWindow'));
+                if (COVERAGE_WINDOW_HOURS.includes(hours)) settings.coverageWindow = hours;
+                this.setMode(mode, false);
+                return true;
+            }
+            return false;
+        },
+
+        writeUrlState(params) {
+            if (!this.isActive()) return;
+            params.set('coverage', this.mode());
+            params.set('coverageWindow', String(this.windowHours()));
         }
     };
 

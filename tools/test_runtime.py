@@ -503,6 +503,137 @@ class VipTrackRuntime(unittest.TestCase):
             page.evaluate("pmtilesBasemap.setPath('')")
             self.assertEqual(crashes, [])
 
+    # Writes rows straight into the object store so a test can place points outside
+    # the window and at a volume no fixture sweep would ever produce.
+    _SEED_COVERAGE = """
+        ([rows]) => new Promise((resolve, reject) => {
+            const tx = skytrackDB.db.transaction(['trailHistory'], 'readwrite');
+            const store = tx.objectStore('trailHistory');
+            for (const row of rows) store.add(row);
+            tx.oncomplete = () => resolve(rows.length);
+            tx.onerror = () => reject(tx.error);
+        })
+    """
+
+    # The live feed keeps sampling into the same store, so a test that asserts exact
+    # counts has to quiesce the recorder and empty both the cache and the store first.
+    _QUIESCE_COVERAGE = """
+        async () => {
+            coverageRecorder.stop();
+            settings.coverageRecording = false;
+            coverageRecorder.lastByHex.clear();
+            _pauseAllIntervals();
+            for (const key of Object.keys(aircraftCache)) delete aircraftCache[key];
+            await skytrackDB.clearTrailHistory();
+        }
+    """
+
+    def test_coverage_view_renders_a_window_of_local_history(self) -> None:
+        with self._page() as (page, crashes):
+            page.evaluate(self._QUIESCE_COVERAGE)
+            now = page.evaluate("Date.now()")
+            hour = 3600 * 1000
+            rows = []
+            for i in range(300):
+                rows.append({"hex": f"AE{i % 12:04X}", "data": [38.9 + i * 0.002, -77.0 + i * 0.002, 30000],
+                             "timestamp": now - (i % 3) * 60 * 1000})
+            # Two rows that must never be drawn: one aged out of every window offered,
+            # one belonging to a privacy-protected aircraft.
+            rows.append({"hex": "AE9999", "data": [10.0, 10.0, 100], "timestamp": now - 400 * hour})
+            rows.append({"hex": "ADF7C8", "data": [11.0, 11.0, 100], "timestamp": now})
+            page.evaluate(self._SEED_COVERAGE, [rows])
+            page.evaluate("() => { aircraftCache['ADF7C8'] = {hex: 'ADF7C8', privacyProtected: true}; }")
+
+            # Drive the view directly so the recorder stays quiet and the counts below
+            # describe exactly the rows this test seeded.
+            page.evaluate("() => { settings.coverageWindow = 6; settings.coverageMode = 'density'; }")
+            page.evaluate("async () => await coverageView.refresh(false)")
+
+            stats = page.evaluate("() => coverageView.stats")
+            self.assertEqual(stats["points"], 300, "aged-out and PIA rows must not be counted")
+            self.assertEqual(stats["aircraft"], 12)
+            self.assertGreaterEqual(stats["redacted"], 1)
+            self.assertTrue(page.evaluate("() => Boolean(coverageView.canvas)"))
+            self.assertGreater(page.evaluate("() => coverageView.cells.length"), 0)
+            # A PIA hex must not survive into either representation.
+            self.assertNotIn("ADF7C8", page.evaluate("() => coverageView.tracks.map(t => t[0])"))
+
+            # Both modes have to draw; a mode switch is a repaint, not another walk.
+            page.evaluate("() => { settings.coverageMode = 'tracks'; coverageView._draw(); }")
+            painted = page.evaluate(
+                "() => { const c = coverageView.canvas;"
+                " const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;"
+                " let lit = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) lit++; return lit; }"
+            )
+            self.assertGreater(painted, 0, "tracks mode drew nothing")
+
+            page.evaluate("async () => await coverageView.setMode('off', false)")
+            self.assertFalse(page.evaluate("() => Boolean(coverageView.canvas)"))
+            # Turning the view on is what opts this browser into sampling at all.
+            page.evaluate("async () => await coverageView.setMode('density', false)")
+            self.assertTrue(page.evaluate("() => settings.coverageRecording"))
+            self.assertEqual(crashes, [])
+
+    def test_coverage_view_stays_interactive_at_store_volume(self) -> None:
+        with self._page() as (page, crashes):
+            page.evaluate(self._QUIESCE_COVERAGE)
+            now = page.evaluate("Date.now()")
+            # 60k rows is a realistic week of sampling, and far past what a per-point
+            # renderer could redraw on every pan.
+            for chunk in range(6):
+                rows = [{"hex": f"AE{(chunk * 10000 + i) % 900:04X}",
+                         "data": [20 + (i % 6000) * 0.01, -120 + (i % 9000) * 0.012, 30000],
+                         "timestamp": now - (i % 300) * 1000}
+                        for i in range(10000)]
+                page.evaluate(self._SEED_COVERAGE, [rows])
+
+            page.evaluate("() => { settings.coverageWindow = 24; settings.coverageMode = 'density'; }")
+            page.evaluate("async () => await coverageView.refresh(false)")
+            self.assertEqual(page.evaluate("() => coverageView.stats.points"), 60000)
+            # Aggregation is the point: cells drawn must be far fewer than points read.
+            self.assertLess(page.evaluate("() => coverageView.cells.length"), 60000)
+
+            redraw = page.evaluate(
+                "() => { const t = performance.now(); for (let i = 0; i < 5; i++) coverageView._draw();"
+                " return (performance.now() - t) / 5; }"
+            )
+            self.assertLess(redraw, 250, f"a redraw took {redraw:.0f}ms at 60k stored points")
+            self.assertEqual(crashes, [])
+
+    def test_coverage_view_participates_in_url_state(self) -> None:
+        with self._page() as (page, crashes):
+            page.evaluate("() => coverageView.setWindow(24, false)")
+            page.evaluate("() => coverageView.setMode('tracks', false)")
+            page.wait_for_function("() => coverageView.stats !== null", timeout=20000)
+            url = page.evaluate("shareManager.buildViewUrl()")
+            self.assertIn("coverage=tracks", url)
+            self.assertIn("coverageWindow=24", url)
+            self.assertEqual(crashes, [])
+
+        with self._page(url=url) as (page, crashes):
+            page.wait_for_function("() => coverageView.isActive()", timeout=20000)
+            self.assertEqual(page.evaluate("() => coverageView.mode()"), "tracks")
+            self.assertEqual(page.evaluate("() => coverageView.windowHours()"), 24)
+            self.assertEqual(crashes, [])
+
+    def test_coverage_sampling_never_stores_a_privacy_protected_aircraft(self) -> None:
+        with self._page() as (page, crashes):
+            written = page.evaluate(
+                "async () => { await skytrackDB.clearTrailHistory();"
+                " aircraftCache['ADF7C8'] = {hex: 'ADF7C8', lat: 5, lon: 5, privacyProtected: true};"
+                " aircraftCache['AE1234'] = {hex: 'AE1234', lat: 6, lon: 6};"
+                " settings.coverageRecording = true; coverageRecorder.lastByHex.clear();"
+                " await coverageRecorder.tick();"
+                " const seen = []; await skytrackDB.streamTrailHistory(0, r => seen.push(r.hex));"
+                " return seen; }"
+            )
+            self.assertIn("AE1234", written)
+            self.assertNotIn("ADF7C8", written)
+            # An unchanged position must not write a second row on the next tick.
+            again = page.evaluate("async () => await coverageRecorder.tick()")
+            self.assertEqual(again, 0)
+            self.assertEqual(crashes, [])
+
     def test_a_view_link_round_trips_filter_search_and_map_position(self) -> None:
         # A desk finding has to be shareable as a link, the way tar1090 does it.
         with self._page() as (page, crashes):

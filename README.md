@@ -134,6 +134,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Background Refresh | Installed Chromium PWAs may refresh public military, VIP, and PIA reference caches every 12 hours through Periodic Background Sync; no watchlist identifiers are transmitted |
 | Follow Mode | Camera tracks the selected aircraft automatically |
 | Weather Radar | Precipitation overlay from RainViewer |
+| Coverage View | Persistent tracks or a density heatmap built from this browser's own observations over a selectable window — see [Coverage view](#coverage-view) |
 
 ### Data Sources
 
@@ -166,6 +167,16 @@ Access via the gear icon. All settings persist in localStorage.
 Remote GeoJSON overlays require an explicit Load action, public HTTPS, a bounded response, and valid GeoJSON geometry; URL parameters only prefill the field for review. Webhooks also require a public HTTPS URL, show a redacted payload preview, and stay disabled for automatic alerts until explicitly enabled.
 
 The Historical Query Workspace accepts a version-1 JSON archive (`source` metadata with `id`, `name`, `license`, and `terms`, plus a `records` array) or CSV with the same fields declared in Settings. It keeps at most 20,000 normalized records / 8 MiB, supports time, bounding-box, hex, type, altitude, speed, and bearing filters, sorted pagination, gap summaries, source attribution, local query history, and CSV/JSON export. The existing OpenSky adapter remains a manual single-track source; it is never bulk-polled. Unsupported registration/operator/API fields are rejected, known PIA identities are redacted before IndexedDB caching and export, and no archive is fetched or redistributed automatically.
+
+### Coverage view
+
+The live map answers "where is it now". The coverage view answers "where has traffic been", which is what turns a monitoring surface into an analysis one. Enable it in **Settings > Map & Tools > Coverage view**.
+
+Two styles: **density heatmap**, which shades how often aircraft have been observed over each patch of ground, and **persistent tracks**, which draws the accumulated paths themselves. Both read a selectable window — the last hour, 6 hours, 24 hours, or 7 days — and the sample interval is configurable from 15 seconds to 5 minutes. A **Clear** control empties the store.
+
+Everything it draws comes from what this browser has already observed. Nothing is fetched, nothing is transmitted, and no other user's data is involved. Privacy-protected aircraft are dropped when sampled and dropped again when drawn, so a store written before a hex became known-PIA still redacts it; the status line reports how many points were withheld. Sampling only records a position that actually changed, so a parked aircraft costs one row rather than one per tick, and retention follows the existing trail retention setting.
+
+Points are aggregated into cells as the store is read rather than held as a raw set, so a redraw costs the same whether the window holds a thousand points or a hundred thousand. The walk stops at 250,000 points and says so in the status line instead of locking the tab. The active style and window travel in a shared view link (`?coverage=density&coverageWindow=24`); no identities do.
 
 ### Self-hosted basemap
 
