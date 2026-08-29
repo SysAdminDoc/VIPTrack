@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.8.2] - 2026-08-29
+
+- New app icon: adaptive, themed (monochrome) and legacy variants regenerated from the 2026-08 icon set.
+
 ## [v0.8.1] - 2026-08-18
 
 ### Fixed

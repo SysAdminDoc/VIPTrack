@@ -1,12 +1,12 @@
 # VIPTrack
 
-![Version](https://img.shields.io/badge/version-0.8.1-blue)
+![Version](https://img.shields.io/badge/version-0.8.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Android-4285F4)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES2020+-F7DF1E?logo=javascript&logoColor=black)
 ![Status](https://img.shields.io/badge/status-active-success)
 
-> Real-time military and VIP aircraft tracker. All mil/VIP/PIA aircraft load globally on page open — no panning required.
+> Real-time military and VIP aircraft tracker. All mil/VIP/PIA aircraft load globally on page open. No panning required.
 
 <div align="center">
 
@@ -18,7 +18,7 @@
 
 ## What is VIPTrack?
 
-VIPTrack makes it easy to monitor military and VIP aircraft worldwide. Unlike general-purpose flight trackers that show every commercial flight, VIPTrack filters the noise — it fetches all military, government, VIP, and Privacy ICAO Address (PIA) aircraft globally and displays them on a single dark-themed map. Open the page and every tracked aircraft is already there.
+VIPTrack makes it easy to monitor military and VIP aircraft worldwide. Unlike general-purpose flight trackers that show every commercial flight, VIPTrack filters the noise. It fetches all military, government, VIP, and Privacy ICAO Address (PIA) aircraft globally and displays them on a single dark-themed map. Open the page and every tracked aircraft is already there.
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ VIPTrack makes it easy to monitor military and VIP aircraft worldwide. Unlike ge
 ```bash
 git clone https://github.com/SysAdminDoc/VIPTrack.git
 cd VIPTrack
-# Open index.html in any browser for the 2D map — no build step or dependencies
+# Open index.html in any browser for the 2D map. No build step or dependencies.
 # For the optional ?3d=1 globe, use any static HTTP server instead:
 python -m http.server 8000
 # Then open http://127.0.0.1:8000/index.html?3d=1
@@ -54,7 +54,7 @@ The `android/` project is a first-party Android app for the mockup-derived Map, 
 Phones get a purpose-built four-page workspace inspired by the checked-in design studies in `assets/mockups/`: a full-screen live Map with quick filters and selected-aircraft telemetry, a searchable/sortable Aircraft list, a Watch dashboard with per-aircraft alert controls and session activity, and categorized Settings with local search. The raised bottom navigation keeps all four pages one tap away, while tablet and desktop layouts retain the established map-first interface.
 
 ### Global Aircraft Loading
-All military, VIP, and PIA aircraft load worldwide on page open. No viewport-based lazy loading — every tracked aircraft appears immediately regardless of where you're looking on the map.
+All military, VIP, and PIA aircraft load worldwide on page open. No viewport-based lazy loading is used, so every tracked aircraft appears immediately regardless of where you're looking on the map.
 
 ### Intelligence Databases
 
@@ -62,12 +62,12 @@ All military, VIP, and PIA aircraft load worldwide on page open. No viewport-bas
 |----------|-------------|------|
 | Military | Aircraft identified by hex range and registration | 11,383 aircraft + 7 hex ranges |
 | VIP/Government | Heads of state, government, and notable private aircraft | 12,420 aircraft |
-| PIA | Privacy ICAO Address — aircraft using anonymized transponders | 94 aircraft |
+| PIA | Privacy ICAO Address (aircraft using anonymized transponders) | 94 aircraft |
 | Interesting | Chase planes, test aircraft, and other flagged aircraft | 4,530+ aircraft |
 | Civilian Intel | Categorized civilian fleet with type/operator data | Self-hosted DB |
 | FAA Registry | Privacy-minimized official owner/type lookup for non-PIA N-numbers. Owner identity is labelled with the snapshot age after 90 days and withheld entirely after 180, because FAA §803 withholding requests are continuous; regenerate with `python tools/build_faa_registry.py` | 315,211 records in 26 shards |
 | OPFS Registration Cache | Dedicated-worker sync-handle cache for the compact registration index, with IndexedDB/CSV fallback | Warm HTTP(S) starts |
-| OpenAIP Airspace | Optional Class A–G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
+| OpenAIP Airspace | Optional Class A to G tile overlay with a user-supplied local API key and map legend | User-keyed tiles |
 | Plugin Catalog | Manifest-backed curated GeoJSON/military-pattern extensions with explicit Load controls | 4 presets |
 | Localisation | Same-origin, schema-validated UI catalogs with English, Spanish, French, German, Russian, and Ukrainian | 360+ UI keys |
 | Type Photos | Local representative aircraft-type images with a silhouette fallback | 522 manifest entries |
@@ -127,14 +127,14 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Color-Coded Markers | Military (green), VIP (gold), PIA (red), Government (blue) |
 | 3D Globe | Optional Cesium 1.143 globe via `?3d=1`; current aircraft stay synchronized with the live feed and selected historical traces get a Cesium clock scrubber |
 | WebGL Renderer | Optional MapLibre GL JS 5.24.0 + deck.gl 9.2.1 via `?renderer=webgl`; GPU `IconLayer` markers, `TripsLayer` history trails, and opt-in CARTO Voyager or Stadia Alidade Smooth Dark vector basemaps while Leaflet remains the default |
-| Self-Hosted Basemap | Optional PMTiles archive served from your own origin, removing every third-party basemap host — see [Self-hosted basemap](#self-hosted-basemap) |
+| Self-Hosted Basemap | Optional PMTiles archive served from your own origin, removing every third-party basemap host. See [Self-hosted basemap](#self-hosted-basemap) |
 | Share Flight | Generate a current-trail PNG for supported Web Share clients, with a copy-link fallback |
 | Web Share Target | Accepts shared ICAO hexes or N-numbers and centers the map on a matching aircraft |
 | Map Bookmarks | Save named camera positions locally and jump back to them from the bottom panel |
 | Background Refresh | Installed Chromium PWAs may refresh public military, VIP, and PIA reference caches every 12 hours through Periodic Background Sync; no watchlist identifiers are transmitted |
 | Follow Mode | Camera tracks the selected aircraft automatically |
 | Weather Radar | Precipitation overlay from RainViewer |
-| Coverage View | Persistent tracks or a density heatmap built from this browser's own observations over a selectable window — see [Coverage view](#coverage-view) |
+| Coverage View | Persistent tracks or a density heatmap built from this browser's own observations over a selectable window. See [Coverage view](#coverage-view) |
 
 ### Data Sources
 
@@ -172,11 +172,11 @@ The Historical Query Workspace accepts a version-1 JSON archive (`source` metada
 
 The live map answers "where is it now". The coverage view answers "where has traffic been", which is what turns a monitoring surface into an analysis one. Enable it in **Settings > Map & Tools > Coverage view**.
 
-Two styles: **density heatmap**, which shades how often aircraft have been observed over each patch of ground, and **persistent tracks**, which draws the accumulated paths themselves. Both read a selectable window — the last hour, 6 hours, 24 hours, or 7 days — and the sample interval is configurable from 15 seconds to 5 minutes. A **Clear** control empties the store.
+Two styles are available: **density heatmap**, which shades how often aircraft have been observed over each patch of ground, and **persistent tracks**, which draws the accumulated paths themselves. Both read a selectable window covering the last hour, 6 hours, 24 hours, or 7 days. The sample interval is configurable from 15 seconds to 5 minutes. A **Clear** control empties the store.
 
 Everything it draws comes from what this browser has already observed. Nothing is fetched, nothing is transmitted, and no other user's data is involved. Turning the view on starts sampling; a **Record coverage samples** toggle stops it again, so the app is not accumulating position history unless you leave it on. Privacy-protected aircraft are dropped when sampled and dropped again when drawn, so a store written before a hex became known-PIA still redacts it; the status line reports how many points were withheld. Sampling only records a position that actually changed, so a parked aircraft costs one row rather than one per tick, and retention follows the existing trail retention setting.
 
-Points are aggregated into cells as the store is read rather than held as a raw set, so a redraw costs the same whether the window holds a thousand points or a hundred thousand. The walk stops at 250,000 points and says so in the status line instead of locking the tab. The active style and window travel in a shared view link (`?coverage=density&coverageWindow=24`); no identities do. The layer draws on the standard Leaflet map — under `?renderer=webgl` it reports that rather than rendering invisibly.
+Points are aggregated into cells as the store is read rather than held as a raw set, so a redraw costs the same whether the window holds a thousand points or a hundred thousand. The walk stops at 250,000 points and says so in the status line instead of locking the tab. The active style and window travel in a shared view link (`?coverage=density&coverageWindow=24`); no identities do. The layer draws on the standard Leaflet map. Under `?renderer=webgl`, it reports that instead of rendering invisibly.
 
 ### Self-hosted basemap
 
@@ -195,17 +195,17 @@ Sizes measured against the Protomaps daily planet build (127.9 GB) on 2026-08-18
 
 | Build | Size | Verdict |
 |-------|------|---------|
-| World, zoom 0–6 | 42.7 MB | Default. Vector tiles overzoom, so it still draws past zoom 6 with coarser detail. |
-| World, zoom 0–7 | 178.4 MB | Fits, but consumes a third of the remaining GitHub Pages budget. |
-| CONUS, zoom 0–10 | 361.1 MB | Rejected — US-only coverage for most of the budget. |
+| World, zoom 0 to 6 | 42.7 MB | Default. Vector tiles overzoom, so it still draws past zoom 6 with coarser detail. |
+| World, zoom 0 to 7 | 178.4 MB | Fits, but consumes a third of the remaining GitHub Pages budget. |
+| CONUS, zoom 0 to 10 | 361.1 MB | Rejected because US-only coverage uses most of the budget. |
 
-The published tree is roughly 466 MB against the GitHub Pages 1 GB soft limit, which is why the build script refuses zoom levels above 6 and archives above 96 MB unless you pass `--allow-large`. Cold load of the zoom 0–6 world archive costs 10 range requests and about 480 KB — the client never downloads the whole file. The style carries no labels: glyph files would have to come from another external host, which is the dependency the archive exists to remove, so the app's own aircraft and airport labels sit on top of plain geometry.
+The published tree is roughly 466 MB against the GitHub Pages 1 GB soft limit, which is why the build script refuses zoom levels above 6 and archives above 96 MB unless you pass `--allow-large`. Cold load of the zoom 0 to 6 world archive costs 10 range requests and about 480 KB. The client never downloads the whole file. The style carries no labels: glyph files would have to come from another external host, which is the dependency the archive exists to remove, so the app's own aircraft and airport labels sit on top of plain geometry.
 
-The archive path must be same-origin. `connect-src` is a real allowlist, so a cross-origin archive is blocked by the app's own CSP; hosting elsewhere means adding that host to both the meta CSP in `index.html` and `_headers`. Note also that `python -m http.server` ignores `Range` headers — use a static host that answers 206 (GitHub Pages does) when testing locally.
+The archive path must be same-origin. `connect-src` is a real allowlist, so a cross-origin archive is blocked by the app's own CSP; hosting elsewhere means adding that host to both the meta CSP in `index.html` and `_headers`. Note also that `python -m http.server` ignores `Range` headers. Use a static host that answers 206 (GitHub Pages does) when testing locally.
 
 ### Allowlisting your own hosts
 
-`connect-src` is a real allowlist, not a formality — bare `https:` was deliberately removed from it, because a scheme source matches every origin and makes everything after it decorative. That is correct for the app's own feeds, but three features fetch hosts only you can know:
+`connect-src` is a real allowlist, not a formality. Bare `https:` was deliberately removed from it because a scheme source matches every origin and makes everything after it decorative. That is correct for the app's own feeds, but three features fetch hosts only you can know:
 
 | Feature | What you must allowlist |
 |---------|------------------------|
@@ -215,7 +215,7 @@ The archive path must be same-origin. `connect-src` is a real allowlist, so a cr
 
 Add the host to **both** the `Content-Security-Policy` meta tag in `index.html` and the `connect-src` line in `_headers`, then redeploy. Without that, the browser refuses the request before it reaches the network and the feature reports the refusal, naming the host to add.
 
-Receiver coverage has a second constraint, and no CSP change fixes it: a page served over HTTPS cannot fetch an `http://` address at all — the browser refuses it as mixed content. A LAN feeder on plain HTTP is only reachable if you also open VIPTrack over HTTP (a local copy), or put the feeder behind HTTPS.
+Receiver coverage has a second constraint, and no CSP change fixes it: a page served over HTTPS cannot fetch an `http://` address at all. The browser refuses it as mixed content. A LAN feeder on plain HTTP is only reachable if you also open VIPTrack over HTTP (a local copy), or put the feeder behind HTTPS.
 
 ### Deployment security headers
 
@@ -241,7 +241,7 @@ Static app files (`index.html` + `cesium-frame.html`)
     |     |-- PIA DB, Interesting DB, Civilian DB
     |     |-- FAA Releasable Aircraft registry (26 lazy FNV shards; no addresses)
     |     |-- OPFS registration cache (dedicated worker; compact index, IndexedDB/CSV fallback)
-    |     |-- Optional OpenAIP Class A–G airspace tiles (user-keyed, no aircraft telemetry)
+    |     |-- Optional OpenAIP Class A to G airspace tiles (user-keyed, no aircraft telemetry)
     |     |-- Plugin catalog (`plugins/manifest.json`, capability/provenance contract, same-origin opt-in)
     |     |-- Track-shape heuristics (local in-memory trail rules; unverified labels)
     |     |-- Airline DB (5,800+), Callsign Prefixes (5,774)
@@ -275,17 +275,17 @@ Android app (`android/`)
 
 Everything runs client-side in the static app files; `index.html` owns the application state, while the optional child frame isolates Cesium's renderer:
 
-- **Leaflet 1.9.4** — 2D map rendering and markers
-- **CesiumJS 1.143** — optional 3D globe renderer loaded only with `?3d=1`
-- **MapLibre GL JS 5.24.0 + deck.gl 9.2.1** — optional GPU map, `IconLayer` aircraft, `TripsLayer` trails, and CARTO Voyager/Stadia Alidade Smooth Dark vector styles loaded only with `?renderer=webgl`
-- **ServiceWorker** — Offline caching of assets
-- **OPFS** — Dedicated-worker sync-handle cache for the compact registration index; unsupported or unavailable browsers fall back to IndexedDB and the source CSV
-- **localStorage** — Settings, map position, aircraft cache persistence
-- **IndexedDB** — Airport and registration database caching
-- **FAA Releasable Aircraft Registry** — official 26-shard owner/type metadata; addresses and additional registrants are omitted, and PIA aircraft are excluded at lookup time
-- **OpenAIP** — optional Class A–G airspace tile overlay; API keys stay in local storage and map attribution is included
-- **Plugin catalog** — manifest-backed curated GeoJSON presets with version/license/data-class metadata, an allowlisted capability boundary, local load/unload provenance, and cleanup hooks; JavaScript modules are same-origin, disabled by default, and require an explicit Load action
-- **AndroidX WebKit 1.16.0** — first-party Android host, secure local HTTPS asset loading, service-worker routing, and a Chrome-independent app surface; release outputs remain unsigned by policy
+- **Leaflet 1.9.4** handles 2D map rendering and markers.
+- **CesiumJS 1.143** provides the optional 3D globe renderer loaded only with `?3d=1`.
+- **MapLibre GL JS 5.24.0 + deck.gl 9.2.1** provide the optional GPU map, `IconLayer` aircraft, `TripsLayer` trails, and CARTO Voyager/Stadia Alidade Smooth Dark vector styles loaded only with `?renderer=webgl`.
+- **ServiceWorker** caches assets for offline use.
+- **OPFS** provides a dedicated-worker sync-handle cache for the compact registration index; unsupported or unavailable browsers fall back to IndexedDB and the source CSV.
+- **localStorage** holds settings, map position, and persistent aircraft cache data.
+- **IndexedDB** caches airport and registration databases.
+- **FAA Releasable Aircraft Registry** supplies the official 26-shard owner/type metadata; addresses and additional registrants are omitted, and PIA aircraft are excluded at lookup time.
+- **OpenAIP** supplies the optional Class A to G airspace tile overlay; API keys stay in local storage and map attribution is included.
+- **Plugin catalog** contains manifest-backed curated GeoJSON presets with version/license/data-class metadata, an allowlisted capability boundary, local load/unload provenance, and cleanup hooks. JavaScript modules are same-origin, disabled by default, and require an explicit Load action.
+- **AndroidX WebKit 1.16.0** provides the first-party Android host, secure local HTTPS asset loading, service-worker routing, and a Chrome-independent app surface. Release outputs remain unsigned by policy.
 
 Leaflet and pako load from cdnjs.cloudflare.com; DOMPurify 3.4.13, Cesium, MapLibre, and deck.gl load from pinned jsDelivr URLs. `tools/cdn_dependencies.json` records each executable/style dependency's version, SRI, license/source, and reviewed advisory status; `python tools/check_cdn_dependencies.py` is the offline release gate and `--online` additionally re-hashes the pinned bytes. The FAA shards are generated by `tools/build_faa_registry.py` from the official Releasable Aircraft Database archive and fetched lazily from same-origin HTTP(S). No npm or bundler is required; use GitHub Pages or another static HTTP(S) server for either optional renderer.
 
@@ -301,7 +301,7 @@ Leaflet and pako load from cdnjs.cloudflare.com; DOMPurify 3.4.13, Cesium, MapLi
 ## FAQ
 
 **Q: Where does the data come from?**
-ADS-B (Automatic Dependent Surveillance-Broadcast) — aircraft broadcast their position, altitude, speed, and identity via transponder. Volunteer receiver networks collect and share this data through public APIs.
+ADS-B (Automatic Dependent Surveillance-Broadcast) lets aircraft broadcast their position, altitude, speed, and identity via transponder. Volunteer receiver networks collect and share this data through public APIs.
 
 **Q: Why don't I see a specific military aircraft?**
 Many military aircraft don't broadcast ADS-B, especially during operations. Some use Mode-C (altitude only) or transponder-off. Aircraft using Privacy ICAO Addresses appear with randomized hex codes that rotate periodically.
@@ -314,13 +314,13 @@ VIPTrack is purpose-built for military and VIP monitoring. It loads all mil/VIP/
 
 ## Contributing
 
-Issues and PRs welcome. VIPTrack is a single-file application — all changes go into `index.html`.
+Issues and PRs welcome. VIPTrack is a single-file application, so all changes go into `index.html`.
 
 - Maintain the single-file architecture
-- Dark theme only — ensure new UI elements match
+- Dark theme only. Ensure new UI elements match.
 - Test with both hosted and `file://` protocol
 - Verify CORS compatibility for any new data sources
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](LICENSE) for details.

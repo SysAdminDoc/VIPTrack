@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.VIPTrack.Starting" parent="Theme.VIPTrack">
         <item name="android:windowSplashScreenBackground">@color/viptrack_navy_deep</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">@color/viptrack_icon_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/ic_launcher_background</item>
     </style>
 </resources>

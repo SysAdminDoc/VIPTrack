@@ -533,10 +533,14 @@ class VipTrackContracts(unittest.TestCase):
             self.assertEqual(struct.unpack(">II", png[16:24]), (expected_size, expected_size))
         self.assertEqual({icon["sizes"] for icon in manifest["icons"]}, {"192x192", "512x512"})
         self.assertTrue(all("maskable" in icon["purpose"] for icon in manifest["icons"]))
-        self.assertTrue((ROOT / "assets" / "logo" / "VIPTrack_Mark.svg").is_file())
+        self.assertFalse((ROOT / "assets" / "logo" / "VIPTrack_Mark.svg").exists())
         self.assertNotIn("SkyTrack_Logo", self.source + SERVICE_WORKER.read_text(encoding="utf-8") + WEB_MANIFEST.read_text(encoding="utf-8"))
         for marker in (
             '<link rel="manifest" href="manifest.json">',
+            '<link rel="icon" type="image/png" sizes="16x16" href="assets/logo/VIPTrack_Mark-16x16.png">',
+            '<link rel="icon" type="image/png" sizes="32x32" href="assets/logo/VIPTrack_Mark-32x32.png">',
+            '<link rel="icon" type="image/png" sizes="48x48" href="assets/logo/VIPTrack_Mark-48x48.png">',
+            '<link rel="apple-touch-icon" sizes="192x192" href="assets/logo/VIPTrack_Mark-192x192.png">',
             "location.protocol === 'file:'",
             "display_override: ['window-controls-overlay', 'standalone']",
             "share_target:",
@@ -598,16 +602,44 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("androidbrowserhelper", build_gradle + manifest + activity)
         self.assertNotIn("signingConfig", build_gradle)
         self.assertNotIn("debug.keystore", build_gradle)
-        adaptive_icon = (resources / "mipmap-anydpi-v26" / "ic_launcher.xml").read_text(encoding="utf-8")
-        themed_icon = (resources / "mipmap-anydpi-v33" / "ic_launcher.xml").read_text(encoding="utf-8")
-        foreground = (resources / "drawable-anydpi" / "ic_launcher_foreground.xml").read_text(encoding="utf-8")
-        legacy_icon = (resources / "mipmap-anydpi" / "ic_launcher.xml").read_text(encoding="utf-8")
-        self.assertIn("<adaptive-icon", adaptive_icon)
-        self.assertIn('@drawable/ic_launcher_foreground', adaptive_icon)
-        self.assertIn('<monochrome android:drawable="@drawable/ic_launcher_monochrome"', themed_icon)
-        self.assertIn('android:rotation="35"', foreground)
-        self.assertIn('@drawable/ic_launcher_legacy_background', legacy_icon)
-        self.assertFalse(any(resources.glob("mipmap-*/ic_launcher.png")))
+        for launcher_name in ("ic_launcher.xml", "ic_launcher_round.xml"):
+            adaptive_icon = (resources / "mipmap-anydpi-v26" / launcher_name).read_text(encoding="utf-8")
+            self.assertIn("<adaptive-icon", adaptive_icon)
+            self.assertIn('@color/ic_launcher_background', adaptive_icon)
+            self.assertIn('@mipmap/ic_launcher_foreground', adaptive_icon)
+            self.assertIn('@mipmap/ic_launcher_monochrome', adaptive_icon)
+        self.assertIn(
+            '#050B18',
+            (resources / "values" / "ic_launcher_background.xml").read_text(encoding="utf-8"),
+        )
+        density_sizes = {
+            "mdpi": (108, 48),
+            "hdpi": (162, 72),
+            "xhdpi": (216, 96),
+            "xxhdpi": (324, 144),
+            "xxxhdpi": (432, 192),
+        }
+        for density, (layer_size, legacy_size) in density_sizes.items():
+            density_dir = resources / f"mipmap-{density}"
+            for name, expected_size in (
+                ("ic_launcher_foreground.png", layer_size),
+                ("ic_launcher_monochrome.png", layer_size),
+                ("ic_launcher.png", legacy_size),
+                ("ic_launcher_round.png", legacy_size),
+            ):
+                png = (density_dir / name).read_bytes()
+                self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+                self.assertEqual(struct.unpack(">II", png[16:24]), (expected_size, expected_size))
+        for obsolete in (
+            resources / "drawable-anydpi" / "ic_launcher_foreground.xml",
+            resources / "drawable-anydpi" / "ic_launcher_monochrome.xml",
+            resources / "drawable-anydpi" / "ic_launcher_legacy_background.xml",
+            resources / "mipmap-anydpi" / "ic_launcher.xml",
+            resources / "mipmap-anydpi" / "ic_launcher_round.xml",
+            resources / "mipmap-anydpi-v33" / "ic_launcher.xml",
+            resources / "mipmap-anydpi-v33" / "ic_launcher_round.xml",
+        ):
+            self.assertFalse(obsolete.exists(), str(obsolete))
         store_icon = (ANDROID_DIR / "store_icon.png").read_bytes()
         self.assertEqual(store_icon[:8], b"\x89PNG\r\n\x1a\n")
         self.assertEqual(struct.unpack(">II", store_icon[16:24]), (512, 512))
@@ -738,12 +770,12 @@ class VipTrackContracts(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         build_gradle = (ANDROID_DIR / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("<title>VIPTrack v0.8.1", self.source)
-        self.assertIn('class="version">v0.8.1', self.source)
-        self.assertIn("version-0.8.1-blue", readme)
-        self.assertIn("## [v0.8.1] - 2026-08-18", changelog)
-        self.assertIn("versionName '0.8.1'", build_gradle)
-        self.assertIn("versionCode 12", build_gradle)
+        self.assertIn("<title>VIPTrack v0.8.2:", self.source)
+        self.assertIn('class="version">v0.8.2', self.source)
+        self.assertIn("version-0.8.2-blue", readme)
+        self.assertIn("## [v0.8.2] - 2026-08-29", changelog)
+        self.assertIn("versionName '0.8.2'", build_gradle)
+        self.assertIn("versionCode 13", build_gradle)
 
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
@@ -1096,7 +1128,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.28'",
+            "const CACHE_SCHEMA_VERSION = '4.29'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
             "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
@@ -1121,7 +1153,7 @@ class VipTrackContracts(unittest.TestCase):
         # when the same URL happens to be requested again.
         activate = worker[worker.index("self.addEventListener('activate'"):worker.index("self.addEventListener('periodicsync'")]
         self.assertIn("evictApiEntries", activate)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.28'", self.source)
+        self.assertIn("const SW_CACHE_SCHEMA = '4.29'", self.source)
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)
