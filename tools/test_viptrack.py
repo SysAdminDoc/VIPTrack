@@ -628,6 +628,28 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("CORS proxy failover for file:// protocol", readme)
         self.assertIn("Deploy your own data relay", readme)
 
+    def test_compact_registration_registry_is_hex_keyed(self) -> None:
+        # The OPFS worker seeds the whole registration database from this file. It
+        # accepted any object, and the shipped file is keyed by entire CSV lines
+        # rather than by hex - so every browser with OPFS loaded 3,928 junk entries
+        # instead of the real registry and never fell back to the CSV.
+        worker = OPFS_WORKER.read_text(encoding="utf-8")
+        self.assertIn("HEX_KEY", worker, "the worker does not check the registry shape")
+        self.assertIn("isRecordMap", worker)
+
+        compact = ROOT / "data" / "aircraft" / "registrations.json"
+        if not compact.is_file():
+            self.skipTest("no compact registry is shipped")
+        records = json.loads(compact.read_text(encoding="utf-8"))
+        self.assertIsInstance(records, dict)
+        keys = list(records)[:200]
+        self.assertTrue(keys, "the compact registry is empty")
+        hex_keyed = [k for k in keys if re.fullmatch(r"[0-9A-F]{4,6}", k)]
+        self.assertGreaterEqual(
+            len(hex_keyed), int(len(keys) * 0.9),
+            "the compact registry is not keyed by ICAO hex, so it cannot seed the registry",
+        )
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",

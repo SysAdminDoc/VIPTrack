@@ -5468,10 +5468,41 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             
             return this.fetchFromSource();
         },
+        // The compact registry is a hex-keyed JSON covering every aircraft in the
+        // catalogues this app ships - about 14,000 airframes in under a megabyte,
+        // against 32 MB for the full CSV. A browser without OPFS sync access used to
+        // download the whole CSV on every cold start. The CSV remains the fallback,
+        // and it is still the complete registry: an aircraft outside the catalogues
+        // resolves from the feed's own fields rather than from here.
+        async fetchCompact() {
+            try {
+                const response = await fetch(DATA_URLS.registrations.compact, { cache: 'no-cache' });
+                if (!response.ok) return false;
+                const records = await response.json();
+                if (!records || typeof records !== 'object' || Array.isArray(records)) return false;
+                const keys = Object.keys(records);
+                if (!keys.length) return false;
+                // Same shape check the OPFS worker makes: a file keyed by anything but
+                // hex is not a registry, and loading it silently poisons every lookup.
+                const sample = keys.slice(0, 50);
+                if (sample.filter(key => /^[0-9A-F]{4,6}$/.test(key)).length / sample.length < 0.9) return false;
+                this.loadFromData(records);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        },
+
         async fetchFromSource() {
             if (this.loading) return false;
             this.loading = true;
             try {
+                if (await this.fetchCompact()) {
+                    this.loaded = true;
+                    this.loading = false;
+                    _dbg('Loaded', this.aircraft.size, 'registrations from the compact registry');
+                    return true;
+                }
                 const result = await fetchWithFailover(DATA_URLS.registrations);
                 if (!result.ok) throw new Error('All sources failed');
                 const text = await result.text();

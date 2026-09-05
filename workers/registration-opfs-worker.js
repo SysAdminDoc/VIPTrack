@@ -3,8 +3,22 @@ const OPFS_SCHEMA_VERSION = 1;
 const OPFS_FILE_NAME = 'viptrack-registrations-v1.json';
 const MAX_REGISTRY_BYTES = 64 * 1024 * 1024;
 
+// "Is an object" was the only check, so a malformed file was accepted whole and
+// served as the registry. The shipped data/aircraft/registrations.json is exactly
+// that: 3,928 entries keyed by entire CSV lines rather than by hex, against
+// 614,965 real rows. Every browser with OPFS loaded that instead of the real
+// registry and never fell back, because the load "succeeded".
+const HEX_KEY = /^[0-9A-F]{4,6}$/;
+
 function isRecordMap(value) {
-    return value && typeof value === 'object' && !Array.isArray(value);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const keys = Object.keys(value);
+    if (!keys.length) return false;
+    // Sample rather than validate all of them: this runs on the boot path and a
+    // wholesale-corrupt file fails on its first key anyway.
+    const sample = keys.slice(0, 50);
+    const valid = sample.filter(key => HEX_KEY.test(key)).length;
+    return valid / sample.length >= 0.9;
 }
 
 function validPayload(payload) {

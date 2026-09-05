@@ -1150,6 +1150,82 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertFalse(selected["stale"])
             self.assertEqual(crashes, [])
 
+    def test_cold_start_does_not_download_the_full_registration_csv(self) -> None:
+        # Without OPFS sync access the app fetched data/aircraft/registrations.csv -
+        # 32 MB - on every cold start, while a compact registry sat unused because it
+        # was wired only to the OPFS path (and was itself corrupt: keyed by whole CSV
+        # lines rather than by hex, so it seeded 3,928 junk entries).
+        requested: list[str] = []
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        page.on("request", lambda request: requested.append(request.url))
+        self._route_external(page)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            # Drive the plain-fetch path directly, which is what a browser without OPFS
+            # sync access takes.
+            loaded = page.evaluate(
+                """async () => {
+                    registrationDB.aircraft.clear();
+                    registrationDB.loaded = false;
+                    registrationDB.loading = false;
+                    const ok = await registrationDB.fetchFromSource();
+                    return { ok, size: registrationDB.aircraft.size };
+                }"""
+            )
+            self.assertTrue(loaded["ok"], "the registration database failed to load")
+            self.assertGreater(loaded["size"], 5000,
+                               "the compact registry seeded almost nothing")
+
+            csv_hits = [u for u in requested if u.endswith("registrations.csv")]
+            self.assertEqual(csv_hits, [],
+                             "cold start still downloads the full registration CSV")
+            json_hits = [u for u in requested if u.endswith("registrations.json")]
+            self.assertTrue(json_hits, "the compact registry was never fetched")
+
+            # And what it seeded has to be usable: hex-keyed, resolving to real records.
+            resolved = page.evaluate(
+                """() => {
+                    // Not every catalogued hex has a row in the upstream registration
+                    // data, so measure coverage rather than betting on one airframe.
+                    const hexes = [...militaryDB.military.keys()].slice(0, 500);
+                    let found = 0, withRegistration = 0;
+                    for (const hex of hexes) {
+                        const record = registrationDB.aircraft.get(String(hex).toUpperCase());
+                        if (record) { found++; if (record.r) withRegistration++; }
+                    }
+                    return { sampled: hexes.length, found, withRegistration };
+                }"""
+            )
+            self.assertIsNotNone(resolved)
+            self.assertGreater(resolved["sampled"], 0, "the military catalogue is empty")
+            self.assertGreater(
+                resolved["found"], resolved["sampled"] * 0.5,
+                f"only {resolved['found']}/{resolved['sampled']} catalogued military hexes "
+                "resolve in the compact registry")
+            self.assertGreater(resolved["withRegistration"], 0)
+
+            # A registry keyed by anything but hex must be refused outright rather than
+            # loaded as if it were real - that is the defect that shipped.
+            refused = page.evaluate(
+                """async () => {
+                    const realFetch = window.fetch;
+                    window.fetch = async () => new Response(
+                        JSON.stringify({ 'AAAAAA;N1;C17;;;;OWNER': { r: 'junk' } }),
+                        { status: 200, headers: { 'Content-Type': 'application/json' } });
+                    const accepted = await registrationDB.fetchCompact();
+                    window.fetch = realFetch;
+                    return accepted;
+                }"""
+            )
+            self.assertFalse(refused, "a registry keyed by CSV lines was accepted as valid")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

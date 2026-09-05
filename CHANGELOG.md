@@ -20,6 +20,12 @@
   displayed for exactly one.
 
 ### Fixed
+- The compact registration registry was corrupt and is rebuilt. `data/aircraft/registrations.json`
+  was keyed by entire CSV lines rather than by ICAO hex - 3,928 malformed entries against 614,965
+  real rows - and the OPFS worker accepted it because it only checked that the payload was an
+  object. Every browser with OPFS storage therefore loaded junk as its registration database and
+  never fell back to the CSV. The file is regenerated hex-keyed, the worker now validates the shape,
+  and a cold start without OPFS loads 0.99 MB instead of downloading the 32 MB CSV.
 - Police aircraft have a filter of their own, and government and police aircraft are no longer also
   counted as military. `militaryDB.getByHex` searches the military, government and police
   catalogues together, so testing `ac.militaryInfo` alone filed every catalogued airframe under
