@@ -263,7 +263,6 @@
         .provenance-value { max-width: 68%; text-align: right; }
         .source-diagnostics-status { color: var(--text-muted); font-size: 10px; min-height: 16px; margin-top: 5px; }
         .source-card-note { color: var(--text-muted); display: block; font-size: 9px; line-height: 1.35; margin-top: 2px; }
-        .circuit-breaker-warning { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: rgba(239,68,68,0.95); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 3000; display: none; animation: pulse 2s infinite; }
         /* X31: tab paused pill */
         .paused-pill { display: none; position: fixed; top: 60px; right: 12px; align-items: center; gap: 8px; background: rgba(26,26,46,0.92); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 600; z-index: 2500; backdrop-filter: blur(10px); }
         .paused-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange); box-shadow: 0 0 6px var(--accent-orange); }
@@ -291,7 +290,6 @@
         .help-card td { padding: 4px 8px; }
         .help-card td:first-child { font-family: monospace; color: var(--accent); width: 80px; }
         .help-card .help-close { display: block; margin: 14px 0 0 auto; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
-        .circuit-breaker-warning.show { display: block; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .sync-indicator { position: fixed; top: 60px; right: 15px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 11px; z-index: 2000; display: none; align-items: center; gap: 8px; }
         .sync-indicator.show { display: flex; }
@@ -387,7 +385,6 @@
         .header-btn:hover { background: rgba(128,128,128,0.25); color: var(--text); }
         .header-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
         .header-btn svg { width: 18px; height: 18px; }
-        .error-indicator { display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); border-radius: 4px; cursor: pointer; font-size: 11px; color: var(--danger); }
         .error-icon { width: 16px; height: 16px; background: var(--danger); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; }
         .connection-status { display: none; /* Disabled per user request */ }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
@@ -1697,7 +1694,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <button id="ethicsDismiss" class="ethics-dismiss" type="button" aria-label="Dismiss notice" data-i18n-aria-label="common.dismiss" data-i18n="common.gotIt">Got it</button>
     </div>
-    <div class="circuit-breaker-warning" id="circuitBreakerWarning"></div>
     <div class="sync-indicator" id="syncIndicator">
         <div class="sync-spinner"></div>
         <span class="sync-text" data-i18n="status.syncing">Syncing...</span>
@@ -3999,7 +3995,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ INDEXEDDB STORAGE ============
     const skytrackDB = {
         dbName: 'VIPTrackDB',
-        dbVersion: 1,
+        dbVersion: 2,
         db: null,
         
         async init() {
@@ -4022,8 +4018,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     }
                     
                     // Store for aircraft cache
-                    if (!db.objectStoreNames.contains('aircraftCache')) {
-                        db.createObjectStore('aircraftCache', { keyPath: 'hex' });
+                    // The aircraftCache store was created since the first build and never
+                    // opened - no transaction anywhere names it. Dropping it needs a
+                    // version bump so onupgradeneeded runs for existing users.
+                    if (db.objectStoreNames.contains('aircraftCache')) {
+                        db.deleteObjectStore('aircraftCache');
                     }
                     
                     // Store for user data (watchlist, bookmarks, settings)
@@ -10146,76 +10145,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         return icon;
     }
     
-    function getAircraftShape(ac) {
-        const type = (ac.t || '').toUpperCase();
-        const category = ac.category || '';
-        
-        // Helicopter
-        if (type.startsWith('H') || type.includes('HELI') || 
-            ['A109', 'A139', 'A149', 'A169', 'A189', 'B06', 'B105', 'B206', 'B212', 'B222', 'B230', 'B407', 'B412', 'B429', 'B430', 'B505', 'EC20', 'EC25', 'EC30', 'EC35', 'EC45', 'EC55', 'EC75', 'EC90', 'R22', 'R44', 'R66', 'S76', 'S92', 'UH1', 'UH60', 'AH64', 'CH47', 'CH53', 'V22', 'AS50', 'AS55', 'AS65', 'AS32', 'S70', 'S61'].includes(type) ||
-            category.includes('A7')) {
-            return {
-                type: 'helicopter',
-                path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 8 L18 28 M10 12 L26 12 M14 12 L14 8 L22 8 L22 12 M18 28 L14 32 L22 32 L18 28 M12 18 L8 18 L8 16 L12 16 M24 18 L28 18 L28 16 L24 16"/>'
-            };
-        }
-        
-        // Military fighter/attack
-        if (['F15', 'F16', 'F18', 'F22', 'F35', 'F4', 'FA18', 'F117', 'A10', 'AV8', 'EF2K', 'EUFI', 'RFAL', 'TORN', 'GROB', 'HAWK', 'MIG', 'SU27', 'SU30', 'SU35', 'J10', 'J11', 'J20', 'B1', 'B2', 'B52'].some(m => type.includes(m))) {
-            return {
-                type: 'fighter',
-                path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 4 L20 12 L28 16 L28 18 L20 18 L20 28 L24 32 L24 34 L18 30 L12 34 L12 32 L16 28 L16 18 L8 18 L8 16 L16 12 Z"/>'
-            };
-        }
-        
-        // Military transport/tanker
-        if (['C17', 'C130', 'C5', 'C141', 'KC10', 'KC135', 'KC46', 'A400', 'AN12', 'AN22', 'AN124', 'AN225', 'IL76', 'Y20', 'C2', 'C160', 'C27', 'C295', 'CN35'].some(m => type.includes(m))) {
-            return {
-                type: 'military-transport',
-                path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 3 L20 10 L32 16 L32 18 L20 19 L20 28 L26 32 L26 33 L18 30 L10 33 L10 32 L16 28 L16 19 L4 18 L4 16 L16 10 Z"/>'
-            };
-        }
-        
-        // Private/GA props
-        if (['C172', 'C182', 'C206', 'C208', 'C210', 'C310', 'C340', 'C402', 'C414', 'C421', 'C425', 'P28A', 'P28B', 'P28R', 'PA24', 'PA28', 'PA30', 'PA31', 'PA32', 'PA34', 'PA44', 'PA46', 'BE33', 'BE35', 'BE36', 'BE55', 'BE58', 'BE76', 'M20', 'DA40', 'DA42', 'SR20', 'SR22', 'TBM', 'PC12', 'PC24', 'P210', 'P180', 'BE9L', 'BE20', 'B350', 'C152', 'C150', 'C177', 'C185'].some(m => type.startsWith(m))) {
-            return {
-                type: 'prop',
-                path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 6 L19 14 L28 18 L19 20 L19 28 L22 31 L22 32 L18 30 L14 32 L14 31 L17 28 L17 20 L8 18 L17 14 Z"/>'
-            };
-        }
-        
-        // Widebody jets
-        if (['A380', 'A350', 'A330', 'A340', 'B747', 'B777', 'B787', 'B767', 'B748', 'B77L', 'B77W', 'B788', 'B789', 'B78X', 'A359', 'A35K', 'A338', 'A339', 'A342', 'A343', 'A345', 'A346', 'A388', 'B744', 'B772', 'B773', 'B762', 'B763', 'B764', 'MD11', 'DC10', 'L101', 'IL86', 'IL96', 'A300', 'A310'].some(m => type.includes(m))) {
-            return {
-                type: 'widebody',
-                path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 2 L21 14 L34 18 L21 21 L21 30 L26 34 L26 35 L18 31 L10 35 L10 34 L15 30 L15 21 L2 18 L15 14 Z"/>'
-            };
-        }
-        
-        // Business jets
-        if (['C525', 'C550', 'C560', 'C56X', 'C650', 'C680', 'C700', 'C750', 'CL30', 'CL35', 'CL60', 'CRJ1', 'CRJ2', 'E135', 'E145', 'E35L', 'E50P', 'E55P', 'FA10', 'FA20', 'FA50', 'FA7X', 'FA8X', 'G150', 'G200', 'G280', 'G3', 'G4', 'G5', 'G6', 'GALX', 'GLEX', 'GLF3', 'GLF4', 'GLF5', 'GLF6', 'H25', 'HA4T', 'HDJT', 'LJ23', 'LJ24', 'LJ25', 'LJ31', 'LJ35', 'LJ40', 'LJ45', 'LJ55', 'LJ60', 'LJ70', 'LJ75', 'PRM1', 'BE40', 'WW24', 'C25A', 'C25B', 'C25C', 'C500', 'C501', 'C510', 'C525', 'CL30', 'CL35', 'CL60', 'CL85', 'CL90', 'G150', 'G200', 'G280', 'GL5T', 'GL7T'].some(m => type.includes(m))) {
-            return {
-                type: 'bizjet',
-                path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 4 L20 13 L30 17 L30 19 L20 20 L20 29 L24 33 L24 34 L18 31 L12 34 L12 33 L16 29 L16 20 L6 19 L6 17 L16 13 Z"/>'
-            };
-        }
-        
-        // Ground vehicles
-        if (ac.alt_baro === 'ground' || ac.alt_baro === 0 || (ac.gs && ac.gs < 30 && (!ac.alt_baro || ac.alt_baro < 500))) {
-            if (!type || type === '') {
-                return {
-                    type: 'ground',
-                    path: '<rect x="12" y="12" width="12" height="12" rx="2" fill="FILL" stroke="STROKE" stroke-width="0.5"/>'
-                };
-            }
-        }
-        
-        // Default jet shape (narrowbody)
-        return {
-            type: 'jet',
-            path: '<path fill="FILL" stroke="STROKE" stroke-width="0.5" d="M18 3 L20 14 L32 18 L20 20 L20 30 L24 33 L24 34 L18 32 L12 34 L12 33 L16 30 L16 20 L4 18 L16 14 Z"/>'
-        };
-    }
     function getZIndex(ac) { if (ac.hex === selectedHex) return 50000; if (ac.interesting || ac.militaryInfo || ac.piaInfo) return 5000 + (ac.alt_baro || 0); return ac.alt_baro === 'ground' ? 0 : (ac.alt_baro || 0); }
 
     // ============ TRAILS ============

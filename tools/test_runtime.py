@@ -1349,10 +1349,12 @@ class VipTrackRuntime(unittest.TestCase):
                         del.onsuccess = del.onerror = del.onblocked = () => resolve();
                     });
 
-                    // A database from before trailHistory existed.
+                    // A v1 database as shipped: it has the aircraftCache store that was
+                    // created and never opened, and lacks trailHistory.
                     let db = await open(1, database => {
                         database.createObjectStore('databases', { keyPath: 'name' });
                         database.createObjectStore('userData', { keyPath: 'key' });
+                        database.createObjectStore('aircraftCache', { keyPath: 'hex' });
                     });
                     const before = names(db);
                     db.close();
@@ -1362,8 +1364,8 @@ class VipTrackRuntime(unittest.TestCase):
                         if (!database.objectStoreNames.contains('databases')) {
                             database.createObjectStore('databases', { keyPath: 'name' });
                         }
-                        if (!database.objectStoreNames.contains('aircraftCache')) {
-                            database.createObjectStore('aircraftCache', { keyPath: 'hex' });
+                        if (database.objectStoreNames.contains('aircraftCache')) {
+                            database.deleteObjectStore('aircraftCache');
                         }
                         if (!database.objectStoreNames.contains('userData')) {
                             database.createObjectStore('userData', { keyPath: 'key' });
@@ -1397,11 +1399,12 @@ class VipTrackRuntime(unittest.TestCase):
                     return { before: before.sort(), after, usable };
                 }"""
             )
-            self.assertEqual(result["before"], ["databases", "userData"],
+            self.assertEqual(result["before"], ["aircraftCache", "databases", "userData"],
                              "the older-database fixture was not set up as expected")
-            self.assertEqual(result["after"],
-                             ["aircraftCache", "databases", "trailHistory", "userData"],
-                             "the upgrade did not create every store")
+            self.assertEqual(result["after"], ["databases", "trailHistory", "userData"],
+                             "the upgrade did not converge on the current store set")
+            self.assertNotIn("aircraftCache", result["after"],
+                             "the unused store survived the upgrade")
             self.assertTrue(result["usable"],
                             "a transaction against the newly created store failed")
 

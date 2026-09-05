@@ -743,8 +743,8 @@ class VipTrackContracts(unittest.TestCase):
 
         # The pinned pair. Changing the store set without moving the version fails
         # here, which is the whole point: the failure message says what to do.
-        EXPECTED_STORES = ["aircraftCache", "databases", "trailHistory", "userData"]
-        EXPECTED_VERSION = 1
+        EXPECTED_STORES = ["databases", "trailHistory", "userData"]
+        EXPECTED_VERSION = 2
         self.assertEqual(
             stores, EXPECTED_STORES,
             f"the object-store set changed to {stores}. Bump skytrackDB.dbVersion above "

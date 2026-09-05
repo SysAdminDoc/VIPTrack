@@ -14,6 +14,11 @@
   its integrity hash re-verified against the live CDN.
 
 ### Changed
+- Dead scaffolding removed: a 70-line aircraft-shape classifier with no callers, the orphaned
+  circuit-breaker warning element left behind when v0.8.0 deleted the code that drove it, its CSS
+  and the error-indicator CSS, and the `aircraftCache` IndexedDB store that was created since the
+  first build and never once opened. Dropping the store bumps the database version to 2 so the
+  upgrade runs for existing users.
 - A hidden tab stops polling. Six repeating timers - the connectivity probe, source health checks,
   the source-detail re-render, the geolocation refresh, the offline position cache and the
   plane-alert sync - stored no handle, were never cleared, and bypassed the registry that pauses
