@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Fixed
+- Uncaught exceptions and rejected promises are now recorded and exportable. There was no
+  `window.onerror` and no `unhandledrejection` handler anywhere, `errorHandler.log` had two call
+  sites in the whole file, and its indicator targeted an element that does not exist. "Copy source
+  diagnostics" now carries the app version, cache schema, browser, active renderer, basemap, filter,
+  relay status and the last 20 errors - and still carries no aircraft identifiers, because every
+  message is stripped of hexes, registrations and URLs before it is stored.
 - Shipping a new build no longer leaves returning users on the old one. `index.html` is served
   cache-first with no revalidation and the service-worker cache key hashed only the asset *list*,
   so a content change did not move it and nothing forced a refresh. The key now carries the app

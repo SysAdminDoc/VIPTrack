@@ -888,6 +888,7 @@ class VipTrackContracts(unittest.TestCase):
         # The key carries the app version and a fingerprint of the precached bytes.
         service_worker = SERVICE_WORKER.read_text(encoding="utf-8")
         self.assertIn("const APP_VERSION = '0.8.2';", service_worker)
+        self.assertIn("const VIPTRACK_APP_VERSION = '0.8.2';", self.source)
         self.assertIn("appVersion: APP_VERSION", service_worker)
         self.assertIn("assetFingerprint: STATIC_ASSET_FINGERPRINT", service_worker)
 

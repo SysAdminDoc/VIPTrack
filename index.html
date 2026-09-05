@@ -1612,6 +1612,7 @@ if (location.protocol === 'file:') {
 </script>
 <script>
 // Service Worker Registration
+const VIPTRACK_APP_VERSION = '0.8.2';
 const SW_CACHE_SCHEMA = '4.30';
 const SW_PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -2861,11 +2862,35 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         errors: [],
         maxErrors: 50,
         
+        // An error thrown from enrichment can carry a hex, a registration or a URL with
+        // the target in its query string. Diagnostics are copied out of the browser, so
+        // the message is stripped of anything identifying before it is ever stored.
+        redact(value) {
+            return String(value ?? '')
+                .replace(/https?:\/\/[^\s'"]+/gi, '<url>')
+                .replace(/\b[0-9a-f]{6}\b/gi, '<hex>')
+                .replace(/\bN[0-9]{1,5}[A-Z]{0,2}\b/g, '<reg>')
+                .slice(0, 240);
+        },
+
+        // Nothing reported uncaught exceptions or rejected promises, so the first
+        // failure a user could not reproduce was undiagnosable.
+        install() {
+            if (this._installed) return;
+            this._installed = true;
+            window.addEventListener('error', event => {
+                this.log('/window', event?.error || event?.message || 'Unknown error', 'error');
+            });
+            window.addEventListener('unhandledrejection', event => {
+                this.log('/promise', event?.reason || 'Unhandled rejection', 'error');
+            });
+        },
+
         log(context, error, severity = 'warn') {
             const entry = {
                 time: Date.now(),
-                context,
-                message: error?.message || String(error),
+                context: this.redact(context),
+                message: this.redact(error?.message || String(error)),
                 severity
             };
             
@@ -2880,32 +2905,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 console.warn(`[VIPTrack${context}]`, error);
             }
             
-            // Update error indicator if visible
-            this.updateIndicator();
         },
-        
-        updateIndicator() {
-            const indicator = document.getElementById('errorIndicator');
-            const recentErrors = this.errors.filter(e => Date.now() - e.time < 60000);
-            
-            if (indicator) {
-                if (recentErrors.length > 0) {
-                    indicator.style.display = 'flex';
-                    indicator.querySelector('.error-count').textContent = recentErrors.length;
-                    indicator.title = recentErrors[0].message;
-                } else {
-                    indicator.style.display = 'none';
-                }
-            }
-        },
-        
+
         getRecent(count = 10) {
             return this.errors.slice(0, count);
         },
         
         clear() {
             this.errors = [];
-            this.updateIndicator();
         },
         
         // Wrapper for async operations with retry
@@ -3787,11 +3794,31 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }));
         },
         getDiagnostics() {
+            // A bug report needs to say which build, which renderer and what failed.
+            // This used to carry source health and nothing else, so a user could not
+            // describe their own situation. Still no aircraft identifiers, tracks or
+            // credentials: errorHandler.redact strips them before an entry is stored.
             return {
-                schemaVersion: 1,
+                schemaVersion: 2,
                 generatedAt: new Date().toISOString(),
+                appVersion: VIPTRACK_APP_VERSION,
+                cacheSchema: SW_CACHE_SCHEMA,
+                userAgent: String(navigator.userAgent || '').slice(0, 240),
+                language: String(navigator.language || ''),
+                renderer: webglMapManager?.requested ? 'webgl' : 'leaflet',
+                basemap: settings.mapStyle,
+                filter: settings.filter,
+                online: Boolean(navigator.onLine),
+                relay: { status: relayHealth.status(), detail: relayHealth.describe(),
+                         retired: relayHealth.disabledRelays().map(id => relayRegistry.hostOf(id)) },
                 currentSource: this.currentSource?.key || null,
-                sources: this.getStats()
+                sources: this.getStats(),
+                errors: errorHandler.getRecent(20).map(entry => ({
+                    at: new Date(entry.time).toISOString(),
+                    context: entry.context,
+                    message: entry.message,
+                    severity: entry.severity
+                }))
             };
         }
     };
@@ -9087,6 +9114,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         const urlParams = new URLSearchParams(location.search);
         if (urlParams.get('embed') === '1') document.body.classList.add('embed');
 
+        errorHandler.install();
         await i18nManager.init();
 
         // Initialize IndexedDB first

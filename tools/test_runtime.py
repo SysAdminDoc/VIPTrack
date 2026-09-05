@@ -895,6 +895,54 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertFalse(filtered["mlatPasses"], "an MLAT position survived the ADS-B-only filter")
             self.assertEqual(crashes, [])
 
+    def test_uncaught_failures_reach_the_diagnostics_export(self) -> None:
+        # There was no window.onerror and no unhandledrejection handler anywhere, and
+        # the diagnostics export carried source health only - no version, no browser,
+        # no errors. With an empty issue tracker that made the first bug only a user
+        # could reproduce undiagnosable.
+        with self._page() as (page, crashes):
+            # An exception thrown from a timer is uncaught by definition: nothing in
+            # the app's own call stack can catch it.
+            page.evaluate("() => { setTimeout(() => { throw new Error('AUDIT_TIMER_BOOM'); }, 0); }")
+            page.evaluate("() => { Promise.reject(new Error('AUDIT_PROMISE_BOOM')); }")
+            page.wait_for_timeout(800)
+
+            diagnostics = page.evaluate("() => dataSourceManager.getDiagnostics()")
+
+            messages = " ".join(entry["message"] for entry in diagnostics["errors"])
+            self.assertIn("AUDIT_TIMER_BOOM", messages,
+                          "an uncaught exception never reached the error log")
+            self.assertIn("AUDIT_PROMISE_BOOM", messages,
+                          "a rejected promise never reached the error log")
+
+            # The export has to describe the build and the situation, not just sources.
+            self.assertEqual(diagnostics["appVersion"], "0.8.2")
+            for field in ("cacheSchema", "userAgent", "renderer", "basemap", "filter", "relay"):
+                self.assertTrue(diagnostics.get(field) not in (None, ""), f"{field} missing")
+            self.assertIn(diagnostics["renderer"], ("leaflet", "webgl"))
+            self.assertLessEqual(len(diagnostics["errors"]), 20)
+
+            # And it still must not carry anything that identifies an aircraft.
+            leaked = page.evaluate(
+                """() => {
+                    errorHandler.log('/audit', new Error(
+                        'failed for a0b1c2 reg N615WM via https://api.adsb.lol/v2/hex/a0b1c2'), 'error');
+                    const text = JSON.stringify(dataSourceManager.getDiagnostics());
+                    return { text, hits: ['a0b1c2', 'N615WM', 'api.adsb.lol/v2/hex']
+                        .filter(token => text.includes(token)) };
+                }"""
+            )
+            self.assertEqual(leaked["hits"], [],
+                             f"an identifier survived redaction: {leaked['hits']}")
+            self.assertIn("<hex>", leaked["text"])
+            self.assertIn("<reg>", leaked["text"])
+            self.assertIn("<url>", leaked["text"])
+
+            # Two thrown errors are expected; the page itself must not have crashed
+            # in any other way.
+            unexpected = [c for c in crashes if "AUDIT_" not in c]
+            self.assertEqual(unexpected, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.
