@@ -943,6 +943,50 @@ class VipTrackRuntime(unittest.TestCase):
             unexpected = [c for c in crashes if "AUDIT_" not in c]
             self.assertEqual(unexpected, [])
 
+    def test_the_altitude_legend_renders_and_follows_its_setting(self) -> None:
+        # A complete, styled, six-locale legend was hidden by an unconditional
+        # `display: none !important` and never rendered, stranding its translations.
+        probe = """() => {
+            const el = document.querySelector('.legend');
+            if (!el) return { present: false };
+            const r = el.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+            return { present: true, display: getComputedStyle(el).display,
+                     w: Math.round(r.width), h: Math.round(r.height),
+                     onTop: el.contains(hit), hit: hit ? (hit.className || hit.tagName) : null,
+                     inViewport: r.top >= 0 && r.bottom <= window.innerHeight
+                                 && r.right <= window.innerWidth,
+                     bands: el.querySelectorAll('.legend-item').length,
+                     text: el.textContent.trim() };
+        }"""
+        with self._page() as (page, crashes):
+            shown = page.evaluate(probe)
+            self.assertTrue(shown["present"], "the legend markup is gone")
+            self.assertNotEqual(shown["display"], "none", "the legend is hidden by CSS")
+            self.assertGreater(shown["w"], 0)
+            self.assertGreater(shown["h"], 0)
+            self.assertEqual(shown["bands"], 7, "an altitude band is missing from the legend")
+            # Visible is not unobstructed: the zoom control and the info panel share
+            # this edge of the map.
+            self.assertTrue(shown["onTop"], f"the legend is covered by {shown['hit']}")
+            self.assertTrue(shown["inViewport"], "the legend is drawn outside the viewport")
+            # Its labels come from the catalogue, so a broken key shows as the key.
+            self.assertNotIn("legend.", shown["text"])
+
+            # It explains the altitude colouring, so it follows that setting.
+            page.evaluate(
+                "() => { document.getElementById('toggleAltColors').click(); }")
+            page.wait_for_timeout(300)
+            hidden = page.evaluate(probe)
+            self.assertEqual(hidden["display"], "none",
+                             "the legend stayed up after altitude colouring was switched off")
+
+            page.evaluate("() => { document.getElementById('toggleAltColors').click(); }")
+            page.wait_for_timeout(300)
+            self.assertNotEqual(page.evaluate(probe)["display"], "none",
+                                "the legend did not come back when colouring was switched on")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

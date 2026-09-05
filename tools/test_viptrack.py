@@ -566,6 +566,26 @@ class VipTrackContracts(unittest.TestCase):
             self.assertIn("projectUrl:", block[:block.index("},")],
                           f"source {key} has no project URL to credit")
 
+    def test_the_altitude_legend_is_not_killed_by_css(self) -> None:
+        # The legend is a complete, styled, six-locale feature that was hidden by an
+        # unconditional `display: none !important` inside a block named for a status
+        # dock that was never built. That stranded 48 translated strings.
+        for rule in re.findall(r"(?<!-)\.legend\s*\{([^}]*)\}", self.source):
+            self.assertNotIn("display: none !important", rule)
+            self.assertNotIn("display:none !important", rule)
+
+        # It follows the setting that governs the colouring it explains.
+        self.assertIn("body.no-alt-colors .legend", self.source)
+        self.assertIn("classList.toggle('no-alt-colors', !settings.altitudeColors)", self.source)
+
+        # And every band it draws must still have a translation in every catalogue.
+        legend_keys = set(re.findall(r'data-i18n="(legend\.[^"]+)"', self.source))
+        self.assertGreaterEqual(len(legend_keys), 8)
+        for catalog in sorted(I18N_DIR.glob("*.json")):
+            messages = json.loads(catalog.read_text(encoding="utf-8"))["messages"]
+            missing = sorted(legend_keys - set(messages))
+            self.assertEqual(missing, [], f"{catalog.name} is missing {missing}")
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",

@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Fixed
+- The altitude legend renders again. A complete, styled, seven-band, six-locale legend was hidden
+  by an unconditional `display: none !important` sitting inside a block named for a status dock that
+  was never built, so 48 translated strings could never appear on screen. It now follows the
+  altitude-colouring setting, which is the thing it explains.
 - Uncaught exceptions and rejected promises are now recorded and exportable. There was no
   `window.onerror` and no `unhandledrejection` handler anywhere, `errorHandler.log` had two call
   sites in the whole file, and its indicator targeted an element that does not exist. "Copy source
