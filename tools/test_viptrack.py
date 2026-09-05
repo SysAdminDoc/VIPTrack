@@ -328,7 +328,7 @@ class VipTrackContracts(unittest.TestCase):
 
     def test_local_state_backup_is_versioned_bounded_and_privacy_safe(self) -> None:
         manager_start = self.source.index("const localStateManager =")
-        manager_end = self.source.index("async function getWikipediaSummary", manager_start)
+        manager_end = self.source.index("function setLoadingProgress(", manager_start)
         manager = self.source[manager_start:manager_end]
         for marker in (
             "const LOCAL_STATE_FORMAT = 'viptrack-local-state'",

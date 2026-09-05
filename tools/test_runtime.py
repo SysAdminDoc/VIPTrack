@@ -844,6 +844,56 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_the_wikipedia_toggle_actually_stops_wikipedia_requests(self) -> None:
+        # The toggle was wired end to end and persisted in the backup schema, but its
+        # only reader had no callers while the live fetch ran unguarded, so switching
+        # it off did not stop the page contacting en.wikipedia.org.
+        hits: list[str] = []
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        page.on("request", lambda request: hits.append(request.url)
+                if "en.wikipedia.org" in request.url else None)
+        self._route_external(page)
+        # Wikipedia is priority 8. Everything ahead of it has to fail for the chain to
+        # get that far, otherwise both halves of this test read zero and prove nothing.
+        for pattern in ("**/assets/aircraft_photos/**", "**/hexdb.io/**",
+                        "**/airport-data.com/**", "**/*.jpg"):
+            page.route(pattern, lambda route: route.abort())
+        page.route("**/en.wikipedia.org/**", lambda route: route.fulfill(
+            status=200, content_type="application/json",
+            headers={"Access-Control-Allow-Origin": "*"},
+            body='{"title":"Boeing C-17","thumbnail":{"source":"https://upload.example.org/c17.jpg"}}'))
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            walk = """async (hex) => {
+                aircraftCache[hex] = { hex, t: 'C17', r: '', flight: 'AUDIT1', lat: 51.5, lon: -0.12 };
+                delete photoCache[hex];
+                delete photoFailCache[hex];
+                await loadAircraftPhoto(hex, aircraftCache[hex]);
+            }"""
+
+            # Positive control: with the setting on, the chain must reach Wikipedia.
+            page.evaluate("() => { settings.showWiki = true; }")
+            hits.clear()
+            page.evaluate(walk, "FFFE10")
+            page.wait_for_timeout(1500)
+            self.assertGreater(len(hits), 0,
+                               "the photo chain never reached Wikipedia, so the off case proves nothing")
+
+            # With it off, not one request may leave for Wikipedia.
+            page.evaluate("() => { settings.showWiki = false; }")
+            hits.clear()
+            page.evaluate(walk, "FFFE11")
+            page.wait_for_timeout(1500)
+            self.assertEqual(hits, [],
+                             f"Wikipedia was contacted while the setting was off: {hits[:3]}")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_cesium_globe_lane_boots_or_degrades_without_throwing(self) -> None:
         # The 3D lane is lazy-loaded from a CDN the harness stubs, so the contract
         # under test is that requesting it never breaks the page.

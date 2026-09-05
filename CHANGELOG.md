@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Fixed
+- The Wikipedia Info setting now actually stops the app contacting `en.wikipedia.org`. The toggle
+  was wired end to end and carried in local-state backups, but its only reader had no callers while
+  the live photo lookup ran unguarded, so switching it off changed nothing. The dead reader is gone
+  and the guard sits on the function that makes the request.
 - Type silhouettes and airline banners fell back to a URL built from an undefined value, because
   `remoteSilhouettes` and `remoteAirlineLogos` are defined on `DATA_URLS` but were read off
   `CONFIG`. Every fallback requested `undefined<TYPE>.png` against the page's own origin. This

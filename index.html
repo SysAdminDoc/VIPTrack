@@ -8984,7 +8984,6 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     };
 
-    async function getWikipediaSummary(url) { if (!settings.showWiki || !url) return null; try { const m = url.match(/wikipedia\.org\/wiki\/(.+)$/); if (!m) return null; const r = await fetchWithTimeout('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(decodeURIComponent(m[1])), {}, 5000); if (!r?.ok) return null; const d = await r.json(); return { title: d.title, extract: d.extract, thumbnail: d.thumbnail?.source, url }; } catch(e) { return null; } }
     function setLoadingProgress(pct, status) { document.getElementById('loadingProgress').style.width = pct + '%'; document.getElementById('loadingStatus').textContent = status; }
     async function getInitialLocation() { if (loadMapPosition()) { setLoadingProgress(5, 'Restoring view...'); return; } if (!navigator.geolocation) { setLoadingProgress(5, 'Using default...'); return; } setLoadingProgress(3, 'Getting location...'); return new Promise(resolve => { navigator.geolocation.getCurrentPosition(pos => { CONFIG.center = [pos.coords.latitude, pos.coords.longitude]; CONFIG.zoom = CONFIG.localZoom; setLoadingProgress(5, 'Found!'); resolve(); }, () => { setLoadingProgress(5, 'Using default...'); resolve(); }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }); }); }
 
@@ -10137,6 +10136,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
     // Wikipedia thumbnail - tries multiple search terms from all aircraft data fields
     async function fetchWikipediaPhoto(ac) {
+        // The Wikipedia Info setting is what the user believes controls this.
+        // It used to gate only a summary helper that nothing ever called, so
+        // turning it off changed nothing and the page still contacted Wikipedia.
+        if (!settings.showWiki) return null;
         const wikiNames = {'P8':'Boeing P-8 Poseidon','P8A':'Boeing P-8 Poseidon','H60':'Sikorsky UH-60 Black Hawk','S70':'Sikorsky UH-60 Black Hawk','C17':'Boeing C-17 Globemaster III','F16':'General Dynamics F-16 Fighting Falcon','F15':'McDonnell Douglas F-15 Eagle','F35':'Lockheed Martin F-35 Lightning II','F18':'Boeing F/A-18E/F Super Hornet','V22':'Bell Boeing V-22 Osprey','KC35':'Boeing KC-135 Stratotanker','K35R':'Boeing KC-135 Stratotanker','C130':'Lockheed C-130 Hercules','C30J':'Lockheed Martin C-130J Super Hercules','A10':'Fairchild Republic A-10 Thunderbolt II','B52':'Boeing B-52 Stratofortress','E6':'Boeing E-6 Mercury','E3':'Boeing E-3 Sentry','B1':'Rockwell B-1 Lancer','B2':'Northrop Grumman B-2 Spirit','F22':'Lockheed Martin F-22 Raptor','EA18':'Boeing EA-18G Growler','EP3':'Lockheed EP-3','RC35':'Boeing RC-135','A400':'Airbus A400M Atlas','EUFI':'Eurofighter Typhoon','RFAL':'Dassault Rafale','TORD':'Panavia Tornado','U2':'Lockheed U-2','KC10':'McDonnell Douglas KC-10 Extender','CH47':'Boeing CH-47 Chinook','AH64':'Boeing AH-64 Apache','C5':'Lockheed C-5 Galaxy','C5M':'Lockheed C-5M Super Galaxy','B1B':'Rockwell B-1 Lancer','F117':'Lockheed F-117 Nighthawk','E8':'Northrop Grumman E-8 Joint STARS','U28A':'Pilatus PC-12','C146':'Dornier 328','C37A':'Gulfstream V','C40A':'Boeing C-40 Clipper','T38':'Northrop T-38 Talon','T45':'Boeing T-45 Goshawk','RC135':'Boeing RC-135'};
 
         const searchTerms = [];
