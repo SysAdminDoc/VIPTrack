@@ -1878,6 +1878,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                                 <label class="filter-checkbox">
                                     <input type="checkbox" id="filterNoCallsign"> <span data-i18n="search.noCallsign">No Callsign</span>
                                 </label>
+                                <label class="filter-checkbox">
+                                    <input type="checkbox" id="filterAdsbOnly"> <span data-i18n="search.adsbOnly">ADS-B positions only</span>
+                                </label>
                             </div>
                         </div>
                         <div class="filter-section">
@@ -1985,6 +1988,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <div class="info-row" id="infoOperatorRow" style="display:none;"><span class="info-label" data-i18n="info.operator">Operator</span><span class="info-value" id="infoOperator">---</span></div>
             <div class="info-row" id="infoFaaOwnerRow" style="display:none;"><span class="info-label" data-i18n="info.faaOwner">FAA owner</span><span class="info-value" id="infoFaaOwner">---</span></div>
             <div class="info-row" id="infoAirlineRow" style="display:none;"><span class="info-label" data-i18n="info.airline">Airline</span><span class="info-value" id="infoAirline">---</span></div>
+            <div class="info-row" id="infoPosSourceRow" style="display:none;"><span class="info-label" data-i18n="info.posSource">Position source</span><span class="info-value" id="infoPosSource">---</span></div>
             <div class="info-row"><span class="info-label" data-i18n="info.category">Category</span><span class="info-value" id="infoCat">---</span></div>
             <div class="info-row"><span class="info-label" data-i18n="info.squawk">Squawk</span><span class="info-value"><span class="squawk-code squawk-normal" id="infoSquawk">----</span></span></div>
             <div class="trail-status" id="trailStatus" data-i18n="info.loadingTrail">Loading trail...</div>
@@ -5946,6 +5950,19 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         return Number.isFinite(flags) && (flags & LADD_DB_FLAG) === LADD_DB_FLAG;
     }
 
+    // The position-source values the v2 feeds emit, in plain words. adsb_icao and
+    // adsb_other are reported by the aircraft; the rest are inferred or relayed.
+    const POSITION_SOURCE_LABELS = {
+        adsb_icao: 'ADS-B', adsb_icao_nt: 'ADS-B (non-transponder)', adsb_other: 'ADS-B (other)',
+        adsr_icao: 'ADS-R (rebroadcast)', adsr_other: 'ADS-R (rebroadcast)',
+        tisb_icao: 'TIS-B (ground radar)', tisb_trackfile: 'TIS-B (ground radar)', tisb_other: 'TIS-B (ground radar)',
+        mlat: 'MLAT (multilaterated)', mode_s: 'Mode S (no position)', other: 'Other', unknown: 'Unknown'
+    };
+    const ADSB_POSITION_SOURCES = ['adsb_icao', 'adsb_icao_nt', 'adsb_other'];
+    function isAdsbPosition(ac) {
+        return ADSB_POSITION_SOURCES.includes(String(ac?.posSource || ''));
+    }
+
     function isPrivacyProtectedAircraft(ac) {
         return !!ac && (ac.privacyProtected === true || ac.piaInfo || isPrivacyProtectedHex(ac.hex));
     }
@@ -9555,6 +9572,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 if (ac.squawk) existing.squawk = ac.squawk;
                 if (ac.category) existing.category = ac.category;
                 if (ac.dbFlags !== undefined) existing.dbFlags = ac.dbFlags;
+                if (ac.type) existing.posSource = ac.type;
                 if (ac.from) existing.from = ac.from;
                 if (ac.to) existing.to = ac.to;
                 if (provenance) Object.assign(existing, provenance);
@@ -9600,6 +9618,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const cached = { hex, flight: (ac.flight?.trim()) || '', r: ac.r || '', t: ac.t || '', desc: ac.desc || '', ownOp: ac.ownOp || ac.operator || '',
                     lat: ac.lat, lon: ac.lon, alt_baro: ac.alt_baro, gs: ac.gs, track: ac.track, baro_rate: ac.baro_rate,
                     squawk: ac.squawk || '', category: ac.category || '', dbFlags: ac.dbFlags, from: ac.from || '', to: ac.to || '',
+                    // `type` in the tar1090/adsb.lol schema is the position source
+                    // (adsb_icao, mlat, tisb, adsr, mode_s), not the type designator,
+                    // which is `t`. Stored under its real name so the two can never be
+                    // confused again.
+                    posSource: ac.type || '',
                     lastSeen: now, history, category_type: null, interesting: null, airlineName: null, militaryInfo: null, piaInfo: null, alliance: null, militaryRangeInfo: null, year: null, isVIP: false, civilianInteresting: null, _enriched: false, ...provenance };
                 // Enrich first to classify, then gate on mil/vip/pia
                 _enrichAircraft(cached, hex);
@@ -10415,6 +10438,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         renderAircraftProvenance(ac);
         document.getElementById('infoCallsign').textContent = ac.flight || 'N/A'; document.getElementById('infoHex').textContent = ac.hex; document.getElementById('infoReg').textContent = getDisplayRegistration(ac);
         const typeDesc = aircraftTypeDB.getDescription(ac.t); document.getElementById('infoType').textContent = typeDesc || ac.t || 'N/A';
+        // An MLAT or TIS-B position is multilaterated or rebroadcast, not reported by
+        // the aircraft, and is materially less certain than ADS-B. An analyst reading
+        // a track needs to know which one they are looking at.
+        const posSourceRow = document.getElementById('infoPosSourceRow');
+        if (posSourceRow) {
+            const label = POSITION_SOURCE_LABELS[ac.posSource] || ac.posSource || '';
+            document.getElementById('infoPosSource').textContent = label || 'Unknown';
+            posSourceRow.style.display = ac.posSource ? 'flex' : 'none';
+        }
         const descRow = document.getElementById('infoDescRow'); if (ac.desc) { document.getElementById('infoDesc').textContent = ac.desc; descRow.style.display = 'flex'; } else descRow.style.display = 'none';
         const opRow = document.getElementById('infoOperatorRow'); if (ac.ownOp) { document.getElementById('infoOperator').textContent = ac.ownOp; opRow.style.display = 'flex'; } else opRow.style.display = 'none';
         const ownerRow = document.getElementById('infoFaaOwnerRow'); if (ac.faaOwner && !isPrivacyProtectedAircraft(ac)) { document.getElementById('infoFaaOwner').textContent = ac.faaOwner; ownerRow.style.display = 'flex'; } else ownerRow.style.display = 'none';
@@ -11794,6 +11826,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (document.getElementById('filterInteresting')?.checked) this.filters.interesting = true;
             if (document.getElementById('filterGrounded')?.checked) this.filters.grounded = true;
             if (document.getElementById('filterNoCallsign')?.checked) this.filters.noCallsign = true;
+            if (document.getElementById('filterAdsbOnly')?.checked) this.filters.adsbOnly = true;
             
             // Regex
             const regexInput = document.getElementById('filterRegex');
@@ -11889,6 +11922,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 if (!searchStr.includes(f.text)) return false;
             }
             
+            // Position source: MLAT and TIS-B are inferred or relayed, so an analyst
+            // may want to exclude everything the aircraft did not report itself.
+            if (f.adsbOnly && !isAdsbPosition(ac)) return false;
+
             // Type filter
             if (f.types && f.types.length > 0) {
                 const acType = ac.category_type;
@@ -13185,7 +13222,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const category = this.aircraftCategory(featured);
             const callsign = featured.flight?.trim() || getDisplayRegistration(featured) || featured.hex;
             const operator = featured.militaryInfo?.operator || featured.ownOp || featured.airline?.name || category.label;
-            const type = featured.t || featured.type || 'Aircraft';
+            const type = featured.t || 'Aircraft';
             const watched = alertSystem.isWatched(featured.hex);
             peek.classList.remove('is-empty');
             peek.dataset.hex = featured.hex;
@@ -13574,7 +13611,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     <div class="list-ac-icon">${this.aircraftIconMarkup(category.key)}</div>
                     <div class="list-ac-info">
                         <div class="list-ac-title-row"><div class="list-ac-callsign">${callsign}</div>${watched ? '<span class="list-ac-watch-badge">WATCHED</span>' : ''}</div>
-                        <div class="list-ac-detail">${operator} • ${ac.t || ac.type || 'Aircraft'}</div>
+                        <div class="list-ac-detail">${operator} • ${ac.t || 'Aircraft'}</div>
                         <div class="list-ac-route">${this.formatRoute(ac)}</div>
                     </div>
                     <div class="list-ac-data">
@@ -13714,7 +13751,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         <div class="watch-card-icon">${this.aircraftIconMarkup(category.key)}</div>
                         <div class="watch-card-main">
                             <div class="watch-card-name">${name}</div>
-                            <div class="watch-card-detail">${operator} • ${ac?.t || ac?.type || 'Aircraft'}</div>
+                            <div class="watch-card-detail">${operator} • ${ac?.t || 'Aircraft'}</div>
                             <span class="watch-card-status${ac ? '' : ' offline'}">${ac ? 'AIRBORNE' : 'NOT IN VIEW'}</span>
                             <div class="watch-card-route">${ac ? this.formatRoute(ac) : 'Saved locally • ' + entry.hex}</div>
                         </div>

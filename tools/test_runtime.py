@@ -819,6 +819,82 @@ class VipTrackRuntime(unittest.TestCase):
                              "the LADD filter did not survive a share link")
             self.assertEqual(crashes, [])
 
+    def test_position_source_is_never_shown_as_an_aircraft_type(self) -> None:
+        # In the tar1090/adsb.lol schema `type` is the position source (adsb_icao, mlat,
+        # tisb, adsr, mode_s) and `t` is the ICAO type designator. Three surfaces read
+        # `ac.t || ac.type`, so an airframe with no database entry displayed "adsb_icao"
+        # where its type belonged.
+        with self._page() as (page, crashes):
+            rendered = page.evaluate(
+                """() => {
+                    // A catalogued military airframe, so the keep filter admits it, but
+                    // with no `t`: exactly the case that used to fall through to the
+                    // position source for its displayed type.
+                    const hex = [...militaryDB.military.keys()][0].toUpperCase();
+                    delete aircraftCache[hex];
+                    processAircraftData([{ hex: hex.toLowerCase(), type: 'mlat',
+                        flight: 'NOTYPE1', lat: 51.4, lon: -0.4,
+                        alt_baro: 20000, gs: 300, track: 45 }], null);
+                    const cached = aircraftCache[hex];
+                    if (cached) { cached.t = ''; cached.desc = ''; }
+                    selectAircraft(hex);
+                    window.__mlatHex = hex;
+                    return {
+                        kept: Boolean(cached),
+                        posSource: cached ? cached.posSource : null,
+                        infoType: document.getElementById('infoType').textContent,
+                        infoPosSource: document.getElementById('infoPosSource').textContent,
+                        posRowShown: document.getElementById('infoPosSourceRow').style.display !== 'none'
+                    };
+                }"""
+            )
+            self.assertTrue(rendered["kept"])
+            # The defect, stated directly.
+            self.assertNotIn("mlat", rendered["infoType"].lower(),
+                             "the position source is being rendered as the aircraft type")
+            self.assertNotIn("adsb_icao", rendered["infoType"].lower())
+
+            # And the field is surfaced where an analyst can read it, in plain words.
+            self.assertTrue(rendered["posRowShown"], "the position source row stayed hidden")
+            self.assertIn("MLAT", rendered["infoPosSource"])
+            self.assertEqual(rendered["posSource"], "mlat")
+
+            # No other surface may render it as a type either.
+            surfaces = page.evaluate(
+                """() => {
+                    settings.filter = 'mil-vip';
+                    mobileSupport.renderAircraftList && mobileSupport.renderAircraftList();
+                    const text = document.body.innerText;
+                    return { leaks: ['adsb_icao', 'mlat •', '• mlat', 'tisb_icao']
+                        .filter(token => text.includes(token)) };
+                }"""
+            )
+            self.assertEqual(surfaces["leaks"], [],
+                             f"a position source leaked into a type surface: {surfaces['leaks']}")
+
+            # A filter must be able to exclude everything the aircraft did not report.
+            filtered = page.evaluate(
+                """() => {
+                    const mlatHex = window.__mlatHex, adsbHex = 'FFDD02';
+                    delete aircraftCache[adsbHex];
+                    processAircraftData([{ hex: adsbHex.toLowerCase(), type: 'adsb_icao',
+                        flight: 'REAL1', t: 'C17', dbFlags: 1, lat: 51.5, lon: -0.5,
+                        alt_baro: 30000, gs: 400, track: 90 }], null);
+                    searchSystem.filters = { adsbOnly: true };
+                    const mlatPasses = searchSystem.passesFilters(aircraftCache[mlatHex]);
+                    const adsbPasses = searchSystem.passesFilters(aircraftCache[adsbHex]);
+                    searchSystem.filters = {};
+                    const bothPassUnfiltered = searchSystem.passesFilters(aircraftCache[mlatHex])
+                        && searchSystem.passesFilters(aircraftCache[adsbHex]);
+                    return { mlatPasses, adsbPasses, bothPassUnfiltered };
+                }"""
+            )
+            self.assertTrue(filtered["bothPassUnfiltered"],
+                            "the fixture aircraft are filtered out for some unrelated reason")
+            self.assertTrue(filtered["adsbPasses"], "an ADS-B position was excluded by the ADS-B filter")
+            self.assertFalse(filtered["mlatPasses"], "an MLAT position survived the ADS-B-only filter")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

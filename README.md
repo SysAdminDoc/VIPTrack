@@ -105,6 +105,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Curated Mode | Show only plane-alert-db Interesting / Notable / Historic entries and Badger's Best aircraft; heuristic-only and commercial traffic stay out |
 | Search | Find aircraft by hex, registration, callsign, type, or operator |
 | Search Filters | Filter results by category, altitude range, and more |
+| ADS-B positions only | Exclude MLAT, TIS-B and ADS-R tracks, keeping only positions the aircraft reported itself |
 | Search History | Recent searches saved for quick access |
 
 ### Monitoring and Alerts

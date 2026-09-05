@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Fixed
+- The feed's position-source field is no longer rendered as an aircraft type. In the
+  tar1090/adsb.lol schema `type` is the position source (`adsb_icao`, `mlat`, `tisb`, `adsr`,
+  `mode_s`) and `t` is the ICAO type designator; three surfaces read `ac.t || ac.type`, so an
+  airframe with no database entry showed "adsb_icao" where its type belonged. The field is now
+  stored as `posSource`, shown in plain words in the detail panel, and filterable.
 - Government and police aircraft can now actually appear. The app polled only `/mil` and `/pia`,
   neither of which can return a government airframe, so the Gov filter counted zero against a live
   feed for as long as it has shipped despite a 1,743-row government catalogue and a 931-row police
