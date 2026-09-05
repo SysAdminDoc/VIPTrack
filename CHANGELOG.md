@@ -97,6 +97,9 @@
   nor silhouettes.
 
 ### Added
+- Capture mode. `?freeze=1` (or the on-screen control) holds aircraft positions at a stated UTC
+  time and shows that time on the frame, while pan, zoom and selection stay live - so a screenshot
+  cites something that did not move while it was being taken.
 - MGRS grid references. The coordinate section's banner had promised them since it was written
   while the code carried a comment saying they had been skipped, so the file advertised a
   capability it did not have. A selected aircraft's MGRS reference now appears in the OSINT report

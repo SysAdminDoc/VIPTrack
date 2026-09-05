@@ -106,6 +106,7 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | Search | Find aircraft by hex, registration, callsign, type, or operator |
 | Search Filters | Filter results by category, altitude range, and more |
 | ADS-B positions only | Exclude MLAT, TIS-B and ADS-R tracks, keeping only positions the aircraft reported itself |
+| Capture mode | `?freeze=1` holds positions at a stated UTC time while pan, zoom and selection stay live, so a screenshot cites a frame that did not move under you |
 | Search History | Recent searches saved for quick access |
 
 ### Monitoring and Alerts

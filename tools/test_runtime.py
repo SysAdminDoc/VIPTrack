@@ -1520,6 +1520,85 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertIsNotNone(report)
             self.assertEqual(crashes, [])
 
+    def test_capture_mode_freezes_positions_but_not_the_map(self) -> None:
+        # An analyst citing a position needs the frame to hold still and to carry the
+        # time it was taken. Freezing must not cost pan, zoom or selection, which is
+        # what makes it usable for a capture rather than just a pause.
+        feed_hits: list[str] = []
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        page.on("request", lambda request: feed_hits.append(request.url)
+                if "/v2/mil" in request.url or "%2Fmil" in request.url else None)
+        self._route_external(page)
+        try:
+            page.goto(f"{self.base_url}/index.html?freeze=1", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            state = page.evaluate(
+                """() => ({
+                    frozen: captureMode.frozen,
+                    stamp: captureMode.stamp(),
+                    label: document.getElementById('freezeLabel').textContent,
+                    pillShown: getComputedStyle(document.getElementById('freezePill')).display !== 'none'
+                })"""
+            )
+            self.assertTrue(state["frozen"], "?freeze=1 did not freeze the view")
+            self.assertTrue(state["pillShown"], "the frozen state is not shown on screen")
+            # The capture time must be on the frame, in UTC, not merely held in memory.
+            self.assertRegex(state["stamp"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+            self.assertIn(state["stamp"], state["label"])
+
+            # Positions must stop updating.
+            feed_hits.clear()
+            page.evaluate("async () => { lastFetchTime = 0; await loadAircraft(); }")
+            page.wait_for_timeout(3000)
+            self.assertEqual(feed_hits, [],
+                             f"a frozen view still fetched positions: {feed_hits[:2]}")
+
+            # Pan, zoom and selection must stay live - that is the whole difference
+            # between a capture and a paused tab.
+            interaction = page.evaluate(
+                """() => {
+                    const before = { zoom: map.getZoom(), center: map.getCenter() };
+                    // Leaflet animates by default, so an animated move is not visible to
+                    // a synchronous read and would look like a dead control.
+                    map.setZoom(before.zoom + 1, { animate: false });
+                    map.panTo([before.center.lat + 1, before.center.lng + 1], { animate: false });
+                    const hex = Object.keys(aircraftCache)[0];
+                    if (hex) selectAircraft(hex);
+                    return {
+                        zoomChanged: map.getZoom() !== before.zoom,
+                        panned: Math.abs(map.getCenter().lat - before.center.lat) > 0.1,
+                        selected: hex ? selectedHex === hex : null,
+                        stillFrozen: captureMode.frozen
+                    };
+                }"""
+            )
+            self.assertTrue(interaction["zoomChanged"], "zoom is dead while frozen")
+            self.assertTrue(interaction["panned"], "pan is dead while frozen")
+            if interaction["selected"] is not None:
+                self.assertTrue(interaction["selected"], "selection is dead while frozen")
+            self.assertTrue(interaction["stillFrozen"],
+                            "interacting with the map silently released the freeze")
+
+            # Releasing resumes, and says so.
+            released = page.evaluate(
+                """async () => {
+                    document.getElementById('freezeReleaseBtn').click();
+                    return { frozen: captureMode.frozen,
+                             pillShown: getComputedStyle(
+                                 document.getElementById('freezePill')).display !== 'none' };
+                }"""
+            )
+            self.assertFalse(released["frozen"])
+            self.assertFalse(released["pillShown"])
+            page.wait_for_timeout(2000)
+            self.assertTrue(feed_hits, "positions did not resume after release")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

@@ -266,6 +266,12 @@
         /* X31: tab paused pill */
         .paused-pill { display: none; position: fixed; top: 60px; right: 12px; align-items: center; gap: 8px; background: rgba(26,26,46,0.92); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 600; z-index: 2500; backdrop-filter: blur(10px); }
         .paused-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-orange); box-shadow: 0 0 6px var(--accent-orange); }
+        /* A frozen view is a capture: it has to be obvious on screen and in a
+           screenshot that positions are held at a stated time, not live. */
+        .frozen-pill { top: 60px; right: 12px; }
+        .frozen-pill .paused-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+        .freeze-release { min-height: 24px; padding: 2px 8px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); font-family: inherit; font-size: 10px; cursor: pointer; }
+        .freeze-release:hover, .freeze-release:focus-visible { color: var(--text); border-color: var(--accent); }
         /* N6: ethical-use disclaimer */
         .ethics-disclaimer { display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: 560px; width: calc(100% - 24px); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; z-index: 5000; box-shadow: 0 8px 32px rgba(0,0,0,0.5); backdrop-filter: blur(16px); }
         .ethics-disclaimer.show { display: flex; gap: 12px; align-items: flex-start; }
@@ -1683,6 +1689,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <div class="data-source-detail-body" id="dataSourceDetailBody"></div>
     </div>
     <!-- X31: tab paused pill -->
+    <div id="freezePill" class="paused-pill frozen-pill" role="status" aria-live="polite">
+        <span class="paused-dot"></span><span id="freezeLabel">Frozen</span>
+        <button type="button" id="freezeReleaseBtn" class="freeze-release" data-i18n="capture.release">Resume</button>
+    </div>
     <div id="pausedPill" class="paused-pill" role="status" aria-live="polite">
         <span class="paused-dot"></span><span data-i18n="status.paused">Paused — return to tab to resume</span>
     </div>
@@ -9255,6 +9265,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (urlParams.get('embed') === '1') document.body.classList.add('embed');
 
         errorHandler.install();
+        captureMode.init();
         await i18nManager.init();
 
         // Initialize IndexedDB first
@@ -9580,8 +9591,57 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     };
 
+    // A capture has to hold still. tar1090 ships a screenshot parameter for the same
+    // reason: an analyst citing a position needs the frame not to move under them, and
+    // needs the time it was taken written on the frame itself. Pan, zoom and selection
+    // stay live; only position updates stop.
+    const captureMode = {
+        frozen: false,
+        frozenAt: 0,
+
+        init() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('freeze') === '1' || params.has('screenshot')) this.freeze();
+            document.getElementById('freezeReleaseBtn')?.addEventListener('click', () => this.release());
+        },
+
+        freeze() {
+            if (this.frozen) return;
+            this.frozen = true;
+            this.frozenAt = Date.now();
+            _stopFetchInterval();
+            this.render();
+        },
+
+        release() {
+            if (!this.frozen) return;
+            this.frozen = false;
+            this.frozenAt = 0;
+            this.render();
+            _startFetchInterval();
+            loadAircraft();
+        },
+
+        toggle() { this.frozen ? this.release() : this.freeze(); },
+
+        // The stated capture time is the point of the feature, so it is rendered on
+        // screen rather than only held in memory.
+        stamp() {
+            return this.frozenAt ? new Date(this.frozenAt).toISOString().replace('.000', '') : '';
+        },
+
+        render() {
+            const pill = document.getElementById('freezePill');
+            const label = document.getElementById('freezeLabel');
+            if (label) label.textContent = this.frozen ? 'Frozen at ' + this.stamp() : 'Frozen';
+            if (pill) pill.style.display = this.frozen ? 'flex' : 'none';
+        }
+    };
+
     async function loadAircraft() {
         if(!map)return;
+        // A frozen view holds the frame it was captured on.
+        if(captureMode.frozen)return;
         if(gridFetch.inProgress)return;
         if(Date.now()-lastFetchTime<2000)return;
         if(!offlineManager.isOnline){offlineManager.showCachedPositions({ announce: false });return;}
