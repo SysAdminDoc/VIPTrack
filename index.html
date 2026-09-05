@@ -1738,6 +1738,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="filter-chips-bar" id="filterChipsBar" role="group" aria-label="Quick aircraft filters">
         <button class="filter-chip-btn" type="button" data-filter="military" aria-pressed="false" data-i18n="filter.mil">Mil</button>
         <button class="filter-chip-btn" type="button" data-filter="vip" aria-pressed="false" data-i18n="filter.vip">VIP</button>
+        <button class="filter-chip-btn" type="button" data-filter="ladd" aria-pressed="false" title="FAA Limiting Aircraft Data Displayed" data-i18n="filter.ladd">LADD</button>
         <button class="filter-chip-btn" type="button" data-filter="curated" aria-pressed="false" title="Interesting, notable, and historic aircraft" data-i18n="filter.curated" data-i18n-title="filter.curatedTitle">Curated</button>
     </div>
     
@@ -1905,6 +1906,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="military"><span data-i18n="filter.military">Military</span> <span class="count" id="countMil">0</span></button>
         <button class="filter-btn government-btn" type="button" role="radio" aria-checked="false" data-filter="government" title="Government aircraft"><span>Gov</span> <span class="count" id="countGov">0</span></button>
         <button class="filter-btn vip-btn" type="button" role="radio" aria-checked="false" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
+        <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="ladd" title="FAA Limiting Aircraft Data Displayed" data-i18n-title="filter.laddTitle"><span data-i18n="filter.ladd">LADD</span> <span class="count" id="countLadd">0</span></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-modal="true" aria-labelledby="infoCallsign" aria-hidden="true" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
         <div class="aircraft-photo" id="aircraftPhoto"><div class="no-photo" data-i18n="common.loading">Loading...</div></div>
@@ -3537,10 +3539,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
-            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', projectUrl: 'https://adsb.one/', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
-            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', projectUrl: 'https://adsb.lol/', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
-            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', projectUrl: 'https://airplanes.live/', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unavailable', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 9, cors: false, disabled: true, disabledReason: 'Airplanes.live now requires approved API access requested by email; the public endpoint returns HTTP 403.', rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
-            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', projectUrl: 'https://adsb.fi/', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/lat/' + c.lat.toFixed(4) + '/lon/' + c.lng.toFixed(4) + '/dist/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: null, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
+            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', projectUrl: 'https://adsb.one/', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', laddUrl: 'https://api.adsb.one/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
+            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', projectUrl: 'https://adsb.lol/', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', laddUrl: 'https://api.adsb.lol/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', projectUrl: 'https://airplanes.live/', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/pia', laddUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unavailable', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 9, cors: false, disabled: true, disabledReason: 'Airplanes.live now requires approved API access requested by email; the public endpoint returns HTTP 403.', rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
+            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', projectUrl: 'https://adsb.fi/', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/lat/' + c.lat.toFixed(4) + '/lon/' + c.lng.toFixed(4) + '/dist/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: null, laddUrl: null, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
         ],
         
         currentSource: null,
@@ -5936,6 +5938,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     };
 
+    // FAA Limiting Aircraft Data Displayed. tar1090 treats military, pia and ladd
+    // as co-equal filterDbFlag values; this app ignored the third entirely.
+    const LADD_DB_FLAG = 8;
+    function isLaddAircraft(ac) {
+        const flags = Number(ac?.dbFlags);
+        return Number.isFinite(flags) && (flags & LADD_DB_FLAG) === LADD_DB_FLAG;
+    }
+
     function isPrivacyProtectedAircraft(ac) {
         return !!ac && (ac.privacyProtected === true || ac.piaInfo || isPrivacyProtectedHex(ac.hex));
     }
@@ -7695,6 +7705,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (milCat === 'police' || milCat === 'pol') return 'police'; 
         }
         if (ac.piaInfo) return 'pia';
+        // dbFlags is a bitfield in the tar1090 schema: 1 military, 2 interesting,
+        // 4 PIA, 8 LADD. LADD is the FAA's other privacy programme and is a
+        // category in its own right, not a flavour of military.
+        if (isLaddAircraft(ac)) return 'ladd';
         if (ac.civilianInteresting) return 'interesting';
         
         // Military hex ranges (known ICAO allocations)
@@ -8055,6 +8069,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (settings.filter === 'curated') return isCuratedAircraft(ac);
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'government') return classifyAircraft(ac) === 'government';
+            if (settings.filter === 'ladd') return isLaddAircraft(ac);
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
                 return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
@@ -8479,6 +8494,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (settings.filter === 'curated') return isCuratedAircraft(ac);
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'government') return classifyAircraft(ac) === 'government';
+            if (settings.filter === 'ladd') return isLaddAircraft(ac);
             if (settings.filter === 'military') {
                 if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
                 return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
@@ -8777,7 +8793,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
     function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
     function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to supported curated subsets
-        if (!['mil-vip','military','government','vip','curated'].includes(settings.filter)) settings.filter = 'mil-vip';
+        if (!['mil-vip','military','government','vip','curated','ladd'].includes(settings.filter)) settings.filter = 'mil-vip';
         if (!COVERAGE_MODES.includes(settings.coverageMode)) settings.coverageMode = 'off';
         if (!COVERAGE_WINDOW_HOURS.includes(Number(settings.coverageWindow))) settings.coverageWindow = 6;
         if (!COVERAGE_INTERVAL_SECONDS.includes(Number(settings.coverageInterval))) settings.coverageInterval = 30;
@@ -8899,7 +8915,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function _localStateSettings(value, label) {
         _localStateRequireKeys(value, ['mapStyle', 'showLabels', 'altitudeColors', 'showWiki', 'filter', 'followMode', 'compactMode'], label);
         if (!['esri-gray', 'carto-voyager', 'stadia-alidade-smooth-dark', 'pmtiles-dark'].includes(value.mapStyle)) throw new Error(label + '.mapStyle is unsupported');
-        if (!['mil-vip', 'military', 'government', 'vip', 'curated'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
+        if (!['mil-vip', 'military', 'government', 'vip', 'curated', 'ladd'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
         return { mapStyle: value.mapStyle, showLabels: _localStateBoolean(value.showLabels, label + '.showLabels'), altitudeColors: _localStateBoolean(value.altitudeColors, label + '.altitudeColors'), showWiki: _localStateBoolean(value.showWiki, label + '.showWiki'), filter: value.filter, followMode: _localStateBoolean(value.followMode, label + '.followMode'), compactMode: _localStateBoolean(value.compactMode, label + '.compactMode') };
     }
     function _localStateCanonicalState(value) {
@@ -9393,14 +9409,18 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 attemptedSources.push(src);
                 const sourceStartedAt = Date.now();
                 try{
-                    const [milResp,piaResp]=await Promise.all([
+                    const [milResp,piaResp,laddResp]=await Promise.all([
                         src.milUrl ? _fetch(src.milUrl, src.cors) : null,
-                        src.piaUrl ? _fetch(src.piaUrl, src.cors) : null
+                        src.piaUrl ? _fetch(src.piaUrl, src.cors) : null,
+                        // Not every aggregator publishes /ladd; adsb.fi answers 400, so
+                        // its laddUrl is null and the lane degrades to nothing asked.
+                        src.laddUrl ? _fetch(src.laddUrl, src.cors) : null
                     ]);
                     let allAc=[];
                     try{ if(milResp?.ok){const d=await milResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
                     try{ if(piaResp?.ok){const d=await piaResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
-                    const answered = Boolean(milResp?.ok || piaResp?.ok);
+                    try{ if(laddResp?.ok){const d=await laddResp.json();const ac=src.parseResponse(d);if(Array.isArray(ac))allAc.push(...ac);} }catch(e){}
+                    const answered = Boolean(milResp?.ok || piaResp?.ok || laddResp?.ok);
                     if(allAc.length || answered){
                         const sourceFetchedAt = Date.now();
                         const sourceLatencyMs = sourceFetchedAt - sourceStartedAt;
@@ -9586,7 +9606,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const isMil = cached.category_type === 'military' || cached.category_type === 'government' || cached.militaryInfo || cached.militaryRangeInfo;
                 const isVip = cached.isVIP || badgersBestDB.isVIP(hex);
                 const isPia = !!cached.piaInfo;
-                if (!isMil && !isVip && !isPia) return; // VIPTrack: skip non-military/VIP/PIA aircraft entirely
+                const isLadd = isLaddAircraft(cached);
+                if (!isMil && !isVip && !isPia && !isLadd) return; // VIPTrack: skip non-military/VIP/PIA aircraft entirely
                 aircraftCache[hex] = cached;
                 piaRotationTimeline.record(cached);
                 emergencyHistoryManager.observe(cached, now);
@@ -9615,13 +9636,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
 
     function updateCounts() {
-        const counts = { milVip: 0, military: 0, government: 0, vip: 0, curated: 0 };
+        const counts = { milVip: 0, military: 0, government: 0, vip: 0, curated: 0, ladd: 0 };
         Object.values(aircraftCache).forEach(ac => {
             counts.milVip++;
             const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
             if (isVip) counts.vip++;
             else if (classifyAircraft(ac) === 'government') counts.government++;
             else if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
+            if (isLaddAircraft(ac)) counts.ladd++;
             if (isCuratedAircraft(ac)) counts.curated++;
         });
         _el('countMilVIP').textContent = counts.milVip;
@@ -9631,6 +9653,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (governmentCount) governmentCount.textContent = counts.government;
         const curatedCount = _el('countCurated');
         if (curatedCount) curatedCount.textContent = counts.curated;
+        const laddCount = _el('countLadd');
+        if (laddCount) laddCount.textContent = counts.ladd;
     }
 
     let _updateMarkersRaf = 0;
@@ -9670,6 +9694,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     if (!ac.isVIP && !badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'government') {
                     if (classifyAircraft(ac) !== 'government') { _removeMarker(ac.hex); return; }
+                } else if (settings.filter === 'ladd') {
+                    if (!isLaddAircraft(ac)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
                     if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
                     if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { _removeMarker(ac.hex); return; }
@@ -12243,7 +12269,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
             
             // Apply filter from URL (VIPTrack: clamp to valid values)
-            if (filter && ['mil-vip','military','government','vip','curated'].includes(filter)) {
+            if (filter && ['mil-vip','military','government','vip','curated','ladd'].includes(filter)) {
                 settings.filter = filter;
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
@@ -12293,7 +12319,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const params = new URLSearchParams(window.location.search);
                 const hex = params.get('hex');
                 const requestedFilter = params.get('filter');
-                const filter = ['mil-vip','military','government','vip','curated'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
+                const filter = ['mil-vip','military','government','vip','curated','ladd'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
                 const emergency = params.get('emergency');
                 
                 // Apply filter

@@ -25,6 +25,11 @@
   nor silhouettes.
 
 ### Added
+- **LADD is a first-class category.** FAA Limiting Aircraft Data Displayed sits alongside Military,
+  Gov and VIP with its own filter, counter and mobile chip, populated from `/v2/ladd` on the sources
+  that publish it and from the feed's `dbFlags` bit. adsb.fi answers 400 for that path, so it is not
+  asked. This also separates two categories that were conflated: airplanes.live's PIA endpoint was
+  pointed at `/v2/ladd`, so its LADD traffic was arriving labelled as PIA.
 - Replacing or clearing the configured relay now forgets the previous endpoint's health verdict, so
   a new relay in the same slot is not silently excluded by the retirement the old one earned.
 

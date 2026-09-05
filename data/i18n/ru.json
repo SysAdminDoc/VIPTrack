@@ -48,6 +48,8 @@
     "filter.allTitle": "Все военные и VIP воздушные суда",
     "filter.curated": "Подборка",
     "filter.curatedTitle": "Интересные, примечательные и исторические воздушные суда",
+    "filter.ladd": "LADD",
+    "filter.laddTitle": "Программа FAA по ограничению отображения данных о воздушных судах (LADD)",
     "filter.mil": "Воен.",
     "filter.military": "Военные",
     "filter.vip": "VIP",

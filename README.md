@@ -100,7 +100,8 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 
 | Feature | Description |
 |---------|-------------|
-| Filter Modes | All Mil/VIP, Military Only, or VIP Only |
+| Filter Modes | All Mil/VIP, Military Only, Government, VIP Only, or LADD |
+| LADD | FAA Limiting Aircraft Data Displayed, read from the feed's `dbFlags` and its `/v2/ladd` endpoint where the source publishes one (adsb.fi does not) |
 | Curated Mode | Show only plane-alert-db Interesting / Notable / Historic entries and Badger's Best aircraft; heuristic-only and commercial traffic stay out |
 | Search | Find aircraft by hex, registration, callsign, type, or operator |
 | Search Filters | Filter results by category, altitude range, and more |

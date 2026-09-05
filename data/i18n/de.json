@@ -48,6 +48,8 @@
     "filter.allTitle": "Alle militärischen und VIP-Flugzeuge",
     "filter.curated": "Kuratierte",
     "filter.curatedTitle": "Interessante, bemerkenswerte und historische Flugzeuge",
+    "filter.ladd": "LADD",
+    "filter.laddTitle": "FAA-Programm zur eingeschränkten Anzeige von Flugzeugdaten (LADD)",
     "filter.mil": "Mil",
     "filter.military": "Militär",
     "filter.vip": "VIP",

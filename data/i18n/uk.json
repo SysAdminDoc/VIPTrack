@@ -48,6 +48,8 @@
     "filter.allTitle": "Усі військові та VIP повітряні судна",
     "filter.curated": "Добірка",
     "filter.curatedTitle": "Цікаві, помітні та історичні повітряні судна",
+    "filter.ladd": "LADD",
+    "filter.laddTitle": "Програма FAA з обмеження показу даних про повітряні судна (LADD)",
     "filter.mil": "Військ.",
     "filter.military": "Військові",
     "filter.vip": "VIP",

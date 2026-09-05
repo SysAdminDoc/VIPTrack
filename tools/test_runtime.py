@@ -749,6 +749,76 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_ladd_is_a_first_class_filter_that_survives_a_share_link(self) -> None:
+        # LADD is the FAA's other privacy programme and tar1090 treats military, pia and
+        # ladd as co-equal filterDbFlag values. This app fetched neither the endpoint nor
+        # recognised the flag, and airplanes.live's piaUrl pointed at /v2/ladd, which
+        # conflated the two categories on the one source that publishes both.
+        with self._page() as (page, crashes):
+            # Every source that publishes /ladd must ask for it, and the one that
+            # answers 400 must not be asked at all.
+            wiring = page.evaluate(
+                """() => dataSourceManager.sources.map(s => ({
+                    key: s.key, ladd: s.laddUrl || null, pia: s.piaUrl || null }))"""
+            )
+            by_key = {row["key"]: row for row in wiring}
+            for key in ("adsbone", "adsblol", "airplaneslive"):
+                self.assertTrue(by_key[key]["ladd"], f"{key} does not request /ladd")
+                self.assertTrue(by_key[key]["ladd"].endswith("/ladd"))
+                self.assertNotEqual(by_key[key]["pia"], by_key[key]["ladd"],
+                                    f"{key} points pia and ladd at the same endpoint")
+            self.assertIsNone(by_key["adsbfi"]["ladd"],
+                              "adsb.fi answers 400 for /ladd and must not be asked")
+
+            # dbFlags bit 8 is what marks a LADD airframe, and it must survive ingest,
+            # be classified as its own category, and be counted.
+            landed = page.evaluate(
+                """() => {
+                    const hex = 'FFEE01';
+                    delete aircraftCache[hex];
+                    processAircraftData([{ hex: hex.toLowerCase(), type: 'adsb_icao',
+                        flight: 'LADD1', t: 'PC12', dbFlags: 8, lat: 40.1, lon: -74.2,
+                        alt_baro: 11350, gs: 197, track: 88 }], null);
+                    const cached = aircraftCache[hex];
+                    return { kept: Boolean(cached),
+                             category: cached ? cached.category_type : null,
+                             count: Number(document.getElementById('countLadd').textContent) };
+                }"""
+            )
+            self.assertTrue(landed["kept"], "a LADD aircraft was discarded at ingest")
+            self.assertEqual(landed["category"], "ladd")
+            self.assertGreater(landed["count"], 0, "the LADD counter stayed at zero")
+
+            # A military airframe must not be swept into the LADD lane.
+            separation = page.evaluate(
+                """() => {
+                    const hex = 'FFEE02';
+                    delete aircraftCache[hex];
+                    const before = Number(document.getElementById('countLadd').textContent);
+                    processAircraftData([{ hex: hex.toLowerCase(), type: 'adsb_icao',
+                        flight: 'RCH9', t: 'C17', dbFlags: 1, lat: 40.2, lon: -74.3,
+                        alt_baro: 30000, gs: 400, track: 90 }], null);
+                    const cached = aircraftCache[hex];
+                    return { category: cached ? cached.category_type : null,
+                             before, after: Number(document.getElementById('countLadd').textContent) };
+                }"""
+            )
+            self.assertEqual(separation["category"], "military",
+                             "a military aircraft was reclassified as LADD")
+            self.assertEqual(separation["after"], separation["before"],
+                             "a military aircraft was counted in the LADD lane")
+
+            # The filter has to round-trip through a share link.
+            page.evaluate("() => { settings.filter = 'ladd'; }")
+            link = page.evaluate("() => shareManager.buildViewUrl ? shareManager.buildViewUrl() : location.href")
+            self.assertIn("filter=ladd", link)
+
+            page.goto(link, wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+            self.assertEqual(page.evaluate("() => settings.filter"), "ladd",
+                             "the LADD filter did not survive a share link")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

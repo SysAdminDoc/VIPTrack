@@ -1037,9 +1037,16 @@ class VipTrackContracts(unittest.TestCase):
             "data-filter=\"curated\"",
             "countCurated",
             "settings.filter === 'curated'",
-            "'curated'].includes(settings.filter)",
         ):
             self.assertIn(marker, self.source)
+        # Assert the contract - curated is one of the values the filter allowlist
+        # accepts - rather than the exact line. The previous marker pinned
+        # "'curated'].includes(settings.filter)", which broke the moment another
+        # category was appended to the same list.
+        allowlists = re.findall(r"\[([^\]]*)\]\.includes\(settings\.filter\)", self.source)
+        self.assertTrue(allowlists, "no filter allowlist guards settings.filter")
+        for allowlist in allowlists:
+            self.assertIn("'curated'", allowlist)
         start = self.source.index("function isCuratedAircraft(ac)")
         end = self.source.index("function getAirlineCode", start)
         section = self.source[start:end]

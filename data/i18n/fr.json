@@ -48,6 +48,8 @@
     "filter.allTitle": "Tous les aéronefs militaires et VIP",
     "filter.curated": "Sélection",
     "filter.curatedTitle": "Aéronefs intéressants, notables et historiques",
+    "filter.ladd": "LADD",
+    "filter.laddTitle": "Diffusion de données limitée par la FAA (LADD)",
     "filter.mil": "Mil",
     "filter.military": "Militaire",
     "filter.vip": "VIP",
