@@ -395,7 +395,11 @@
         .status-dot.offline { background: var(--danger); }
         .status-dot.stale { background: var(--accent); }
         .filter-bar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; gap: 6px; z-index: 1000; flex-wrap: wrap; max-width: calc(100vw - 280px); }
-        .filter-btn { padding: 5px 10px; background: rgba(128,128,128,0.15); border: 1px solid var(--border); border-radius: 16px; color: var(--text-dim); font-size: 10px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+        /* The bar is a flex row, so these were only 24px tall because align-items
+           stretched them to the tallest sibling on their line. Once the bar wrapped,
+           a button alone on the second line fell to its natural 23px and broke
+           WCAG 2.2 SC 2.5.8. Size them explicitly instead of relying on a neighbour. */
+        .filter-btn { min-height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; background: rgba(128,128,128,0.15); border: 1px solid var(--border); border-radius: 16px; color: var(--text-dim); font-size: 10px; font-weight: 500; cursor: pointer; white-space: nowrap; }
         .filter-btn:hover { background: rgba(128,128,128,0.25); color: var(--text); }
         .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
         .filter-btn .count { margin-left: 3px; opacity: 0.7; }
@@ -1744,6 +1748,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     <div class="filter-chips-bar" id="filterChipsBar" role="group" aria-label="Quick aircraft filters">
         <button class="filter-chip-btn" type="button" data-filter="military" aria-pressed="false" data-i18n="filter.mil">Mil</button>
         <button class="filter-chip-btn" type="button" data-filter="vip" aria-pressed="false" data-i18n="filter.vip">VIP</button>
+        <button class="filter-chip-btn" type="button" data-filter="police" aria-pressed="false" title="Police and law-enforcement aircraft" data-i18n="filter.police">Police</button>
         <button class="filter-chip-btn" type="button" data-filter="ladd" aria-pressed="false" title="FAA Limiting Aircraft Data Displayed" data-i18n="filter.ladd">LADD</button>
         <button class="filter-chip-btn" type="button" data-filter="curated" aria-pressed="false" title="Interesting, notable, and historic aircraft" data-i18n="filter.curated" data-i18n-title="filter.curatedTitle">Curated</button>
     </div>
@@ -1915,6 +1920,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="military"><span data-i18n="filter.military">Military</span> <span class="count" id="countMil">0</span></button>
         <button class="filter-btn government-btn" type="button" role="radio" aria-checked="false" data-filter="government" title="Government aircraft"><span>Gov</span> <span class="count" id="countGov">0</span></button>
         <button class="filter-btn vip-btn" type="button" role="radio" aria-checked="false" data-filter="vip" title="Badger's Best - Must-See Aircraft" data-i18n-title="filter.vipTitle"><span data-i18n="filter.vip">VIP</span> <span class="count" id="countVIP">0</span></button>
+        <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="police" title="Police and law-enforcement aircraft" data-i18n-title="filter.policeTitle"><span data-i18n="filter.police">Police</span> <span class="count" id="countPolice">0</span></button>
         <button class="filter-btn" type="button" role="radio" aria-checked="false" data-filter="ladd" title="FAA Limiting Aircraft Data Displayed" data-i18n-title="filter.laddTitle"><span data-i18n="filter.ladd">LADD</span> <span class="count" id="countLadd">0</span></button>
     </div>
     <div class="info-panel" id="infoPanel" role="dialog" aria-modal="true" aria-labelledby="infoCallsign" aria-hidden="true" aria-label="Aircraft Details" data-i18n-aria-label="info.aircraftDetails">
@@ -2870,11 +2876,22 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // An error thrown from enrichment can carry a hex, a registration or a URL with
         // the target in its query string. Diagnostics are copied out of the browser, so
         // the message is stripped of anything identifying before it is ever stored.
+        _messageOf(error) {
+            try { return error?.message ?? error; } catch (e) { return '<unprintable>'; }
+        },
+
         redact(value) {
-            return String(value ?? '')
+            let text;
+            try { text = String(value ?? ''); } catch (e) { return '<unprintable>'; }
+            return text
                 .replace(/https?:\/\/[^\s'"]+/gi, '<url>')
                 .replace(/\b[0-9a-f]{6}\b/gi, '<hex>')
                 .replace(/\bN[0-9]{1,5}[A-Z]{0,2}\b/g, '<reg>')
+                // Callsigns identify an aircraft as surely as its hex does. Three
+                // letters plus digits also catches the odd SHA512 or RFC2119, which is
+                // the safe direction to be wrong in for something copied out of the
+                // browser and pasted into a bug report.
+                .replace(/\b[A-Z]{3}[0-9]{1,4}[A-Z]?\b/g, '<callsign>')
                 .slice(0, 240);
         },
 
@@ -2883,11 +2900,22 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         install() {
             if (this._installed) return;
             this._installed = true;
+            // An exception thrown inside a window 'error' listener is itself reported
+            // as an uncaught error, which re-enters this listener. A value whose
+            // toString throws - a Proxy, a broken library's error object - is enough to
+            // start that. Swallow rather than recurse: this is the code whose whole job
+            // is to be the thing that never throws.
+            const capture = (context, value) => {
+                if (this._capturing) return;
+                this._capturing = true;
+                try { this.log(context, value, 'error'); } catch (e) { /* never recurse */ }
+                finally { this._capturing = false; }
+            };
             window.addEventListener('error', event => {
-                this.log('/window', event?.error || event?.message || 'Unknown error', 'error');
+                capture('/window', event?.error || event?.message || 'Unknown error');
             });
             window.addEventListener('unhandledrejection', event => {
-                this.log('/promise', event?.reason || 'Unhandled rejection', 'error');
+                capture('/promise', event?.reason || 'Unhandled rejection');
             });
         },
 
@@ -2895,7 +2923,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             const entry = {
                 time: Date.now(),
                 context: this.redact(context),
-                message: this.redact(error?.message || String(error)),
+                // Hand the raw value to redact, which owns the stringification and its
+                // failure mode. Doing `String(error)` here threw before the guard.
+                message: this.redact(this._messageOf(error)),
                 severity
             };
             
@@ -2904,10 +2934,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 this.errors.pop();
             }
             
+            // The console is a side channel out of the browser too - screenshots of
+            // devtools end up in bug reports - so it gets the redacted entry, not the
+            // raw error. The unredacted object stays available under ?debug.
+            const line = `[VIPTrack${entry.context}] ${entry.message}`;
             if (severity === 'error') {
-                console.error(`[VIPTrack${context}]`, error);
+                console.error(line);
+                if (CONFIG.debug) console.error(error);
             } else {
-                console.warn(`[VIPTrack${context}]`, error);
+                console.warn(line);
+                if (CONFIG.debug) console.warn(error);
             }
             
         },
@@ -5974,6 +6010,23 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
     };
 
+    // militaryDB.getByHex looks across the military, government and police catalogues,
+    // so ac.militaryInfo is truthy for any catalogue hit. Testing it alone put every
+    // government and police airframe into the Military lane as well as its own - and
+    // before the catalogue sweep existed neither could reach the feed, so it never
+    // showed. Ask the classifier, which knows the difference.
+    function isMilitaryAircraft(ac) {
+        if (!ac) return false;
+        if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
+        const category = ac.category_type || classifyAircraft(ac);
+        if (category === 'government' || category === 'police') return false;
+        return category === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
+    }
+
+    function isPoliceAircraft(ac) {
+        return Boolean(ac) && (ac.category_type || classifyAircraft(ac)) === 'police';
+    }
+
     // FAA Limiting Aircraft Data Displayed. tar1090 treats military, pia and ladd
     // as co-equal filterDbFlag values; this app ignored the third entirely.
     const LADD_DB_FLAG = 8;
@@ -6006,7 +6059,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // allowlist. PIA/LADD records retain only the fields needed to understand
     // the live observation; registrations, operators, enrichment objects, and
     // identifying history are never copied across this boundary.
-    const AIRCRAFT_CACHE_SCHEMA = 3;
+    const AIRCRAFT_CACHE_SCHEMA = 4;
     function _privacySafeText(value, maxLength = 128) {
         return String(value ?? '').trim().slice(0, maxLength);
     }
@@ -6128,6 +6181,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             squawk: _privacySafeText(ac.squawk, 8),
             category: _privacySafeText(ac.category, 32),
             dbFlags: Number.isFinite(Number(ac.dbFlags)) ? Number(ac.dbFlags) : undefined,
+            // How the position was derived (adsb_icao, mlat, tisb...), not who the
+            // aircraft is. Dropping it made a cache round trip hide genuine ADS-B
+            // aircraft from the ADS-B-only filter, which reads a missing value as
+            // "not ADS-B".
+            posSource: _privacySafeText(ac.posSource, 24),
             lastSeen: Number.isFinite(Number(ac.lastSeen)) ? Number(ac.lastSeen) : undefined
         };
         Object.assign(snapshot, _privacySafeAircraftProvenance(ac));
@@ -8119,10 +8177,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'government') return classifyAircraft(ac) === 'government';
             if (settings.filter === 'ladd') return isLaddAircraft(ac);
-            if (settings.filter === 'military') {
-                if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
-                return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
-            }
+            if (settings.filter === 'police') return isPoliceAircraft(ac);
+            if (settings.filter === 'military') return isMilitaryAircraft(ac);
             return true;
         },
 
@@ -8544,10 +8600,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (settings.filter === 'vip') return Boolean(ac.isVIP || badgersBestDB.isVIP(ac.hex));
             if (settings.filter === 'government') return classifyAircraft(ac) === 'government';
             if (settings.filter === 'ladd') return isLaddAircraft(ac);
-            if (settings.filter === 'military') {
-                if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) return false;
-                return ac.category_type === 'military' || Boolean(ac.militaryInfo || ac.militaryRangeInfo);
-            }
+            if (settings.filter === 'police') return isPoliceAircraft(ac);
+            if (settings.filter === 'military') return isMilitaryAircraft(ac);
             return true;
         },
 
@@ -8842,7 +8896,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
     function saveSettings() { localStorage.setItem('viptrack_settings_v3', JSON.stringify(settings)); }
     function loadSettings() { try { const s = localStorage.getItem('viptrack_settings_v3'); if (s) Object.assign(settings, JSON.parse(s)); } catch(e){} // VIPTrack: clamp filter to supported curated subsets
-        if (!['mil-vip','military','government','vip','curated','ladd'].includes(settings.filter)) settings.filter = 'mil-vip';
+        if (!['mil-vip','military','government','vip','curated','ladd','police'].includes(settings.filter)) settings.filter = 'mil-vip';
         if (!COVERAGE_MODES.includes(settings.coverageMode)) settings.coverageMode = 'off';
         if (!COVERAGE_WINDOW_HOURS.includes(Number(settings.coverageWindow))) settings.coverageWindow = 6;
         if (!COVERAGE_INTERVAL_SECONDS.includes(Number(settings.coverageInterval))) settings.coverageInterval = 30;
@@ -8964,7 +9018,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function _localStateSettings(value, label) {
         _localStateRequireKeys(value, ['mapStyle', 'showLabels', 'altitudeColors', 'showWiki', 'filter', 'followMode', 'compactMode'], label);
         if (!['esri-gray', 'carto-voyager', 'stadia-alidade-smooth-dark', 'pmtiles-dark'].includes(value.mapStyle)) throw new Error(label + '.mapStyle is unsupported');
-        if (!['mil-vip', 'military', 'government', 'vip', 'curated', 'ladd'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
+        if (!['mil-vip', 'military', 'government', 'vip', 'curated', 'ladd', 'police'].includes(value.filter)) throw new Error(label + '.filter is unsupported');
         return { mapStyle: value.mapStyle, showLabels: _localStateBoolean(value.showLabels, label + '.showLabels'), altitudeColors: _localStateBoolean(value.altitudeColors, label + '.altitudeColors'), showWiki: _localStateBoolean(value.showWiki, label + '.showWiki'), filter: value.filter, followMode: _localStateBoolean(value.followMode, label + '.followMode'), compactMode: _localStateBoolean(value.compactMode, label + '.compactMode') };
     }
     function _localStateCanonicalState(value) {
@@ -9384,9 +9438,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // The government and police catalogues hold ~2,700 aircraft that no feed endpoint
     // returns: /mil and /pia cannot match them, so the Gov filter counted zero against a
     // live feed for as long as it has shipped. The v2 API answers /hex/<comma-list>, so
-    // the catalogue is swept in rotating batches, one batch per refresh, which adds a
-    // third of a request per second on top of the two the feed loop already makes and
-    // stays inside the source's 1 request/s budget.
+    // the catalogue is swept in rotating batches, one batch per refresh - one extra
+    // request every six seconds, staggered a second behind the feed requests so it
+    // does not widen the burst they already make.
     const catalogueSweep = {
         cursor: 0,
         hexes: [],
@@ -9425,13 +9479,19 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             return batch;
         },
 
-        // Fire-and-forget: a catalogue miss must never delay or fail the live sweep.
+        // Fire-and-forget, and deliberately late: the feed tick already issues mil,
+        // pia and ladd concurrently to the same host, so firing the catalogue batch in
+        // the same continuation would make it a fourth simultaneous request. A second
+        // of delay keeps the host seeing an even trickle rather than a burst.
+        STAGGER_MS: 1000,
+
         run(src, fetcher, provenance) {
             if (!src?.baseUrl || typeof fetcher !== 'function') return null;
             const batch = this.nextBatch();
             if (!batch.length) return null;
             const url = src.baseUrl + '/hex/' + batch.join(',').toLowerCase();
-            return Promise.resolve(fetcher(url, src.cors)).then(async response => {
+            return new Promise(resolve => setTimeout(resolve, this.STAGGER_MS))
+                .then(() => Promise.resolve(fetcher(url, src.cors))).then(async response => {
                 if (!response?.ok) return;
                 const parsed = src.parseResponse(await response.json());
                 if (Array.isArray(parsed) && parsed.length) processAircraftData(parsed, provenance);
@@ -9692,13 +9752,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     }
 
     function updateCounts() {
-        const counts = { milVip: 0, military: 0, government: 0, vip: 0, curated: 0, ladd: 0 };
+        const counts = { milVip: 0, military: 0, government: 0, police: 0, vip: 0, curated: 0, ladd: 0 };
         Object.values(aircraftCache).forEach(ac => {
             counts.milVip++;
             const isVip = ac.isVIP || badgersBestDB.isVIP(ac.hex);
             if (isVip) counts.vip++;
             else if (classifyAircraft(ac) === 'government') counts.government++;
-            else if (ac.category_type === 'military' || ac.militaryInfo || ac.militaryRangeInfo) counts.military++;
+            else if (isPoliceAircraft(ac)) counts.police++;
+            else if (isMilitaryAircraft(ac)) counts.military++;
             if (isLaddAircraft(ac)) counts.ladd++;
             if (isCuratedAircraft(ac)) counts.curated++;
         });
@@ -9711,6 +9772,8 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (curatedCount) curatedCount.textContent = counts.curated;
         const laddCount = _el('countLadd');
         if (laddCount) laddCount.textContent = counts.ladd;
+        const policeCount = _el('countPolice');
+        if (policeCount) policeCount.textContent = counts.police;
     }
 
     let _updateMarkersRaf = 0;
@@ -9752,9 +9815,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     if (classifyAircraft(ac) !== 'government') { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'ladd') {
                     if (!isLaddAircraft(ac)) { _removeMarker(ac.hex); return; }
+                } else if (settings.filter === 'police') {
+                    if (!isPoliceAircraft(ac)) { _removeMarker(ac.hex); return; }
                 } else if (settings.filter === 'military') {
-                    if (ac.isVIP || badgersBestDB.isVIP(ac.hex)) { _removeMarker(ac.hex); return; }
-                    if (ac.category_type !== 'military' && !ac.militaryInfo && !ac.militaryRangeInfo) { _removeMarker(ac.hex); return; }
+                    if (!isMilitaryAircraft(ac)) { _removeMarker(ac.hex); return; }
                 }
             }
             // Decimation: skip non-priority aircraft that lost their grid cell
@@ -12340,7 +12404,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             }
             
             // Apply filter from URL (VIPTrack: clamp to valid values)
-            if (filter && ['mil-vip','military','government','vip','curated','ladd'].includes(filter)) {
+            if (filter && ['mil-vip','military','government','vip','curated','ladd','police'].includes(filter)) {
                 settings.filter = filter;
                 document.querySelectorAll('.filter-btn').forEach(b => {
                     b.classList.toggle('active', b.dataset.filter === filter);
@@ -12390,7 +12454,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const params = new URLSearchParams(window.location.search);
                 const hex = params.get('hex');
                 const requestedFilter = params.get('filter');
-                const filter = ['mil-vip','military','government','vip','curated','ladd'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
+                const filter = ['mil-vip','military','government','vip','curated','ladd','police'].includes(requestedFilter) ? requestedFilter : 'mil-vip';
                 const emergency = params.get('emergency');
                 
                 // Apply filter

@@ -52,6 +52,8 @@
     "filter.laddTitle": "FAA Limiting Aircraft Data Displayed",
     "filter.mil": "Mil",
     "filter.military": "Military",
+    "filter.police": "Police",
+    "filter.policeTitle": "Police and law-enforcement aircraft",
     "filter.vip": "VIP",
     "filter.vipTitle": "Badger's Best - Must-See Aircraft",
     "globe.click": "Click",

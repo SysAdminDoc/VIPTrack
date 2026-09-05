@@ -740,6 +740,45 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertEqual(landed["category"], "government")
             self.assertGreater(landed["govCount"], 0, "the Gov counter stayed at zero")
 
+            # A catalogue hit sets militaryInfo whatever its sub-category, so testing
+            # that alone put every government and police airframe into the Military
+            # lane as well. Each must appear under its own filter and no other.
+            lanes = page.evaluate(
+                """() => {
+                    const pick = (map) => [...map.keys()].find(h =>
+                        !badgersBestDB.isVIP(String(h).toUpperCase()) &&
+                        !militaryDB.military.has(String(h).toUpperCase()));
+                    const govHex = pick(militaryDB.government);
+                    const polHex = pick(militaryDB.police);
+                    if (!govHex || !polHex) return null;
+                    const seed = (hex, flight) => {
+                        const key = hex.toUpperCase();
+                        delete aircraftCache[key];
+                        processAircraftData([{ hex: hex.toLowerCase(), type: 'adsb_icao',
+                            flight, t: 'B762', lat: 51.4, lon: -0.4, alt_baro: 30000,
+                            gs: 420, track: 90 }], null);
+                        return aircraftCache[key];
+                    };
+                    const gov = seed(govHex, 'GOVLANE');
+                    const pol = seed(polHex, 'POLLANE');
+                    return {
+                        govCategory: gov ? gov.category_type : null,
+                        polCategory: pol ? pol.category_type : null,
+                        govInMilitary: isMilitaryAircraft(gov),
+                        polInMilitary: isMilitaryAircraft(pol),
+                        polInPolice: isPoliceAircraft(pol),
+                        govInPolice: isPoliceAircraft(gov)
+                    };
+                }"""
+            )
+            self.assertIsNotNone(lanes, "no government-only or police-only hex to test with")
+            self.assertEqual(lanes["govCategory"], "government")
+            self.assertEqual(lanes["polCategory"], "police")
+            self.assertFalse(lanes["govInMilitary"], "a government aircraft also counts as military")
+            self.assertFalse(lanes["polInMilitary"], "a police aircraft is filed under military")
+            self.assertTrue(lanes["polInPolice"], "a police aircraft has no lane of its own")
+            self.assertFalse(lanes["govInPolice"])
+
             # And the sweep must actually issue its batch request during a refresh.
             batches.clear()
             page.evaluate("async () => { lastFetchTime = 0; await loadAircraft(); }")
@@ -893,6 +932,22 @@ class VipTrackRuntime(unittest.TestCase):
                             "the fixture aircraft are filtered out for some unrelated reason")
             self.assertTrue(filtered["adsbPasses"], "an ADS-B position was excluded by the ADS-B filter")
             self.assertFalse(filtered["mlatPasses"], "an MLAT position survived the ADS-B-only filter")
+
+            # The offline projection is an explicit field allowlist. Dropping posSource
+            # there made a cache round trip hide genuine ADS-B aircraft from this very
+            # filter, because a missing value reads as "not ADS-B".
+            round_tripped = page.evaluate(
+                """() => {
+                    const hex = 'FFDD02';
+                    const snapshot = privacySafeAircraftSnapshot(aircraftCache[hex],
+                                                                 { includeHistory: false });
+                    return { carried: Object.prototype.hasOwnProperty.call(snapshot, 'posSource'),
+                             value: snapshot.posSource };
+                }"""
+            )
+            self.assertTrue(round_tripped["carried"],
+                            "the offline projection drops the position source")
+            self.assertEqual(round_tripped["value"], "adsb_icao")
             self.assertEqual(crashes, [])
 
     def test_uncaught_failures_reach_the_diagnostics_export(self) -> None:
@@ -934,6 +989,41 @@ class VipTrackRuntime(unittest.TestCase):
             )
             self.assertEqual(leaked["hits"], [],
                              f"an identifier survived redaction: {leaked['hits']}")
+
+            # A callsign identifies an aircraft as surely as its hex does.
+            callsign = page.evaluate(
+                """() => {
+                    errorHandler.log('/audit2', new Error('lost contact with RCH463'), 'error');
+                    const text = JSON.stringify(dataSourceManager.getDiagnostics());
+                    return { leaked: text.includes('RCH463'), redacted: text.includes('<callsign>') };
+                }"""
+            )
+            self.assertFalse(callsign["leaked"], "a callsign survived into the diagnostics export")
+            self.assertTrue(callsign["redacted"])
+
+            # The console is a side channel out of the browser as well: devtools
+            # screenshots end up in bug reports.
+            console_lines: list[str] = []
+            page.on("console", lambda msg: console_lines.append(msg.text))
+            page.evaluate(
+                "() => errorHandler.log('/audit3',"
+                " new Error('trace a0b1c2 reg N615WM callsign RCH463'), 'error')")
+            page.wait_for_timeout(400)
+            joined = " ".join(console_lines)
+            for token in ("a0b1c2", "N615WM", "RCH463"):
+                self.assertNotIn(token, joined, f"{token} reached the console unredacted")
+
+            # And the handler must not recurse when the thrown value cannot be
+            # stringified - that value is exactly what a broken library throws.
+            survived = page.evaluate(
+                """() => {
+                    const hostile = { toString() { throw new Error('nope'); } };
+                    try { errorHandler.log('/audit4', hostile, 'error'); } catch (e) { return 'threw'; }
+                    return errorHandler.getRecent(1)[0].message;
+                }"""
+            )
+            self.assertEqual(survived, "<unprintable>",
+                             "a value whose toString throws was not handled")
             self.assertIn("<hex>", leaked["text"])
             self.assertIn("<reg>", leaked["text"])
             self.assertIn("<url>", leaked["text"])

@@ -7,7 +7,7 @@ const CACHE_SCHEMA_VERSION = '4.30';
 // these are now part of the key, and tools/test_viptrack.py fails the build if the
 // fingerprint drifts from the bytes actually on disk.
 const APP_VERSION = '0.8.2';
-const STATIC_ASSET_FINGERPRINT = 'd4839348b0d5';
+const STATIC_ASSET_FINGERPRINT = 'bb0ea526d339';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',

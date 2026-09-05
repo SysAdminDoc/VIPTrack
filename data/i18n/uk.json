@@ -52,6 +52,8 @@
     "filter.laddTitle": "Програма FAA з обмеження показу даних про повітряні судна (LADD)",
     "filter.mil": "Військ.",
     "filter.military": "Військові",
+    "filter.police": "Поліція",
+    "filter.policeTitle": "Повітряні судна поліції та правоохоронних органів",
     "filter.vip": "VIP",
     "filter.vipTitle": "Найкраще від Badger — важливі повітряні судна",
     "globe.click": "Клацання",

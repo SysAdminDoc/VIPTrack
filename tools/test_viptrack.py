@@ -209,7 +209,6 @@ class VipTrackContracts(unittest.TestCase):
         for forbidden in ("snapshot.r", "snapshot.desc", "snapshot.ownOp", "snapshot.from", "snapshot.to", "snapshot.history", "faaOwner", "faaRegistry"):
             self.assertNotIn(forbidden, protected_projection)
         for marker in (
-            "const AIRCRAFT_CACHE_SCHEMA = 3",
             "function scrubAircraftCacheForPrivacy",
             "schemaVersion: AIRCRAFT_CACHE_SCHEMA",
             "data?.schemaVersion !== AIRCRAFT_CACHE_SCHEMA",
@@ -229,6 +228,10 @@ class VipTrackContracts(unittest.TestCase):
             "const isPIA = item?.isPIA === true",
         ):
             self.assertIn(marker, self.source)
+        snapshot_start = self.source.index("function privacySafeAircraftSnapshot(ac")
+        snapshot = self.source[snapshot_start:self.source.index("Object.assign(snapshot", snapshot_start)]
+        self.assertIn("posSource:", snapshot,
+                      "the projection drops posSource, which hides ADS-B aircraft from the ADS-B filter")
         webhook_start = self.source.index("const alertWebhook =")
         webhook_end = self.source.index("// Hook into existing alertSystem", webhook_start)
         self.assertNotIn("ac.r", self.source[webhook_start:webhook_end])
@@ -1033,7 +1036,12 @@ class VipTrackContracts(unittest.TestCase):
         provenance_start = self.source.index("function _normaliseAircraftProvenance")
         provenance_end = self.source.index("function privacySafeAircraftSnapshot", provenance_start)
         self.assertNotIn("ac.r", self.source[provenance_start:provenance_end])
-        self.assertIn("AIRCRAFT_CACHE_SCHEMA = 3", self.source)
+        # The cache schema is meant to advance when the projection changes; pinning
+        # its value blocked exactly that. Assert it exists, is an integer, and only
+        # ever moves forward from the version this contract was written against.
+        schema = re.search(r"const AIRCRAFT_CACHE_SCHEMA = (\d+);", self.source)
+        self.assertIsNotNone(schema, "the aircraft cache projection carries no schema version")
+        self.assertGreaterEqual(int(schema.group(1)), 3)
 
     def test_track_shape_heuristics_are_local_unverified_and_pia_safe(self) -> None:
         for marker in (

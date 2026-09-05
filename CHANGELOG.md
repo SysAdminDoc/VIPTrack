@@ -3,11 +3,31 @@
 ## [Unreleased]
 
 ### Security
+- Diagnostics redaction now also strips callsigns, and the browser console gets the redacted line
+  rather than the raw error object. A callsign identifies an aircraft as surely as its hex does, and
+  a devtools screenshot leaves the browser the same way a copied export does. The raw object is
+  still logged under `?debug`.
+
+### Security
 - DOMPurify upgraded to 3.4.14, which fixes possible sanitizer bypasses when risky tags are
   allow-listed. It is this app's single XSS boundary. Every pinned dependency was re-reviewed and
   its integrity hash re-verified against the live CDN.
 
 ### Fixed
+- Police aircraft have a filter of their own, and government and police aircraft are no longer also
+  counted as military. `militaryDB.getByHex` searches the military, government and police
+  catalogues together, so testing `ac.militaryInfo` alone filed every catalogued airframe under
+  Military; a government aircraft passed both the Government and the Military filter at once. This
+  was invisible until the catalogue sweep made those aircraft reachable.
+- The offline cache no longer loses an aircraft's position source, which made the "ADS-B positions
+  only" filter hide genuine ADS-B aircraft after a cache round trip.
+- The catalogue sweep is staggered a second behind the feed requests instead of firing as a fourth
+  simultaneous request to the same host.
+- The error handler cannot recurse. An exception inside a `window` error listener is itself reported
+  as an uncaught error, so a value whose `toString` throws would have re-entered the handler.
+- Filter buttons carry an explicit minimum height. They were only large enough because the flex
+  row stretched them to their tallest neighbour, so once the bar wrapped a button alone on the
+  second line fell below the WCAG 2.2 target-size minimum.
 - The altitude legend renders again. A complete, styled, seven-band, six-locale legend was hidden
   by an unconditional `display: none !important` sitting inside a block named for a status dock that
   was never built, so 48 translated strings could never appear on screen. It now follows the

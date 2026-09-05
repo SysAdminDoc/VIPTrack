@@ -52,6 +52,8 @@
     "filter.laddTitle": "Diffusion de données limitée par la FAA (LADD)",
     "filter.mil": "Mil",
     "filter.military": "Militaire",
+    "filter.police": "Police",
+    "filter.policeTitle": "Aéronefs de police et de forces de l’ordre",
     "filter.vip": "VIP",
     "filter.vipTitle": "Le meilleur de Badger - aéronefs à voir",
     "globe.click": "Cliquer",

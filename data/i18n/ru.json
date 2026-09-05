@@ -52,6 +52,8 @@
     "filter.laddTitle": "Программа FAA по ограничению отображения данных о воздушных судах (LADD)",
     "filter.mil": "Воен.",
     "filter.military": "Военные",
+    "filter.police": "Полиция",
+    "filter.policeTitle": "Воздушные суда полиции и правоохранительных органов",
     "filter.vip": "VIP",
     "filter.vipTitle": "Лучшие Badger — важные воздушные суда",
     "globe.click": "Щелчок",

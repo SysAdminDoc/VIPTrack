@@ -52,6 +52,8 @@
     "filter.laddTitle": "Datos de aeronave limitados por la FAA (LADD)",
     "filter.mil": "Mil",
     "filter.military": "Militar",
+    "filter.police": "Policía",
+    "filter.policeTitle": "Aeronaves policiales y de fuerzas del orden",
     "filter.vip": "VIP",
     "filter.vipTitle": "Lo mejor de Badger - aeronaves destacadas",
     "globe.click": "Clic",

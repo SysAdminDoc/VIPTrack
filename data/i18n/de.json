@@ -52,6 +52,8 @@
     "filter.laddTitle": "FAA-Programm zur eingeschränkten Anzeige von Flugzeugdaten (LADD)",
     "filter.mil": "Mil",
     "filter.military": "Militär",
+    "filter.police": "Polizei",
+    "filter.policeTitle": "Polizei- und Strafverfolgungsluftfahrzeuge",
     "filter.vip": "VIP",
     "filter.vipTitle": "Badgers Beste - sehenswerte Flugzeuge",
     "globe.click": "Klick",
