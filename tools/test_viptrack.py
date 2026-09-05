@@ -650,6 +650,25 @@ class VipTrackContracts(unittest.TestCase):
             "the compact registry is not keyed by ICAO hex, so it cannot seed the registry",
         )
 
+    def test_no_runtime_url_points_at_a_sibling_repository(self) -> None:
+        # v0.6.0 moved every runtime fetch off the sibling SysAdminDoc/SkyTrack repo,
+        # but five asset mirrors were left behind - and one of them, the type-photo
+        # mirror, already answers 404 there while VIPTrack's own path serves it. A
+        # fallback pointing at another repository can rot without anything here
+        # noticing.
+        for name, source in (("index.html", self.source),
+                             ("sw.js", SERVICE_WORKER.read_text(encoding="utf-8")),
+                             ("cesium-frame.html", CESIUM_FRAME.read_text(encoding="utf-8"))):
+            self.assertNotIn("SysAdminDoc/SkyTrack", source,
+                             f"{name} fetches from the sibling SkyTrack repository")
+
+        # Every raw.githubusercontent mirror this app builds must name this repo.
+        mirrors = re.findall(r"https://raw\.githubusercontent\.com/SysAdminDoc/([A-Za-z0-9_.-]+)/",
+                             self.source)
+        self.assertTrue(mirrors, "no first-party mirrors found to check")
+        for repo in set(mirrors):
+            self.assertEqual(repo, "VIPTrack", f"a mirror points at {repo}")
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",

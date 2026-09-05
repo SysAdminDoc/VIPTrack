@@ -20,6 +20,9 @@
   displayed for exactly one.
 
 ### Fixed
+- Asset mirrors point at this repository instead of the sibling SkyTrack one. v0.6.0 moved every
+  runtime fetch off that repo but left five mirrors behind, and the type-photo mirror already
+  answers 404 there while VIPTrack's own path serves it.
 - The compact registration registry was corrupt and is rebuilt. `data/aircraft/registrations.json`
   was keyed by entire CSV lines rather than by ICAO hex - 3,928 malformed entries against 614,965
   real rows - and the OPFS worker accepted it because it only checked that the payload was an
