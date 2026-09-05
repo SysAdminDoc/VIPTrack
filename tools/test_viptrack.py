@@ -738,7 +738,8 @@ class VipTrackContracts(unittest.TestCase):
         declared = int(version.group(1))
         self.assertGreaterEqual(declared, 1)
 
-        stores = sorted(set(re.findall(r"createObjectStore\('([^']+)'", self.source)))
+        # Accept either quote style, or a future double-quoted store would evade the gate.
+        stores = sorted(set(re.findall(r"createObjectStore\(['\"]([^'\"]+)['\"]", self.source)))
         self.assertTrue(stores, "no object stores found")
 
         # The pinned pair. Changing the store set without moving the version fails

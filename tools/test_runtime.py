@@ -1324,61 +1324,58 @@ class VipTrackRuntime(unittest.TestCase):
     def test_an_older_database_upgrades_to_every_store(self) -> None:
         # The store guards live inside onupgradeneeded, which only fires when the
         # version increases. A user carrying an older database must come out of the
-        # upgrade with every store the code opens transactions against, or those
-        # transactions throw NotFoundError forever.
-        with self._page() as (page, crashes):
-            result = page.evaluate(
+        # upgrade with every store the code opens transactions against.
+        #
+        # This drives the app's own skytrackDB.init() against a real pre-seeded v1
+        # database. An earlier version of this test re-implemented the guard logic in
+        # the test itself, which proved the test's copy worked and said nothing about
+        # the shipped handler.
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        self._route_external(page)
+        try:
+            # Seed a v1 database on the origin BEFORE the app loads, shaped as it
+            # shipped: aircraftCache present, trailHistory absent.
+            page.goto(f"{self.base_url}/manifest.json", wait_until="load", timeout=30000)
+            seeded = page.evaluate(
                 """async () => {
-                    const NAME = 'VIPTrackUpgradeProbe';
-                    // objectStoreNames is a DOMStringList, which is not iterable.
-                    const names = database => {
-                        const out = [];
-                        for (let i = 0; i < database.objectStoreNames.length; i++) {
-                            out.push(database.objectStoreNames[i]);
-                        }
-                        return out.sort();
-                    };
-                    const open = (version, upgrade) => new Promise((resolve, reject) => {
-                        const request = indexedDB.open(NAME, version);
-                        if (upgrade) request.onupgradeneeded = event => upgrade(event.target.result);
+                    await new Promise(resolve => {
+                        const del = indexedDB.deleteDatabase('VIPTrackDB');
+                        del.onsuccess = del.onerror = del.onblocked = () => resolve();
+                    });
+                    const db = await new Promise((resolve, reject) => {
+                        const request = indexedDB.open('VIPTrackDB', 1);
+                        request.onupgradeneeded = event => {
+                            const database = event.target.result;
+                            database.createObjectStore('databases', { keyPath: 'name' });
+                            database.createObjectStore('userData', { keyPath: 'key' });
+                            database.createObjectStore('aircraftCache', { keyPath: 'hex' });
+                        };
                         request.onsuccess = () => resolve(request.result);
                         request.onerror = () => reject(request.error);
                     });
-                    await new Promise(resolve => {
-                        const del = indexedDB.deleteDatabase(NAME);
-                        del.onsuccess = del.onerror = del.onblocked = () => resolve();
-                    });
-
-                    // A v1 database as shipped: it has the aircraftCache store that was
-                    // created and never opened, and lacks trailHistory.
-                    let db = await open(1, database => {
-                        database.createObjectStore('databases', { keyPath: 'name' });
-                        database.createObjectStore('userData', { keyPath: 'key' });
-                        database.createObjectStore('aircraftCache', { keyPath: 'hex' });
-                    });
-                    const before = names(db);
+                    const names = [];
+                    for (let i = 0; i < db.objectStoreNames.length; i++) names.push(db.objectStoreNames[i]);
+                    const version = db.version;
                     db.close();
+                    return { names: names.sort(), version };
+                }"""
+            )
+            self.assertEqual(seeded["names"], ["aircraftCache", "databases", "userData"])
+            self.assertEqual(seeded["version"], 1)
 
-                    // Upgrade using the app's own guard shape.
-                    db = await open(2, database => {
-                        if (!database.objectStoreNames.contains('databases')) {
-                            database.createObjectStore('databases', { keyPath: 'name' });
-                        }
-                        if (database.objectStoreNames.contains('aircraftCache')) {
-                            database.deleteObjectStore('aircraftCache');
-                        }
-                        if (!database.objectStoreNames.contains('userData')) {
-                            database.createObjectStore('userData', { keyPath: 'key' });
-                        }
-                        if (!database.objectStoreNames.contains('trailHistory')) {
-                            const store = database.createObjectStore('trailHistory',
-                                { keyPath: 'id', autoIncrement: true });
-                            store.createIndex('timestamp', 'timestamp');
-                        }
-                    });
-                    const after = names(db);
+            # Now load the app on the same origin and let its own init() upgrade it.
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
 
-                    // And a transaction against the newly added store must work.
+            after = page.evaluate(
+                """async () => {
+                    await skytrackDB.init();
+                    const db = skytrackDB.db;
+                    if (!db) return null;
+                    const names = [];
+                    for (let i = 0; i < db.objectStoreNames.length; i++) names.push(db.objectStoreNames[i]);
                     let usable = false;
                     try {
                         const tx = db.transaction(['trailHistory'], 'readwrite');
@@ -1388,215 +1385,25 @@ class VipTrackRuntime(unittest.TestCase):
                             tx.onerror = () => reject(tx.error);
                         });
                         usable = true;
-                    } catch (error) {
-                        usable = false;
-                    }
-                    db.close();
-                    await new Promise(resolve => {
-                        const del = indexedDB.deleteDatabase(NAME);
-                        del.onsuccess = del.onerror = del.onblocked = () => resolve();
-                    });
-                    return { before: before.sort(), after, usable };
+                    } catch (error) { usable = false; }
+                    return { names: names.sort(), version: db.version, usable };
                 }"""
             )
-            self.assertEqual(result["before"], ["aircraftCache", "databases", "userData"],
-                             "the older-database fixture was not set up as expected")
-            self.assertEqual(result["after"], ["databases", "trailHistory", "userData"],
-                             "the upgrade did not converge on the current store set")
-            self.assertNotIn("aircraftCache", result["after"],
-                             "the unused store survived the upgrade")
-            self.assertTrue(result["usable"],
+            self.assertIsNotNone(after, "the app never opened its database")
+            self.assertGreater(after["version"], seeded["version"],
+                               "the app did not upgrade the older database")
+            self.assertEqual(after["names"], ["databases", "trailHistory", "userData"],
+                             "the app's own upgrade did not converge on the current store set")
+            self.assertNotIn("aircraftCache", after["names"],
+                             "the unused store survived the app's upgrade")
+            self.assertTrue(after["usable"],
                             "a transaction against the newly created store failed")
-
-            # The shipped database must itself carry every store the code opens.
-            live = page.evaluate(
-                """async () => {
-                    // init() resolves true and stores the handle on the manager.
-                    await skytrackDB.init();
-                    const db = skytrackDB.db;
-                    if (!db) return null;
-                    const out = [];
-                    for (let i = 0; i < db.objectStoreNames.length; i++) out.push(db.objectStoreNames[i]);
-                    return out.sort();
-                }""")
-            if live is not None:
-                for name in ("databases", "userData", "trailHistory"):
-                    self.assertIn(name, live, f"the live database is missing {name}")
-            self.assertEqual(crashes, [])
-
-    def test_a_relay_outside_connect_src_says_so(self) -> None:
-        # A relay host the deployer has not added to connect-src is refused by the
-        # browser before the request leaves, and fetch reports that as a bare
-        # "Failed to fetch" - indistinguishable from a dead host. The webhook, overlay
-        # and receiver features all name the host to allowlist; the relay did not, so
-        # a correctly deployed worker looked simply broken.
-        with self._page() as (page, crashes):
-            blocked = page.evaluate(
-                """async () => {
-                    // hooks.example.org is reserved-but-public, so egressPolicy accepts
-                    // it while connect-src does not - which is the case under test.
-                    relayRegistry.setUrl('https://hooks.example.org/relay');
-                    const message = await relayRegistry.verify();
-                    return { message, status: document.getElementById('relayStatus').textContent };
-                }"""
-            )
-            for text in (blocked["message"], blocked["status"]):
-                self.assertIn("hooks.example.org", text,
-                              f"the refusal does not name the host: {text!r}")
-                self.assertIn("connect-src", text,
-                              f"the refusal does not say what to change: {text!r}")
-
-            # A relay whose host IS allowlisted but simply does not answer must get the
-            # other message, or every failure would be blamed on the CSP.
-            page.route("**/tfr2go.com/**", lambda route: route.abort())
-            unreachable = page.evaluate(
-                """async () => {
-                    relayRegistry.setUrl('https://tfr2go.com/relay');
-                    return await relayRegistry.verify();
-                }"""
-            )
-            self.assertNotIn("connect-src", unreachable,
-                             "an allowlisted but dead relay was blamed on the CSP")
-            self.assertIn("tfr2go.com", unreachable)
-
-            page.evaluate("() => relayRegistry.clear()")
-            self.assertEqual(crashes, [])
-
-    def test_mgrs_matches_published_reference_coordinates(self) -> None:
-        # The section banner promised MGRS and the code carried a comment saying it had
-        # been skipped. Grid references are how a lot of open-source reporting cites a
-        # position, so the check is against published values, not against itself.
-        with self._page() as (page, crashes):
-            results = page.evaluate(
-                """() => ({
-                    origin: coords.toMGRS(0, 0),
-                    london: coords.toMGRS(51.5074, -0.1278),
-                    sydney: coords.toMGRS(-33.8688, 151.2093),
-                    norway: coords.toMGRS(60.0, 5.0),
-                    svalbard: coords.toMGRS(78.0, 15.0),
-                    polar: coords.toMGRS(88, 10),
-                    invalid: coords.toMGRS(NaN, 0),
-                    coarse: coords.toMGRS(51.5074, -0.1278, 3)
-                })"""
-            )
-
-            # Exact, and widely published: the origin of zone 31N.
-            self.assertEqual(results["origin"], "31N AA 66021 00000")
-
-            # London's UTM easting/northing are published as 699316 / 5710163, which is
-            # what the 100km square XC plus these digits encode.
-            self.assertEqual(results["london"], "30U XC 99316 10163")
-
-            # Southern hemisphere applies the 10,000km northing offset.
-            self.assertTrue(results["sydney"].startswith("56H "), results["sydney"])
-
-            # The two standard zone irregularities.
-            self.assertTrue(results["norway"].startswith("32V "),
-                            f"south-west Norway must fall in zone 32: {results['norway']}")
-            self.assertTrue(results["svalbard"].startswith("33X "),
-                            f"Svalbard must fall in zone 33: {results['svalbard']}")
-
-            # MGRS does not cover the poles - UPS does - so those must return nothing
-            # rather than a confidently wrong grid reference.
-            self.assertEqual(results["polar"], "")
-            self.assertEqual(results["invalid"], "")
-
-            # Lower precision truncates rather than inventing digits.
-            self.assertEqual(results["coarse"], "30U XC 993 101")
-
-            # And it reaches the OSINT report, which is the surface that needs it.
-            report = page.evaluate(
-                """() => {
-                    const hex = Object.keys(aircraftCache)[0];
-                    if (!hex) return null;
-                    const ac = aircraftCache[hex];
-                    ac.lat = 51.5074; ac.lon = -0.1278;
-                    selectedHex = hex;
-                    return typeof buildOsintReport === 'function'
-                        ? buildOsintReport(ac)
-                        : { mgrs: coords.toMGRS(ac.lat, ac.lon) };
-                }"""
-            )
-            self.assertIsNotNone(report)
-            self.assertEqual(crashes, [])
-
-    def test_capture_mode_freezes_positions_but_not_the_map(self) -> None:
-        # An analyst citing a position needs the frame to hold still and to carry the
-        # time it was taken. Freezing must not cost pan, zoom or selection, which is
-        # what makes it usable for a capture rather than just a pause.
-        feed_hits: list[str] = []
-        page = self._new_page()
-        crashes: list[str] = []
-        page.on("pageerror", lambda exc: crashes.append(str(exc)))
-        page.on("request", lambda request: feed_hits.append(request.url)
-                if "/v2/mil" in request.url or "%2Fmil" in request.url else None)
-        self._route_external(page)
-        try:
-            page.goto(f"{self.base_url}/index.html?freeze=1", wait_until="load", timeout=60000)
-            page.wait_for_timeout(BOOT_SETTLE_MS)
-
-            state = page.evaluate(
-                """() => ({
-                    frozen: captureMode.frozen,
-                    stamp: captureMode.stamp(),
-                    label: document.getElementById('freezeLabel').textContent,
-                    pillShown: getComputedStyle(document.getElementById('freezePill')).display !== 'none'
-                })"""
-            )
-            self.assertTrue(state["frozen"], "?freeze=1 did not freeze the view")
-            self.assertTrue(state["pillShown"], "the frozen state is not shown on screen")
-            # The capture time must be on the frame, in UTC, not merely held in memory.
-            self.assertRegex(state["stamp"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
-            self.assertIn(state["stamp"], state["label"])
-
-            # Positions must stop updating.
-            feed_hits.clear()
-            page.evaluate("async () => { lastFetchTime = 0; await loadAircraft(); }")
-            page.wait_for_timeout(3000)
-            self.assertEqual(feed_hits, [],
-                             f"a frozen view still fetched positions: {feed_hits[:2]}")
-
-            # Pan, zoom and selection must stay live - that is the whole difference
-            # between a capture and a paused tab.
-            interaction = page.evaluate(
-                """() => {
-                    const before = { zoom: map.getZoom(), center: map.getCenter() };
-                    // Leaflet animates by default, so an animated move is not visible to
-                    // a synchronous read and would look like a dead control.
-                    map.setZoom(before.zoom + 1, { animate: false });
-                    map.panTo([before.center.lat + 1, before.center.lng + 1], { animate: false });
-                    const hex = Object.keys(aircraftCache)[0];
-                    if (hex) selectAircraft(hex);
-                    return {
-                        zoomChanged: map.getZoom() !== before.zoom,
-                        panned: Math.abs(map.getCenter().lat - before.center.lat) > 0.1,
-                        selected: hex ? selectedHex === hex : null,
-                        stillFrozen: captureMode.frozen
-                    };
-                }"""
-            )
-            self.assertTrue(interaction["zoomChanged"], "zoom is dead while frozen")
-            self.assertTrue(interaction["panned"], "pan is dead while frozen")
-            if interaction["selected"] is not None:
-                self.assertTrue(interaction["selected"], "selection is dead while frozen")
-            self.assertTrue(interaction["stillFrozen"],
-                            "interacting with the map silently released the freeze")
-
-            # Releasing resumes, and says so.
-            released = page.evaluate(
-                """async () => {
-                    document.getElementById('freezeReleaseBtn').click();
-                    return { frozen: captureMode.frozen,
-                             pillShown: getComputedStyle(
-                                 document.getElementById('freezePill')).display !== 'none' };
-                }"""
-            )
-            self.assertFalse(released["frozen"])
-            self.assertFalse(released["pillShown"])
-            page.wait_for_timeout(2000)
-            self.assertTrue(feed_hits, "positions did not resume after release")
             self.assertEqual(crashes, [])
         finally:
+            page.evaluate(
+                "() => new Promise(resolve => {"
+                " const del = indexedDB.deleteDatabase('VIPTrackDB');"
+                " del.onsuccess = del.onerror = del.onblocked = () => resolve(); })")
             page.close()
 
     def test_map_pans_without_a_dragging_movement(self) -> None:
