@@ -3445,7 +3445,30 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // tried at all.
             if (changed) this._forgetHealth();
             this.render();
+            this.verify();
             return true;
+        },
+
+        // A relay host the deployer has not added to connect-src is refused by the
+        // browser before the request leaves, and fetch reports that as an ordinary
+        // "Failed to fetch" - indistinguishable from a dead host. The webhook, overlay
+        // and receiver features all learned to say which host to allowlist; the relay
+        // did not, so a correctly deployed worker looked simply broken.
+        async verify() {
+            if (!this.customUrl) return '';
+            const probe = this._buildCustom('https://api.adsb.lol/v2/mil');
+            let failed = false;
+            try {
+                const response = await fetchWithTimeout(probe, { cache: 'no-cache', credentials: 'omit' }, 8000);
+                if (!response?.ok) failed = true;
+            } catch (error) {
+                failed = true;
+            }
+            if (!failed) { this.render(); return ''; }
+            const refusal = await cspWatch.describeFailure(probe, '');
+            const message = refusal || ('Relay ' + this.hostOf('custom') + ' did not answer. Check the URL and that the worker is deployed.');
+            this.render(message);
+            return message;
         },
 
         clear() {

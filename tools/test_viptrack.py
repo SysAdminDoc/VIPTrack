@@ -1767,7 +1767,17 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("return this.explain(url) || fallback;", section)
 
         # Every user-configured egress feature explains itself.
-        self.assertEqual(self.source.count("await cspWatch.describeFailure("), 3)
+        # Every feature that lets a user name a host must explain a CSP refusal
+        # rather than report it as an ordinary failure. Assert the coverage, not a
+        # count - a fixed number blocks the next feature that needs the same care.
+        for owner, opener in (("alertWebhook", "const alertWebhook = {"),
+                              ("geojsonLoader", "const geojsonLoader = {"),
+                              ("receiverCoverageManager", "const receiverCoverageManager = {"),
+                              ("relayRegistry", "const relayRegistry = {")):
+            owner_start = self.source.index(opener)
+            owner_end = self.source.index(chr(10) + "    const ", owner_start + len(opener))
+            self.assertIn("cspWatch.describeFailure(", self.source[owner_start:owner_end],
+                          f"{owner} reports a CSP refusal as an ordinary failure")
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("Allowlisting your own hosts", readme)

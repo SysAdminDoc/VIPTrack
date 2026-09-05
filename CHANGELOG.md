@@ -29,6 +29,9 @@
   displayed for exactly one.
 
 ### Fixed
+- Saving a data relay now says when the page's own Content-Security-Policy is what refused it,
+  naming the host to add to `connect-src`, instead of reporting a correctly deployed worker as
+  unreachable. The webhook, overlay and receiver features already did this; the relay did not.
 - Asset mirrors point at this repository instead of the sibling SkyTrack one. v0.6.0 moved every
   runtime fetch off that repo but left five mirrors behind, and the type-photo mirror already
   answers 404 there while VIPTrack's own path serves it.

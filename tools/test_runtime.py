@@ -1424,6 +1424,44 @@ class VipTrackRuntime(unittest.TestCase):
                     self.assertIn(name, live, f"the live database is missing {name}")
             self.assertEqual(crashes, [])
 
+    def test_a_relay_outside_connect_src_says_so(self) -> None:
+        # A relay host the deployer has not added to connect-src is refused by the
+        # browser before the request leaves, and fetch reports that as a bare
+        # "Failed to fetch" - indistinguishable from a dead host. The webhook, overlay
+        # and receiver features all name the host to allowlist; the relay did not, so
+        # a correctly deployed worker looked simply broken.
+        with self._page() as (page, crashes):
+            blocked = page.evaluate(
+                """async () => {
+                    // hooks.example.org is reserved-but-public, so egressPolicy accepts
+                    // it while connect-src does not - which is the case under test.
+                    relayRegistry.setUrl('https://hooks.example.org/relay');
+                    const message = await relayRegistry.verify();
+                    return { message, status: document.getElementById('relayStatus').textContent };
+                }"""
+            )
+            for text in (blocked["message"], blocked["status"]):
+                self.assertIn("hooks.example.org", text,
+                              f"the refusal does not name the host: {text!r}")
+                self.assertIn("connect-src", text,
+                              f"the refusal does not say what to change: {text!r}")
+
+            # A relay whose host IS allowlisted but simply does not answer must get the
+            # other message, or every failure would be blamed on the CSP.
+            page.route("**/tfr2go.com/**", lambda route: route.abort())
+            unreachable = page.evaluate(
+                """async () => {
+                    relayRegistry.setUrl('https://tfr2go.com/relay');
+                    return await relayRegistry.verify();
+                }"""
+            )
+            self.assertNotIn("connect-src", unreachable,
+                             "an allowlisted but dead relay was blamed on the CSP")
+            self.assertIn("tfr2go.com", unreachable)
+
+            page.evaluate("() => relayRegistry.clear()")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.
