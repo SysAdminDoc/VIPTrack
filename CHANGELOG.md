@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Deployable CORS relay.** `workers/cors-relay.js` is a Cloudflare Worker that relays only the
+  hosts VIPTrack already declares in its own `connect-src`, accepts GET and HEAD only, and refuses
+  private addresses. Settings > Data Relay stores its URL in the browser and tries it before the
+  public relays. The free public pool has closed: verified 2026-09-04 on the live origin,
+  `corsproxy.io` answers HTTP 401 without an account key (and its free tier of 10,000 requests a
+  month is under nine hours of this app's polling), while `api.allorigins.win` has had no upstream
+  commit since 2023-01-11 and returned HTTP 522 on three of five probes.
+
+### Changed
+- Relays are now an ordered registry rather than a frozen array, so the operator's own relay comes
+  first and a closure in the public pool no longer means an outage. `api.allorigins.win` is tried
+  before `corsproxy.io`, which currently refuses every request.
+
 ## [v0.8.2] - 2026-08-29
 
 - New app icon: adaptive, themed (monochrome) and legacy variants regenerated from the 2026-08 icon set.

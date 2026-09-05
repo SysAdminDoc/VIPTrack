@@ -2218,6 +2218,16 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             <button class="btn-secondary" id="clearOfflineCacheBtn" type="button" style="width: 100%;" data-i18n="settings.clearOffline">Clear Offline Cache</button>
         </div>
         <div class="settings-section">
+            <div class="settings-section-title" data-i18n="settings.relay">Data Relay</div>
+            <div class="receiver-coverage-help" data-i18n="settings.relayHelp">No public ADS-B feed sends CORS headers, so every request goes through a relay. The free public relays are unreliable: deploy workers/cors-relay.js to Cloudflare Workers (100,000 requests/day free) and paste its URL here. The host must also be added to connect-src in index.html and _headers before the browser will allow it.</div>
+            <div style="display:flex;gap:4px;margin-bottom:6px;">
+                <input type="text" id="relayUrl" placeholder="https://viptrack-relay.example.workers.dev/" data-i18n-placeholder="settings.relayUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
+            </div>
+            <div id="relayStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">No relay configured</div>
+            <button class="btn-secondary" id="relaySaveBtn" type="button" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveRelay">Save relay</button>
+            <button class="btn-secondary" id="relayClearBtn" type="button" style="width:100%;">Clear relay</button>
+        </div>
+        <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.statsDashboard">Session Statistics (L14)</div>
             <div class="session-stats" id="sessionStats" aria-live="polite">
                 <div class="stats-summary-grid">
@@ -2655,13 +2665,17 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         refreshInterval: 6000,
         cacheExpiry: 300000,
         debug: (new URLSearchParams(window.location.search)).has('debug'),
-        // Ordered fastest-first, verified 2026-08-18 from a browser on the live origin.
-        // No public ADS-B aggregator sends Access-Control-Allow-Origin any more, so this
+        // No public ADS-B aggregator sends Access-Control-Allow-Origin any more, so a
         // relay is the only path to live data for a static, backend-free deployment.
-        // The former codetabs relay was removed: it no longer answers and only burned the timeout.
-        corsProxies: [
-            url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
-            url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+        // The free public pool has since closed: verified 2026-09-04 from a browser on
+        // the live origin, corsproxy.io answers 401 without an account key and
+        // api.allorigins.win (no upstream commit since 2023-01-11) returns 522 under
+        // load. Deploy workers/cors-relay.js and set it in Settings > Data Relay; these
+        // two are a last resort, ordered by what still answers. The former codetabs
+        // relay was removed: it no longer answers and only burned the timeout.
+        publicRelays: [
+            { id: 'allorigins', build: url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url) },
+            { id: 'corsproxy', build: url => 'https://corsproxy.io/?url=' + encodeURIComponent(url) }
         ],
         isLocalFile: window.location.protocol === 'file:',
         isAndroidApp: IS_VIPTRACK_ANDROID_APP,
@@ -3332,20 +3346,91 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // Relay health is tracked apart from source health. Every aggregator is reached
     // through the relay now, so a relay-side 429 or outage makes all four look
     // "unhealthy" at once -- a signature that means "relay throttled", not "feeds down".
+    // The public relay pool closes without notice, so a relay the deployer controls is
+    // the only durable answer. workers/cors-relay.js is the vendored Cloudflare Worker;
+    // its host must also be added to connect-src, exactly like the webhook, overlay and
+    // receiver hosts, or the page's own CSP refuses it before the network sees it.
+    const relayRegistry = {
+        STORAGE_KEY: 'viptrack_relay_url',
+        customUrl: '',
+
+        init() {
+            let stored = '';
+            try { stored = localStorage.getItem(this.STORAGE_KEY) || ''; } catch (e) {}
+            const validated = stored ? this._validate(stored) : null;
+            if (stored && !validated) { try { localStorage.removeItem(this.STORAGE_KEY); } catch (e) {} }
+            this.customUrl = validated?.href || '';
+            this.render();
+        },
+
+        _validate(value) {
+            const url = egressPolicy.validateUrl(value, { kind: 'proxy' });
+            if (!url) return null;
+            // The target is appended per request, so a stored `url` parameter would be
+            // overwritten anyway. Drop it rather than round-trip a misleading value.
+            url.searchParams.delete('url');
+            return url;
+        },
+
+        setUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw) { this.clear(); return true; }
+            const validated = this._validate(raw);
+            if (!validated) { this.render('Relay rejected: a public HTTPS URL is required'); return false; }
+            this.customUrl = validated.href;
+            try { localStorage.setItem(this.STORAGE_KEY, this.customUrl); } catch (e) {}
+            this.render();
+            return true;
+        },
+
+        clear() {
+            this.customUrl = '';
+            try { localStorage.removeItem(this.STORAGE_KEY); } catch (e) {}
+            this.render();
+        },
+
+        _buildCustom(target) {
+            const url = new URL(this.customUrl);
+            url.searchParams.set('url', target);
+            return url.href;
+        },
+
+        // The deployer's own relay first; the public fallbacks after it.
+        list() {
+            const relays = CONFIG.publicRelays.map(relay => ({ id: relay.id, build: relay.build }));
+            if (this.customUrl) relays.unshift({ id: 'custom', build: target => this._buildCustom(target) });
+            return relays;
+        },
+
+        hostOf(id) {
+            const relays = this.list();
+            const relay = relays.find(entry => entry.id === id) || relays[0];
+            try { return new URL(relay.build('https://example.org/')).host; }
+            catch (e) { return String(id || 'relay'); }
+        },
+
+        render(message) {
+            const status = document.getElementById('relayStatus');
+            if (!status) return;
+            status.textContent = message || (this.customUrl
+                ? 'Relaying through ' + this.hostOf('custom')
+                : 'No relay configured - falling back to the public pool, which is unreliable');
+        }
+    };
+
     const relayHealth = {
-        activeIndex: 0,
+        activeId: '',
         lastError: null,
         lastErrorAt: 0,
         lastSuccessAt: 0,
         throttledUntil: 0,
 
-        name(index = this.activeIndex) {
-            try { return new URL(CONFIG.corsProxies[index]('https://example.com')).host; }
-            catch (e) { return 'relay ' + (index + 1); }
+        name(id = this.activeId) {
+            return relayRegistry.hostOf(id);
         },
         isThrottled() { return Date.now() < this.throttledUntil; },
-        recordSuccess(index) {
-            this.activeIndex = index;
+        recordSuccess(id) {
+            this.activeId = id;
             this.lastSuccessAt = Date.now();
             this.lastError = null;
             this.throttledUntil = 0;
@@ -6965,7 +7050,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // Cached DOM references for hot-path access
     const _dom = {};
     function _el(id) { return _dom[id] || (_dom[id] = document.getElementById(id)); }
-    let lastFetchTime = 0, fetchInProgress = false, lastSuccessfulSource = null, lastSuccessfulProxy = 0, animationRunning = false;
+    let lastFetchTime = 0, fetchInProgress = false, lastSuccessfulSource = null, lastSuccessfulProxy = '', animationRunning = false;
     const aircraftAnimation = {}, photoCache = {}, photoFailCache = {};
     let bookmarks = [];
     const settings = { mapStyle: 'esri-gray', showLabels: false, altitudeColors: true, showWiki: true, filter: 'mil-vip', followMode: false, compactMode: false, coverageMode: 'off', coverageWindow: 6, coverageInterval: 30, coverageRecording: false };
@@ -8456,15 +8541,17 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             try { const response = await fetchWithTimeout(target.href, options); if (response?.ok) return response; } catch (e) {}
         }
         let lastStatus = null;
-        for (let i = 0; i < CONFIG.corsProxies.length; i++) {
-            const index = (lastSuccessfulProxy + i) % CONFIG.corsProxies.length;
+        const relays = relayRegistry.list();
+        const startAt = Math.max(0, relays.findIndex(relay => relay.id === lastSuccessfulProxy));
+        for (let i = 0; i < relays.length; i++) {
+            const relay = relays[(startAt + i) % relays.length];
             try {
-                const proxyUrl = egressPolicy.validateUrl(CONFIG.corsProxies[index](target.href), { kind: 'proxy' });
+                const proxyUrl = egressPolicy.validateUrl(relay.build(target.href), { kind: 'proxy' });
                 if (!proxyUrl) continue;
                 const response = await fetchWithTimeout(proxyUrl.href, { cache: 'no-cache', credentials: 'omit' });
                 if (response?.ok) {
-                    lastSuccessfulProxy = index;
-                    relayHealth.recordSuccess(index);
+                    lastSuccessfulProxy = relay.id;
+                    relayHealth.recordSuccess(relay.id);
                     return response;
                 }
                 lastStatus = response?.status ?? null;
@@ -11074,6 +11161,21 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             openAipAirspaceOverlay.clearKey();
             _openAipToggle?.classList.remove('on');
             toast('OpenAIP API key cleared');
+        });
+
+        // Data relay
+        const _relayUrl = document.getElementById('relayUrl');
+        relayRegistry.init();
+        if (_relayUrl) _relayUrl.value = relayRegistry.customUrl;
+        document.getElementById('relaySaveBtn')?.addEventListener('click', () => {
+            const saved = relayRegistry.setUrl(_relayUrl?.value?.trim() || '');
+            if (_relayUrl) _relayUrl.value = relayRegistry.customUrl;
+            toast(saved ? (relayRegistry.customUrl ? 'Relay saved' : 'Relay cleared') : 'Relay URL rejected');
+        });
+        document.getElementById('relayClearBtn')?.addEventListener('click', () => {
+            relayRegistry.clear();
+            if (_relayUrl) _relayUrl.value = '';
+            toast('Relay cleared');
         });
 
         // X4: Webhook

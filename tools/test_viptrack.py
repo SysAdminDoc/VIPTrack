@@ -6,7 +6,10 @@ from __future__ import annotations
 import datetime
 import json
 import re
+import shutil
 import struct
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -21,6 +24,7 @@ FAA_DIR = ROOT / "data" / "faa"
 PLUGINS_MANIFEST = ROOT / "plugins" / "manifest.json"
 I18N_DIR = ROOT / "data" / "i18n"
 OPFS_WORKER = ROOT / "workers" / "registration-opfs-worker.js"
+CORS_RELAY_WORKER = ROOT / "workers" / "cors-relay.js"
 WEB_MANIFEST = ROOT / "manifest.json"
 SERVICE_WORKER = ROOT / "sw.js"
 ANDROID_DIR = ROOT / "android"
@@ -459,6 +463,82 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
         self.assertNotIn("module.activate({ map, L, toast, geojsonLoader })", self.source)
+
+    def test_cors_relay_worker_only_fetches_hosts_the_app_itself_declares(self) -> None:
+        # The relay is a fetch primitive pointed at the open internet. If its allowlist
+        # drifts wider than the page's own connect-src it becomes an open proxy that
+        # happens to be hosted by whoever deployed VIPTrack.
+        self.assertTrue(CORS_RELAY_WORKER.is_file(), "workers/cors-relay.js is missing")
+        source = CORS_RELAY_WORKER.read_text(encoding="utf-8")
+
+        listed = re.search(r"export const ALLOWED_TARGET_HOSTS = \[(.*?)\]", source, re.S)
+        self.assertIsNotNone(listed, "ALLOWED_TARGET_HOSTS must be an exported array literal")
+        hosts = re.findall(r"'([^']+)'", listed.group(1))
+        self.assertTrue(hosts, "the relay allowlist must not be empty")
+
+        # Every feed the app actually polls has to be reachable through the relay,
+        # otherwise the relay cannot replace the public pool it exists to retire.
+        for required in ("api.adsb.one", "api.adsb.lol", "opendata.adsb.fi"):
+            self.assertIn(required, hosts)
+
+        connect_src = re.search(r"connect-src 'self'([^;]*);", self.source)
+        self.assertIsNotNone(connect_src)
+        declared = connect_src.group(1)
+        for host in hosts:
+            self.assertIn(
+                "https://" + host,
+                declared,
+                f"relay allowlists {host}, which the page's own connect-src does not permit",
+            )
+
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("node is required to exercise the relay decision function")
+
+        # Assert on the decision itself rather than on the presence of a guard: a
+        # source-text assertion cannot tell a working allowlist from a commented one.
+        probe = (
+            "import { isAllowedTarget } from %s;\n"
+            "const cases = ["
+            "['https://api.adsb.lol/v2/mil', true],"
+            "['https://api.adsb.one/v2/ladd', true],"
+            "['https://evil.example.org/steal', false],"
+            "['https://api.adsb.lol.evil.org/v2/mil', false],"
+            "['http://api.adsb.lol/v2/mil', false],"
+            "['https://127.0.0.1/v2/mil', false],"
+            "['https://169.254.169.254/latest/meta-data/', false],"
+            "['https://user:pass@api.adsb.lol/v2/mil', false],"
+            "['https://api.adsb.lol:8080/v2/mil', false],"
+            "['not-a-url', false]"
+            "];\n"
+            "const bad = cases.filter(([url, want]) => isAllowedTarget(url) !== want).map(([url]) => url);\n"
+            "console.log(JSON.stringify(bad));\n"
+        ) % json.dumps(CORS_RELAY_WORKER.as_uri())
+
+        with tempfile.TemporaryDirectory() as work:
+            probe_path = Path(work) / "probe.mjs"
+            probe_path.write_bytes(probe.encode("utf-8"))
+            result = subprocess.run(
+                [node, str(probe_path)], capture_output=True, text=True, timeout=60,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout.strip()), [], "relay allow/deny decisions are wrong")
+
+    def test_relay_list_is_configurable_and_prefers_the_operator_relay(self) -> None:
+        # The public relay pool closed once already (corsproxy.io went key-only on
+        # 2026-09-04). A hardcoded list means the next closure is another outage.
+        self.assertIn("const relayRegistry = {", self.source)
+        self.assertIn("STORAGE_KEY: 'viptrack_relay_url'", self.source)
+        self.assertNotIn("CONFIG.corsProxies", self.source)
+
+        registry = self.source[self.source.index("const relayRegistry = {"):self.source.index("const relayHealth = {")]
+        self.assertIn("relays.unshift(", registry, "the operator's own relay must be tried first")
+        self.assertIn("egressPolicy.validateUrl", registry, "a stored relay URL must be validated")
+
+        # fetchWithProxy must iterate the registry, not a frozen array.
+        fetcher = self.source[self.source.index("async function fetchWithProxy("):]
+        fetcher = fetcher[:fetcher.index("async function fetchWithTimeout(")]
+        self.assertIn("relayRegistry.list()", fetcher)
 
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (

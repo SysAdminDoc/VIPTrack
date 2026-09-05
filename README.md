@@ -203,6 +203,31 @@ The published tree is roughly 466 MB against the GitHub Pages 1 GB soft limit, w
 
 The archive path must be same-origin. `connect-src` is a real allowlist, so a cross-origin archive is blocked by the app's own CSP; hosting elsewhere means adding that host to both the meta CSP in `index.html` and `_headers`. Note also that `python -m http.server` ignores `Range` headers. Use a static host that answers 206 (GitHub Pages does) when testing locally.
 
+### Deploy your own data relay
+
+No public ADS-B aggregator sends `Access-Control-Allow-Origin` any more, so a static
+browser-only build cannot read a feed directly. Every request goes through a relay, and the
+free public ones have closed: as of 2026-09-04 `corsproxy.io` answers HTTP 401 without an
+account key, and `api.allorigins.win` has had no upstream commit since 2023-01-11 and returns
+HTTP 522 under load. VIPTrack still falls back to both, but treat that as a last resort.
+
+The fix is a relay you control. `workers/cors-relay.js` is a Cloudflare Worker that only
+fetches hosts VIPTrack already declares in its own `connect-src`, refuses anything but GET and
+HEAD, and refuses private addresses. The free Workers plan allows 100,000 requests a day.
+
+```bash
+npx wrangler deploy workers/cors-relay.js --name viptrack-relay --compatibility-date 2026-01-01
+```
+
+Paste the resulting `https://viptrack-relay.<subdomain>.workers.dev/` URL into
+**Settings > Data Relay**. It is stored in your browser only, and it is tried before the public
+relays. Add `ALLOWED_ORIGINS` as a Worker variable (a comma-separated list of page origins)
+once you are done testing, otherwise the relay is open to anyone who finds its URL.
+
+Like the webhook, overlay and receiver hosts below, the relay host must also be added to
+`connect-src` in `index.html` and `_headers` — the page's own CSP refuses hosts it has not been
+told about, and the app will name the host it needs when that happens.
+
 ### Allowlisting your own hosts
 
 `connect-src` is a real allowlist, not a formality. Bare `https:` was deliberately removed from it because a scheme source matches every origin and makes everything after it decorative. That is correct for the app's own feeds, but three features fetch hosts only you can know:
@@ -212,6 +237,7 @@ The archive path must be same-origin. `connect-src` is a real allowlist, so a cr
 | Alert webhook (Settings > Alert Webhook) | Your webhook host, e.g. `https://discord.com` or your ntfy server |
 | Remote GeoJSON overlay (Settings > Overlays) | The host serving the `.geojson` file |
 | Receiver coverage (Settings > Receiver Coverage) | Your tar1090/readsb feeder host |
+| Data relay (Settings > Data Relay) | Your deployed relay host, e.g. `https://viptrack-relay.example.workers.dev` |
 
 Add the host to **both** the `Content-Security-Policy` meta tag in `index.html` and the `connect-src` line in `_headers`, then redeploy. Without that, the browser refuses the request before it reaches the network and the feature reports the refusal, naming the host to add.
 
