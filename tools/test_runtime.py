@@ -1077,6 +1077,79 @@ class VipTrackRuntime(unittest.TestCase):
                                 "the legend did not come back when colouring was switched on")
             self.assertEqual(crashes, [])
 
+    def test_track_shape_analysis_only_runs_where_it_is_read(self) -> None:
+        # analyse() slices 120 history points and runs a haversine plus a bearing over
+        # each one. It used to run for every aircraft on every sweep while render()
+        # drew the result for exactly one.
+        with self._page() as (page, crashes):
+            measured = page.evaluate(
+                """() => {
+                    // A synthetic sweep of 500 aircraft, each with enough history that
+                    // analyse() does its full walk rather than bailing on minPoints.
+                    const now = Date.now();
+                    const history = [];
+                    for (let i = 0; i < 300; i++) {
+                        history.push([51 + i * 0.001, -0.4 + i * 0.001, 30000, now - (300 - i) * 1000]);
+                    }
+                    const fleet = [];
+                    for (let i = 0; i < 500; i++) {
+                        fleet.push({ hex: 'FF' + i.toString(16).padStart(4, '0').toUpperCase(),
+                                     history: history.map(p => p.slice()), t: 'C17' });
+                    }
+
+                    let calls = 0;
+                    const realAnalyse = trackHeuristicManager.analyse;
+                    trackHeuristicManager.analyse = function (...args) {
+                        calls++;
+                        return realAnalyse.apply(this, args);
+                    };
+                    const started = performance.now();
+                    fleet.forEach(ac => trackHeuristicManager.update(ac));
+                    const elapsed = performance.now() - started;
+                    trackHeuristicManager.analyse = realAnalyse;
+
+                    // The one aircraft whose answer is actually displayed must still
+                    // get a real result, on demand.
+                    const target = fleet[0];
+                    const onDemand = trackHeuristicManager.ensure(target);
+
+                    return { calls, elapsed, fleet: fleet.length,
+                             hasMetrics: Boolean(onDemand && onDemand.metrics),
+                             tagCount: onDemand ? onDemand.tags.length : -1 };
+                }"""
+            )
+            # Not "fewer calls" but "almost none": nothing in this fleet is selected or
+            # watchlisted, so the sweep should analyse nothing at all.
+            self.assertEqual(measured["fleet"], 500)
+            self.assertLessEqual(
+                measured["calls"], measured["fleet"] // 10,
+                f"analyse() ran {measured['calls']} times for 500 unselected aircraft")
+
+            # And the result is still correct when it is asked for.
+            self.assertTrue(measured["hasMetrics"],
+                            "an on-demand analysis produced no metrics")
+            self.assertGreaterEqual(measured["tagCount"], 0)
+
+            # A selected aircraft is analysed by the sweep without being asked.
+            selected = page.evaluate(
+                """() => {
+                    const hex = Object.keys(aircraftCache)[0];
+                    if (!hex) return null;
+                    selectedHex = hex;
+                    const ac = aircraftCache[hex];
+                    ac.trackHeuristics = null;
+                    ac.trackHeuristicsStale = true;
+                    trackHeuristicManager.update(ac);
+                    return { computed: Boolean(ac.trackHeuristics),
+                             stale: ac.trackHeuristicsStale === true };
+                }"""
+            )
+            self.assertIsNotNone(selected, "no aircraft in the fixture to select")
+            self.assertTrue(selected["computed"],
+                            "the selected aircraft was not analysed by the sweep")
+            self.assertFalse(selected["stale"])
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

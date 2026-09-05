@@ -6543,8 +6543,30 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             return { tags, metrics };
         },
 
+        // analyse() maps up to 300 history points, slices 120, and runs a haversine
+        // and a bearing over every one of them. It used to run for every aircraft on
+        // every 6-second sweep while render() drew the result for exactly one - at a
+        // thousand tracked aircraft that is around 120,000 trigonometric evaluations a
+        // tick, all but one discarded. Compute it for the aircraft whose answer is
+        // actually wanted, and let anything else ask for it on demand.
+        _wanted(ac) {
+            if (typeof selectedHex !== 'undefined' && selectedHex === ac.hex) return true;
+            try { return alertSystem.watchlist.has(String(ac.hex || '').toUpperCase()); }
+            catch (e) { return false; }
+        },
+
         update(ac) {
             if (!ac) return null;
+            ac.trackHeuristicsStale = true;
+            if (!this._wanted(ac)) return ac.trackHeuristics || null;
+            return this.ensure(ac);
+        },
+
+        // Anything that reads ac.trackHeuristics goes through here, so a lazily
+        // skipped aircraft still yields a current answer when one is asked for.
+        ensure(ac) {
+            if (!ac) return null;
+            if (ac.trackHeuristics && !ac.trackHeuristicsStale) return ac.trackHeuristics;
             const updatedAt = Date.now();
             if (isPrivacyProtectedAircraft(ac)) {
                 ac.trackHeuristics = { tags: [], metrics: null, updatedAt };
@@ -6552,11 +6574,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 const result = this.analyse(ac.history);
                 ac.trackHeuristics = { tags: result?.tags || [], metrics: result?.metrics || null, updatedAt };
             }
+            ac.trackHeuristicsStale = false;
             if (typeof selectedHex !== 'undefined' && selectedHex === ac.hex) this.render(ac);
             return ac.trackHeuristics;
         },
 
         render(ac) {
+            // Selection is exactly when a skipped aircraft's answer becomes wanted.
+            if (ac && ac.trackHeuristicsStale) this.ensure(ac);
             const section = document.getElementById('trackHeuristicsSection');
             const list = document.getElementById('trackHeuristicsList');
             if (!section || !list) return;

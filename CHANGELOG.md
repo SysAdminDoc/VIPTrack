@@ -13,6 +13,12 @@
   allow-listed. It is this app's single XSS boundary. Every pinned dependency was re-reviewed and
   its integrity hash re-verified against the live CDN.
 
+### Changed
+- Track-shape analysis runs only for the selected aircraft and watchlist members, computed on
+  demand for anything else. It previously ran for every aircraft on every 6-second sweep - roughly
+  120,000 trigonometric evaluations a tick at a thousand tracked aircraft - while the result was
+  displayed for exactly one.
+
 ### Fixed
 - Police aircraft have a filter of their own, and government and police aircraft are no longer also
   counted as military. `militaryDB.getByHex` searches the military, government and police
