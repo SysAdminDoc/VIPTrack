@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Fixed
+- Government and police aircraft can now actually appear. The app polled only `/mil` and `/pia`,
+  neither of which can return a government airframe, so the Gov filter counted zero against a live
+  feed for as long as it has shipped despite a 1,743-row government catalogue and a 931-row police
+  one. Both catalogues are now swept in rotating `/hex/` batches, one batch per refresh, sized to
+  fit the egress URL cap once the relay encodes them.
 - Basemap and feed attribution are visible again. A `display: none !important` rule sitting outside
   any media query hid the Leaflet attribution control on every raster basemap, while the settings
   help text told the user attribution was still showing. OSM tiles are ODbL and the CARTO and Stadia

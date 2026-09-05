@@ -9315,6 +9315,64 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         _feedAttribution = next;
     }
 
+    // The government and police catalogues hold ~2,700 aircraft that no feed endpoint
+    // returns: /mil and /pia cannot match them, so the Gov filter counted zero against a
+    // live feed for as long as it has shipped. The v2 API answers /hex/<comma-list>, so
+    // the catalogue is swept in rotating batches, one batch per refresh, which adds a
+    // third of a request per second on top of the two the feed loop already makes and
+    // stays inside the source's 1 request/s budget.
+    const catalogueSweep = {
+        cursor: 0,
+        hexes: [],
+
+        // The relay wraps the target in a query string, so what has to fit inside
+        // egressPolicy.maxUrlLength is the percent-encoded URL, not the bare endpoint.
+        // Each hex costs six characters plus an encoded comma.
+        batchSize() {
+            const overhead = 96;
+            return Math.max(20, Math.floor((egressPolicy.maxUrlLength - overhead) / 9));
+        },
+
+        refresh() {
+            if (!militaryDB.loaded) return;
+            const seen = new Set();
+            for (const catalogue of [militaryDB.government, militaryDB.police]) {
+                for (const hex of catalogue.keys()) {
+                    const value = String(hex || '').toUpperCase();
+                    if (value) seen.add(value);
+                }
+            }
+            this.hexes = [...seen];
+        },
+
+        // Walks the catalogue in order and wraps, so every entry is polled once per
+        // sweep rather than the same head being re-requested forever.
+        nextBatch() {
+            if (!this.hexes.length) this.refresh();
+            if (!this.hexes.length) return [];
+            const size = Math.min(this.batchSize(), this.hexes.length);
+            const batch = [];
+            for (let i = 0; i < size; i++) {
+                batch.push(this.hexes[(this.cursor + i) % this.hexes.length]);
+            }
+            this.cursor = (this.cursor + size) % this.hexes.length;
+            return batch;
+        },
+
+        // Fire-and-forget: a catalogue miss must never delay or fail the live sweep.
+        run(src, fetcher, provenance) {
+            if (!src?.baseUrl || typeof fetcher !== 'function') return null;
+            const batch = this.nextBatch();
+            if (!batch.length) return null;
+            const url = src.baseUrl + '/hex/' + batch.join(',').toLowerCase();
+            return Promise.resolve(fetcher(url, src.cors)).then(async response => {
+                if (!response?.ok) return;
+                const parsed = src.parseResponse(await response.json());
+                if (Array.isArray(parsed) && parsed.length) processAircraftData(parsed, provenance);
+            }).catch(() => {});
+        }
+    };
+
     async function loadAircraft() {
         if(!map)return;
         if(gridFetch.inProgress)return;
@@ -9351,6 +9409,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         const n=Object.keys(markers).length;
                         _el('dataSource').textContent=src.name+' - '+n+' aircraft';
                         setFeedAttribution(src);
+                        catalogueSweep.run(src, _fetch, provenance);
                         lastSuccessfulSource=src.key;success=true;
                         statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt, provenance);
                         connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src, sourceLatencyMs, attemptedSources.map(source => source.name));offlineManager.cachePositions();

@@ -636,6 +636,119 @@ class VipTrackRuntime(unittest.TestCase):
                                  "the attribution is pushed off the bottom of the viewport")
             self.assertEqual(crashes, [])
 
+    def test_catalogued_government_aircraft_reach_the_gov_filter(self) -> None:
+        # /mil and /pia cannot return a government airframe, so the Gov filter counted
+        # zero against a live feed for as long as it shipped. The catalogue is swept by
+        # rotating /hex/ batches instead.
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        host = self.base_url.split("//", 1)[1]
+        batches: list[str] = []
+
+        def handler(route):
+            url = route.request.url
+            if host in url or url.startswith("file://"):
+                route.fallback()
+                return
+            # The relay percent-encodes the target, so match the encoded form too.
+            if "/hex/" in url or "%2Fhex%2F" in url:
+                batches.append(url)
+                requested = url.split("hex%2F")[-1] if "%2Fhex%2F" in url else url.split("/hex/")[-1]
+                first = requested.split("%2C")[0].split(",")[0].split("?")[0][:6]
+                _json_route(route, {"ac": [{
+                    "hex": first, "type": "adsb_icao", "flight": "GOV1    ", "t": "B762",
+                    "lat": 51.4, "lon": -0.4, "alt_baro": 30000, "gs": 420, "track": 90,
+                }]})
+                return
+            route.fallback()
+
+        self._route_external(page)
+        page.route("**/*", handler)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            # The sweep is only meaningful if the catalogue actually loaded.
+            catalogue = page.evaluate(
+                """() => {
+                    catalogueSweep.refresh();
+                    return { total: catalogueSweep.hexes.length,
+                             batch: catalogueSweep.batchSize(),
+                             gov: militaryDB.government.size,
+                             pol: militaryDB.police.size };
+                }"""
+            )
+            self.assertGreater(catalogue["gov"], 0, "the government catalogue did not load")
+            self.assertGreater(catalogue["pol"], 0, "the police catalogue did not load")
+            self.assertEqual(catalogue["total"], catalogue["gov"] + catalogue["pol"])
+
+            # A batch has to fit inside the egress URL cap once the relay encodes it,
+            # or validateUrl drops the request and the sweep silently does nothing.
+            fits = page.evaluate(
+                """() => {
+                    const batch = catalogueSweep.nextBatch();
+                    const target = 'https://api.adsb.lol/v2/hex/' + batch.join(',').toLowerCase();
+                    const relayed = CONFIG.publicRelays[0].build(target);
+                    return { size: batch.length, target: target.length, relayed: relayed.length,
+                             cap: egressPolicy.maxUrlLength,
+                             accepted: Boolean(egressPolicy.validateUrl(relayed, { kind: 'proxy' })) };
+                }"""
+            )
+            self.assertGreater(fits["size"], 0)
+            self.assertLessEqual(fits["relayed"], fits["cap"],
+                                 "the relayed batch URL exceeds the egress cap and would be dropped")
+            self.assertTrue(fits["accepted"], "egressPolicy rejects the batch URL the sweep builds")
+
+            # The cursor must advance and wrap, or the same head is polled forever and
+            # the tail of the catalogue is never reached.
+            walked = page.evaluate(
+                """() => {
+                    catalogueSweep.cursor = 0;
+                    const first = catalogueSweep.nextBatch()[0];
+                    const second = catalogueSweep.nextBatch()[0];
+                    return { first, second, moved: first !== second };
+                }"""
+            )
+            self.assertTrue(walked["moved"], "the sweep cursor does not advance between batches")
+
+            # End to end: a catalogued government hex fed back by the API must be
+            # classified as government and counted under the Gov filter.
+            landed = page.evaluate(
+                """async () => {
+                    // VIP wins over government in classifyAircraft, and several
+                    // dictator-alert airframes are on both lists, so pick one that is
+                    // only in the government catalogue.
+                    const hex = [...militaryDB.government.keys()].find(h =>
+                        !badgersBestDB.isVIP(String(h).toUpperCase()) &&
+                        !militaryDB.military.has(String(h).toUpperCase()));
+                    if (!hex) return { hex: null };
+                    delete aircraftCache[hex.toUpperCase()];
+                    processAircraftData([{ hex: hex.toLowerCase(), type: 'adsb_icao',
+                        flight: 'GOV1', t: 'B762', lat: 51.4, lon: -0.4,
+                        alt_baro: 30000, gs: 420, track: 90 }], null);
+                    const cached = aircraftCache[hex.toUpperCase()];
+                    return { hex, kept: Boolean(cached),
+                             category: cached ? cached.category_type : null,
+                             govCount: Number(document.getElementById('countGov').textContent) };
+                }"""
+            )
+            self.assertIsNotNone(landed["hex"],
+                                 "no government-only hex in the catalogue to test with")
+            self.assertTrue(landed["kept"],
+                            f"a catalogued government aircraft ({landed['hex']}) was discarded")
+            self.assertEqual(landed["category"], "government")
+            self.assertGreater(landed["govCount"], 0, "the Gov counter stayed at zero")
+
+            # And the sweep must actually issue its batch request during a refresh.
+            batches.clear()
+            page.evaluate("async () => { lastFetchTime = 0; await loadAircraft(); }")
+            page.wait_for_timeout(2500)
+            self.assertTrue(batches, "the refresh cycle issued no catalogue batch request")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.
