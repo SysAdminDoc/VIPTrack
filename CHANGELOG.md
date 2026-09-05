@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+- Type silhouettes and airline banners fell back to a URL built from an undefined value, because
+  `remoteSilhouettes` and `remoteAirlineLogos` are defined on `DATA_URLS` but were read off
+  `CONFIG`. Every fallback requested `undefined<TYPE>.png` against the page's own origin. This
+  broke exactly the Android build the mirrors exist for, since that bundle ships neither photos
+  nor silhouettes.
+
 ### Added
 - **Deployable CORS relay.** `workers/cors-relay.js` is a Cloudflare Worker that relays only the
   hosts VIPTrack already declares in its own `connect-src`, accepts GET and HEAD only, and refuses

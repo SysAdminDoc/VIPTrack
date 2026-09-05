@@ -10173,7 +10173,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (type && typeof type === 'string') {
             const typeUpper = type.toUpperCase();
             const selfHostedUrl = CONFIG.silhouetteUrl + typeUpper + '.png';
-            const externalUrl = CONFIG.remoteSilhouettes + typeUpper + '.png';
+            const externalUrl = DATA_URLS.remoteSilhouettes + typeUpper + '.png';
             const img = document.createElement('img');
             img.style.cssText = 'object-fit:contain;background:#1a1a2e;padding:20px;width:100%;height:100%;';
             img.onerror = function() {
@@ -10206,7 +10206,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         if (!div) return;
         if (!code) { div.style.display = 'none'; return; }
         const selfHostedUrl = CONFIG.airlineBannerUrl + code + '.png';
-        const externalUrl = CONFIG.remoteAirlineLogos + code + '.png';
+        const externalUrl = DATA_URLS.remoteAirlineLogos + code + '.png';
         const img = div.querySelector('img');
         if (!img) return;
         img.onload = () => div.style.display = 'flex';

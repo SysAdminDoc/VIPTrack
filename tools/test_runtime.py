@@ -790,6 +790,60 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertEqual(reused, 0, "a cached photo failure still probed image sources")
             self.assertEqual(crashes, [])
 
+    def test_photo_and_banner_fallbacks_resolve_to_a_real_host(self) -> None:
+        # remoteSilhouettes and remoteAirlineLogos are defined on DATA_URLS but were
+        # read off CONFIG, so the mirror URL was the literal string "undefined" plus a
+        # filename. The Android bundle ships neither photos nor silhouettes, so the
+        # fallback written to cover that build was the thing that broke it.
+        #
+        # The mirror is only ever assigned from an onerror handler, so the local image
+        # has to actually fail. With the base stub answering every image with a valid
+        # GIF the fallback never runs and this test proves nothing.
+        seen: list[str] = []
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        page.on("request", lambda request: seen.append(request.url))
+        self._route_external(page)
+        page.route("**/assets/silhouettes/**", lambda route: route.abort())
+        page.route("**/assets/airlines/**", lambda route: route.abort())
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            mirrors = page.evaluate(
+                "() => ({ silhouettes: DATA_URLS.remoteSilhouettes,"
+                " logos: DATA_URLS.remoteAirlineLogos })")
+            for key, value in mirrors.items():
+                self.assertTrue(str(value).startswith("https://"),
+                                f"the {key} mirror is not an absolute https URL: {value!r}")
+
+            seen.clear()
+            page.evaluate(
+                """() => {
+                    const div = document.getElementById('aircraftPhoto');
+                    if (div) div.innerHTML = '';
+                    showFallbackPhoto({ t: 'ZZZZ' }, div);
+                    loadAirlineBanner('AAL123');
+                }"""
+            )
+            # onerror, and the mirror assignment it makes, are asynchronous.
+            page.wait_for_timeout(2500)
+
+            # Positive control: unless the fallback actually reached the mirror there is
+            # nothing here to be wrong, and the assertion below would pass vacuously.
+            mirror_host = mirrors["silhouettes"].split("/")[2]
+            self.assertTrue(
+                any(mirror_host in url for url in seen),
+                f"the fallback never reached the mirror host, so nothing was exercised: {seen[-5:]}")
+
+            broken = [url for url in seen
+                      if url.rsplit("/", 1)[-1].startswith("undefined") or "/undefined" in url]
+            self.assertEqual(broken, [], f"requests built from an undefined value: {broken[:5]}")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_cesium_globe_lane_boots_or_degrades_without_throwing(self) -> None:
         # The 3D lane is lazy-loaded from a CDN the harness stubs, so the contract
         # under test is that requesting it never breaks the page.
