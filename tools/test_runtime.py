@@ -840,17 +840,38 @@ class VipTrackRuntime(unittest.TestCase):
 
     def test_no_interactive_target_is_below_the_minimum_size(self) -> None:
         # WCAG 2.2 SC 2.5.8 (AA): 24x24 CSS px unless an exception applies.
+        #
+        # The Inline exception is the one that applies here: a target inside a sentence,
+        # sized by the line-height of the non-target text around it, is exempt. The map
+        # credit is exactly that shape, and the licences (ODbL for OSM, the CARTO and
+        # Stadia terms, adsb.fi's link-back requirement) all require those credits to be
+        # links. Enlarging them to 24px would mean a credit line taller than the control.
+        # Everything outside that credit is still held to the full size.
         for width, height in ((1440, 900), (390, 844)):
             with self._page(viewport={"width": width, "height": height}) as (page, crashes):
                 undersized = page.evaluate(
                     "() => { const sel = 'a[href],button:not([disabled]),input:not([disabled]),"
                     "select,[role=switch],[role=tab]'; const out = [];"
                     " document.querySelectorAll(sel).forEach(el => { if (!el.offsetParent) return;"
+                    " if (el.tagName === 'A' && getComputedStyle(el).display === 'inline'"
+                    " && el.closest('.leaflet-control-attribution')) return;"
                     " const r = el.getBoundingClientRect();"
                     " if (r.width < 24 || r.height < 24) out.push((el.id || el.className || el.tagName)"
                     " + ' ' + Math.round(r.width) + 'x' + Math.round(r.height)); }); return out; }"
                 )
                 self.assertEqual(undersized, [], f"{width}x{height}")
+
+                # The exception is about pointer target size, not about keyboard access.
+                # Every credit link must still be reachable and show a focus ring, or the
+                # exemption would be hiding a real regression.
+                credits = page.evaluate(
+                    "() => [...document.querySelectorAll('.leaflet-control-attribution a[href]')]"
+                    " .map(a => ({ tabbable: a.tabIndex >= 0, href: a.getAttribute('href') || '' }))"
+                )
+                self.assertTrue(credits, "the map credit has no links to exempt")
+                for credit in credits:
+                    self.assertTrue(credit["tabbable"], f"credit link not keyboard reachable: {credit}")
+                    self.assertTrue(credit["href"].startswith("https://"), credit)
                 self.assertEqual(crashes, [])
 
     # ---- surfaces the 2026-08-18 audit listed as unexercised (VT-53) ----
