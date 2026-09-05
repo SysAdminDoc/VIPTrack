@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Security
+- DOMPurify upgraded to 3.4.14, which fixes possible sanitizer bypasses when risky tags are
+  allow-listed. It is this app's single XSS boundary. Every pinned dependency was re-reviewed and
+  its integrity hash re-verified against the live CDN.
+
 ### Fixed
 - The altitude legend renders again. A complete, styled, seven-band, six-locale legend was hidden
   by an unconditional `display: none !important` sitting inside a block named for a status dock that

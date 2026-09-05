@@ -65,8 +65,6 @@ class VipTrackContracts(unittest.TestCase):
             "cdn_dependencies.json",
             "reviewPolicyDays",
             "advisoryStatus",
-            "clear-through-3.4.13",
-            "https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js",
             "FORBID_TAGS",
             "FORBID_ATTR",
             "srcdoc",
@@ -74,6 +72,21 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source + (ROOT / "tools" / "check_cdn_dependencies.py").read_text(encoding="utf-8") + (ROOT / "tools" / "cdn_dependencies.json").read_text(encoding="utf-8"))
         self.assertNotIn("dompurify/3.2.6", self.source)
+
+        # Assert the pins agree with the inventory rather than pinning a version in
+        # the test, which failed on the very upgrade the advisory review exists to
+        # produce. The sanitizer is the app's single XSS boundary, so its advisory
+        # status must name the version actually loaded.
+        inventory = json.loads((ROOT / "tools" / "cdn_dependencies.json").read_text(encoding="utf-8"))
+        by_id = {dep["id"]: dep for dep in inventory["dependencies"]}
+        sanitizer = by_id["dompurify-js"]
+        self.assertIn(sanitizer["url"], self.source,
+                      "index.html does not load the sanitizer the inventory pins")
+        self.assertEqual(sanitizer["advisoryStatus"], f"clear-through-{sanitizer['version']}")
+        self.assertIn(sanitizer["integrity"], self.source)
+        for dep in inventory["dependencies"]:
+            self.assertIn(dep["version"], dep["url"],
+                          f"{dep['id']} url does not carry its pinned version")
 
     def test_html_sinks_use_pinned_sanitizer(self) -> None:
         self.assertIn("purify.min.js", self.source)
@@ -1385,7 +1398,11 @@ class VipTrackContracts(unittest.TestCase):
         ):
             self.assertIn(marker, self.source)
         self.assertIn("'assets/viptrack-ui.css'", worker)
-        self.assertLess(self.source.index('dompurify@3.4.13'), self.source.index('leaflet/1.9.4/leaflet.js', self.source.index('<body>')))
+        sanitizer_url = next(d["url"] for d in json.loads(
+            (ROOT / "tools" / "cdn_dependencies.json").read_text(encoding="utf-8"))["dependencies"]
+            if d["id"] == "dompurify-js")
+        self.assertLess(self.source.index(sanitizer_url),
+                        self.source.index('leaflet/1.9.4/leaflet.js', self.source.index('<body>')))
         for page in ("map", "list", "watch", "settings"):
             mockup = UI_MOCKUPS / f"viptrack-{page}.png"
             self.assertTrue(mockup.is_file(), mockup)
@@ -1422,6 +1439,14 @@ class VipTrackContracts(unittest.TestCase):
         self.assertNotIn("navigator.geolocation", worker)
 
     def test_cesium_globe_is_opt_in_lazy_loaded_and_synced(self) -> None:
+        # The frame has to load exactly the build the inventory pins, whatever that
+        # version is; restating the URL here pinned the test to one release.
+        inventory = json.loads((ROOT / "tools" / "cdn_dependencies.json").read_text(encoding="utf-8"))
+        frame_source = CESIUM_FRAME.read_text(encoding="utf-8")
+        for dep_id in ("cesium-js", "cesium-css"):
+            dep = next(d for d in inventory["dependencies"] if d["id"] == dep_id)
+            self.assertIn(dep["url"], frame_source)
+            self.assertIn(dep["integrity"], frame_source)
         frame_source = CESIUM_FRAME.read_text(encoding="utf-8")
         for marker in (
             "?3d=1",
@@ -1453,10 +1478,6 @@ class VipTrackContracts(unittest.TestCase):
         for marker in (
             "script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
             "window.CESIUM_BASE_URL",
-            "https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/Cesium.js",
-            "https://cdn.jsdelivr.net/npm/cesium@1.143/Build/Cesium/Widgets/widgets.css",
-            'integrity="sha512-mexEiWjKPe7eqeQMhzHg5B5ENdrWI0NMQwVUZu7MXhS3t8dZeKeJQxAWQfXgFtXjdVpza0Gm+wVolB02nnymKg=="',
-            'integrity="sha512-fsYfjqOKt+KyVW0YZa1aHucMVyjVuLVkCP/187bJFe+AO9vSyJnjHd3Qkt4sioYq1qrnHu81rPY3KDK8fRRykA=="',
             'crossorigin="anonymous"',
         ):
             self.assertIn(marker, frame_source)

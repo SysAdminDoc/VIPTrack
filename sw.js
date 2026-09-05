@@ -7,7 +7,7 @@ const CACHE_SCHEMA_VERSION = '4.30';
 // these are now part of the key, and tools/test_viptrack.py fails the build if the
 // fingerprint drifts from the bytes actually on disk.
 const APP_VERSION = '0.8.2';
-const STATIC_ASSET_FINGERPRINT = '65befb5b594c';
+const STATIC_ASSET_FINGERPRINT = 'd4839348b0d5';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',
@@ -24,7 +24,7 @@ const STATIC_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
     'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
-    'https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js',
+    'https://cdn.jsdelivr.net/npm/dompurify@3.4.14/dist/purify.min.js',
     'assets/silhouettes/aircraft.png',
     'data/aircraft/registrations.json',
     'workers/registration-opfs-worker.js'

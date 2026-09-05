@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-08-08",
+  "reviewedAt": "2026-09-05",
   "reviewPolicyDays": 120,
   "dependencies": [
     {
@@ -14,7 +14,7 @@
       "source": "https://github.com/Leaflet/Leaflet",
       "advisorySource": "https://github.com/Leaflet/Leaflet/security",
       "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08"
+      "reviewedAt": "2026-09-05"
     },
     {
       "id": "leaflet-js",
@@ -27,7 +27,7 @@
       "source": "https://github.com/Leaflet/Leaflet",
       "advisorySource": "https://github.com/Leaflet/Leaflet/security",
       "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08"
+      "reviewedAt": "2026-09-05"
     },
     {
       "id": "pako-js",
@@ -40,20 +40,20 @@
       "source": "https://github.com/nodeca/pako",
       "advisorySource": "https://github.com/nodeca/pako/security",
       "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08"
+      "reviewedAt": "2026-09-05"
     },
     {
       "id": "dompurify-js",
       "kind": "script",
       "name": "DOMPurify",
-      "version": "3.4.13",
-      "url": "https://cdn.jsdelivr.net/npm/dompurify@3.4.13/dist/purify.min.js",
-      "integrity": "sha512-+i8mrQ8cOtQsGMptbrNDq1NvbsE8eHze20WOt0b5LKX1xZmIC7FDAAYhUFD3eRs78C+GUYHYYoF2oiQiOBRJ+g==",
+      "version": "3.4.14",
+      "url": "https://cdn.jsdelivr.net/npm/dompurify@3.4.14/dist/purify.min.js",
+      "integrity": "sha512-+G1tsz5n01KTeX7oUT/Lm5P2B+n9RUogC98t4E8MseH9YUac2D2uPaNSbsYDOOSZr2YQ1BfeCxk8KXZXvhctEA==",
       "license": "MPL-2.0 OR Apache-2.0",
       "source": "https://github.com/cure53/DOMPurify",
-      "advisorySource": "https://nvd.nist.gov/vuln/detail/CVE-2026-65901",
-      "advisoryStatus": "clear-through-3.4.13",
-      "reviewedAt": "2026-08-08"
+      "advisorySource": "https://github.com/cure53/DOMPurify/releases/tag/3.4.14",
+      "advisoryStatus": "clear-through-3.4.14",
+      "reviewedAt": "2026-09-05"
     },
     {
       "id": "cesium-css",
@@ -65,8 +65,8 @@
       "license": "Apache-2.0",
       "source": "https://github.com/CesiumGS/cesium",
       "advisorySource": "https://github.com/CesiumGS/cesium/security",
-      "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08"
+      "advisoryStatus": "reviewed-no-known-advisories; upgrade deferred, see ROADMAP VT-90",
+      "reviewedAt": "2026-09-05"
     },
     {
       "id": "cesium-js",
@@ -78,8 +78,8 @@
       "license": "Apache-2.0",
       "source": "https://github.com/CesiumGS/cesium",
       "advisorySource": "https://github.com/CesiumGS/cesium/security",
-      "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08"
+      "advisoryStatus": "reviewed-no-known-advisories; upgrade deferred, see ROADMAP VT-90",
+      "reviewedAt": "2026-09-05"
     },
     {
       "id": "maplibre-js",
@@ -92,7 +92,7 @@
       "source": "https://github.com/maplibre/maplibre-gl-js",
       "advisorySource": "https://github.com/maplibre/maplibre-gl-js/security",
       "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08",
+      "reviewedAt": "2026-09-05",
       "sourceMarker": "MAPLIBRE_JS_URL"
     },
     {
@@ -106,7 +106,7 @@
       "source": "https://github.com/maplibre/maplibre-gl-js",
       "advisorySource": "https://github.com/maplibre/maplibre-gl-js/security",
       "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08",
+      "reviewedAt": "2026-09-05",
       "sourceMarker": "MAPLIBRE_CSS_URL"
     },
     {
@@ -119,8 +119,8 @@
       "license": "MIT",
       "source": "https://github.com/visgl/deck.gl",
       "advisorySource": "https://github.com/visgl/deck.gl/security",
-      "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-08",
+      "advisoryStatus": "reviewed-no-known-advisories; upgrade deferred, see ROADMAP VT-90",
+      "reviewedAt": "2026-09-05",
       "sourceMarker": "DECKGL_JS_URL"
     },
     {
@@ -134,7 +134,7 @@
       "source": "https://github.com/protomaps/PMTiles",
       "advisorySource": "https://github.com/protomaps/PMTiles/security",
       "advisoryStatus": "reviewed-no-known-advisories",
-      "reviewedAt": "2026-08-18",
+      "reviewedAt": "2026-09-05",
       "sourceMarker": "PMTILES_JS_URL"
     }
   ]
