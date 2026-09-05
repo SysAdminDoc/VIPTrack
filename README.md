@@ -140,13 +140,24 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 
 ### Data Sources
 
-| Source | CORS | Priority | Endpoints |
-|--------|------|----------|-----------|
-| [ADSB One](https://adsb.one) | Yes | Primary | `/v2/mil`, `/v2/pia` |
-| [ADSB.lol](https://adsb.lol) | No (proxied) | Secondary | `/v2/mil`, `/v2/pia` |
-| [Airplanes.live](https://airplanes.live) | No (proxied) | Tertiary | `/v2/mil`, `/v2/ladd` |
+| Source | Sends CORS headers | Priority | Endpoints |
+|--------|--------------------|----------|-----------|
+| [ADSB.lol](https://adsb.lol) | No | 1 | `/v2/mil`, `/v2/pia`, `/v2/ladd`, `/v2/hex/…` |
+| [ADSB.fi](https://adsb.fi) | No | 2 | `/api/v2/mil`, `/api/v2/hex/…` |
+| [ADSB One](https://adsb.one) | No | 3 | `/v2/mil`, `/v2/pia`, `/v2/ladd`, `/v2/hex/…` |
+| [Airplanes.live](https://airplanes.live) | No | 9 (disabled) | `/v2/mil`, `/v2/pia`, `/v2/ladd` — the public API now requires approved access and answers HTTP 403 |
 
-VIPTrack uses dedicated military and PIA API endpoints that return all matching aircraft globally in a single request. Sources are tried in priority order with automatic failover. Data refreshes every 6 seconds.
+**Not one of them sends `Access-Control-Allow-Origin`.** A browser cannot fetch any of these
+directly, so every request goes through a relay — on the hosted origin as much as from `file://`.
+That makes the relay the single hardest dependency in the app, not a local-development
+convenience. See [Deploy your own data relay](#deploy-your-own-data-relay); the free public relays
+are unreliable and one of them now requires an account key.
+
+Sources are tried in measured-health order with automatic failover, and data refreshes every 6
+seconds. `/mil`, `/pia` and `/ladd` return every matching aircraft globally in one request each.
+Government and police aircraft appear in none of those, so their catalogues are swept separately in
+rotating `/hex/` batches, one batch per refresh. adsb.fi publishes no `/ladd` endpoint and is not
+asked for one.
 
 Each selected aircraft shows the supplying feed, fetch time, position/message age, response latency, fallback chain, bounded quality/integrity metadata, rate budget, and source coverage limitations. Settings > Data Sources shows the same source health and budget information; “Copy source diagnostics” exports only source-level metadata and never aircraft records, registrations, operators, or tracks. Route predictions and track-shape hints remain explicitly inferred.
 
@@ -259,8 +270,8 @@ Settings > Storage provides a versioned JSON backup for supported configuration 
 Static app files (`index.html` + `cesium-frame.html`)
     |
     |-- Data Layer
-    |     |-- ADSB One / ADSB.lol / Airplanes.live (mil + pia endpoints)
-    |     |-- CORS proxy failover for file:// protocol
+    |     |-- ADSB.lol / ADSB.fi / ADSB One (mil + pia + ladd + hex batches)
+    |     |-- CORS relay (required for every request, not just file://)
     |     |-- 6-second refresh cycle with source failover
     |
     |-- Intelligence Layer

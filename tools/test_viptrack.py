@@ -602,6 +602,32 @@ class VipTrackContracts(unittest.TestCase):
             missing = sorted(legend_keys - set(messages))
             self.assertEqual(missing, [], f"{catalog.name} is missing {missing}")
 
+    def test_readme_data_source_table_matches_the_code(self) -> None:
+        # The table claimed ADSB One sent CORS headers, omitted adsb.fi entirely, and
+        # listed an endpoint the code did not poll. This repo's failure mode is green
+        # checks over a dead data plane, so a README that misdescribes the data plane
+        # is a hazard rather than a cosmetic problem.
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        table_start = readme.index("### Data Sources")
+        table = readme[table_start:readme.index("## Settings", table_start)]
+
+        sources = re.search(r"sources: \[(.*?)\n        \],", self.source, re.S)
+        self.assertIsNotNone(sources, "could not find the source list in index.html")
+        block = sources.group(1)
+        names = re.findall(r"name: '([^']+)'", block)
+        self.assertGreaterEqual(len(names), 4)
+        for name in names:
+            self.assertIn(name, table, f"{name} is missing from the README data-source table")
+
+        # Every source is relayed. A "Yes" in the CORS column would be a lie.
+        self.assertEqual(block.count("cors: false"), len(names),
+                         "a source claims to send CORS headers")
+        self.assertNotIn("| Yes |", table, "the table claims a source sends CORS headers")
+
+        # And the relay must be described as the live-data path, not a file:// aid.
+        self.assertNotIn("CORS proxy failover for file:// protocol", readme)
+        self.assertIn("Deploy your own data relay", readme)
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",
