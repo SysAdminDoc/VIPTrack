@@ -3377,16 +3377,32 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (!raw) { this.clear(); return true; }
             const validated = this._validate(raw);
             if (!validated) { this.render('Relay rejected: a public HTTPS URL is required'); return false; }
+            const changed = validated.href !== this.customUrl;
             this.customUrl = validated.href;
             try { localStorage.setItem(this.STORAGE_KEY, this.customUrl); } catch (e) {}
+            // Health is keyed by slot, not by URL, so a different endpoint in the same
+            // slot would otherwise inherit the previous one's retirement and never be
+            // tried at all.
+            if (changed) this._forgetHealth();
             this.render();
             return true;
         },
 
         clear() {
+            const had = Boolean(this.customUrl);
             this.customUrl = '';
             try { localStorage.removeItem(this.STORAGE_KEY); } catch (e) {}
+            if (had) this._forgetHealth();
             this.render();
+        },
+
+        // Drop every verdict recorded against the custom slot, so a stale one cannot
+        // sideline a new relay or be reported against an unrelated host.
+        _forgetHealth() {
+            if (typeof relayHealth === 'undefined') return;
+            delete relayHealth.relays.custom;
+            if (relayHealth.activeId === 'custom') relayHealth.activeId = '';
+            if (lastSuccessfulProxy === 'custom') lastSuccessfulProxy = '';
         },
 
         _buildCustom(target) {
@@ -3404,7 +3420,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
 
         hostOf(id) {
             const relays = this.list();
-            const relay = relays.find(entry => entry.id === id) || relays[0];
+            // Only an unset id falls back to the head of the list. A named id that is
+            // no longer configured must not borrow another relay's host, or the health
+            // control reports a refusal against a relay that never refused.
+            const relay = id ? relays.find(entry => entry.id === id) : relays[0];
+            if (!relay) return String(id);
             try { return new URL(relay.build('https://example.org/')).host; }
             catch (e) { return String(id || 'relay'); }
         },
@@ -3444,9 +3464,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (status === 401 || status === 403) {
                 relay.authFailures += 1;
                 if (relay.authFailures >= this.AUTH_FAILURE_LIMIT) relay.disabled = true;
-            } else if (Number.isFinite(status) && status < 400) {
+            } else {
+                // Anything that is not an auth refusal breaks the streak: a timeout,
+                // a 429 or a 500 says the relay is having a bad minute, not that it
+                // has withdrawn. Only a success clears an existing retirement.
                 relay.authFailures = 0;
-                relay.disabled = false;
+                if (Number.isFinite(status) && status < 400) relay.disabled = false;
             }
         },
 
@@ -3472,7 +3495,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
         recordFailure(status) {
             this.lastErrorAt = Date.now();
-            if (status === 403 && this.disabledRelays().length && !relayRegistry.list().some(relay => !this.isRelayDisabled(relay.id))) {
+            if ((status === 401 || status === 403) && this.disabledRelays().length && !relayRegistry.list().some(relay => !this.isRelayDisabled(relay.id))) {
                 this.lastError = 'every relay refused this deployment (HTTP 401/403)';
                 return;
             }

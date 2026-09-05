@@ -500,6 +500,77 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_repointing_the_custom_relay_clears_the_old_relay_verdict(self) -> None:
+        # Both stand-in relay hosts must already be in the page's connect-src, or the
+        # browser refuses the request before it leaves and the relay records a network
+        # error rather than the 401 this test depends on.
+        # Health is keyed by slot id, not by URL. Without an explicit reset a user who
+        # replaces a relay that earned three 401s gets a brand-new, never-tried relay
+        # that is silently excluded for the rest of the session.
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        host = self.base_url.split("//", 1)[1]
+        tried: list[str] = []
+
+        def handler(route):
+            url = route.request.url
+            if host in url or url.startswith("file://"):
+                route.fallback()
+                return
+            if "tfr2go.com" in url:
+                tried.append("dead")
+                route.fulfill(status=401, content_type="application/json",
+                              headers={"Access-Control-Allow-Origin": "*"},
+                              body='{"error":"A valid API key is required"}')
+                return
+            if "davidmegginson.github.io" in url:
+                tried.append("fresh")
+                _json_route(route, MIL_FIXTURE)
+                return
+            route.fallback()
+
+        self._route_external(page)
+        page.route("**/*", handler)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            retire = """async () => {
+                relayRegistry.setUrl('https://tfr2go.com/');
+                for (let i = 0; i < 4; i++) { lastSuccessfulProxy = '';
+                    await fetchWithProxy('https://api.adsb.lol/v2/mil', {}, { skipDirect: true }); }
+                return relayHealth.isRelayDisabled('custom');
+            }"""
+            self.assertTrue(page.evaluate(retire),
+                            "the refusing custom relay was never retired, so nothing is being tested")
+            self.assertIn("dead", tried)
+
+            tried.clear()
+            swapped = page.evaluate(
+                """async () => {
+                    relayRegistry.setUrl('https://davidmegginson.github.io/');
+                    const disabled = relayHealth.isRelayDisabled('custom');
+                    lastSuccessfulProxy = '';
+                    const response = await fetchWithProxy(
+                        'https://api.adsb.lol/v2/mil', {}, { skipDirect: true });
+                    return { disabled, ok: Boolean(response && response.ok) };
+                }"""
+            )
+            self.assertFalse(swapped["disabled"],
+                             "a newly configured relay inherited the previous one's retirement")
+            self.assertIn("fresh", tried, "the replacement relay was never attempted")
+            self.assertTrue(swapped["ok"], "the replacement relay did not carry the request")
+
+            # Clearing the slot must not leave a verdict that names an unrelated relay.
+            described = page.evaluate(
+                "() => { relayRegistry.clear(); return relayHealth.describe(); }")
+            self.assertNotIn("allorigins.win refused", described)
+            self.assertNotIn("corsproxy.io refused", described)
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

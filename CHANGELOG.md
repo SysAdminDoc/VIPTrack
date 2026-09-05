@@ -14,6 +14,9 @@
   nor silhouettes.
 
 ### Added
+- Replacing or clearing the configured relay now forgets the previous endpoint's health verdict, so
+  a new relay in the same slot is not silently excluded by the retirement the old one earned.
+
 - **Deployable CORS relay.** `workers/cors-relay.js` is a Cloudflare Worker that relays only the
   hosts VIPTrack already declares in its own `connect-src`, accepts GET and HEAD only, and refuses
   private addresses. Settings > Data Relay stores its URL in the browser and tries it before the
