@@ -1462,6 +1462,64 @@ class VipTrackRuntime(unittest.TestCase):
             page.evaluate("() => relayRegistry.clear()")
             self.assertEqual(crashes, [])
 
+    def test_mgrs_matches_published_reference_coordinates(self) -> None:
+        # The section banner promised MGRS and the code carried a comment saying it had
+        # been skipped. Grid references are how a lot of open-source reporting cites a
+        # position, so the check is against published values, not against itself.
+        with self._page() as (page, crashes):
+            results = page.evaluate(
+                """() => ({
+                    origin: coords.toMGRS(0, 0),
+                    london: coords.toMGRS(51.5074, -0.1278),
+                    sydney: coords.toMGRS(-33.8688, 151.2093),
+                    norway: coords.toMGRS(60.0, 5.0),
+                    svalbard: coords.toMGRS(78.0, 15.0),
+                    polar: coords.toMGRS(88, 10),
+                    invalid: coords.toMGRS(NaN, 0),
+                    coarse: coords.toMGRS(51.5074, -0.1278, 3)
+                })"""
+            )
+
+            # Exact, and widely published: the origin of zone 31N.
+            self.assertEqual(results["origin"], "31N AA 66021 00000")
+
+            # London's UTM easting/northing are published as 699316 / 5710163, which is
+            # what the 100km square XC plus these digits encode.
+            self.assertEqual(results["london"], "30U XC 99316 10163")
+
+            # Southern hemisphere applies the 10,000km northing offset.
+            self.assertTrue(results["sydney"].startswith("56H "), results["sydney"])
+
+            # The two standard zone irregularities.
+            self.assertTrue(results["norway"].startswith("32V "),
+                            f"south-west Norway must fall in zone 32: {results['norway']}")
+            self.assertTrue(results["svalbard"].startswith("33X "),
+                            f"Svalbard must fall in zone 33: {results['svalbard']}")
+
+            # MGRS does not cover the poles - UPS does - so those must return nothing
+            # rather than a confidently wrong grid reference.
+            self.assertEqual(results["polar"], "")
+            self.assertEqual(results["invalid"], "")
+
+            # Lower precision truncates rather than inventing digits.
+            self.assertEqual(results["coarse"], "30U XC 993 101")
+
+            # And it reaches the OSINT report, which is the surface that needs it.
+            report = page.evaluate(
+                """() => {
+                    const hex = Object.keys(aircraftCache)[0];
+                    if (!hex) return null;
+                    const ac = aircraftCache[hex];
+                    ac.lat = 51.5074; ac.lon = -0.1278;
+                    selectedHex = hex;
+                    return typeof buildOsintReport === 'function'
+                        ? buildOsintReport(ac)
+                        : { mgrs: coords.toMGRS(ac.lat, ac.lon) };
+                }"""
+            )
+            self.assertIsNotNone(report)
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

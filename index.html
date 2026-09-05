@@ -16777,7 +16777,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
     setTimeout(() => planeAlertSync.run(false), 15000);
     _setPausableInterval(() => planeAlertSync.run(false), 6 * 3600 * 1000, 'plane-alert-sync');
 
-    // ============ NEW: MGRS / Maidenhead coord helpers (OSINT) ============
+    // ============ MGRS / Maidenhead / DMS coord helpers (OSINT) ============
     const coords = {
         // Maidenhead (ham radio grid) — useful for OSINT correlation with photos/notes.
         toMaidenhead(lat, lon) {
@@ -16791,7 +16791,76 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             const subLat = String.fromCharCode(A + Math.floor(((lat % 10) - sqLat) * 24));
             return fieldLon + fieldLat + sqLon + sqLat + subLon.toLowerCase() + subLat.toLowerCase();
         },
-        // DMS string (no MGRS — full MGRS is ~150 LOC and not worth it without proj4)
+        // MGRS, via UTM on the WGS84 ellipsoid. The banner promised this and the code
+        // did not have it. Grid references are how a lot of open-source reporting cites
+        // a position, so a tracker aimed at that audience should be able to emit one.
+        _utm(lat, lon) {
+            const a = 6378137.0, f = 1 / 298.257223563;
+            const e2 = f * (2 - f);
+            const ep2 = e2 / (1 - e2);
+            const k0 = 0.9996;
+
+            let zone = Math.floor((lon + 180) / 6) + 1;
+            // The two standard irregularities: south-west Norway, and Svalbard.
+            if (lat >= 56 && lat < 64 && lon >= 3 && lon < 12) zone = 32;
+            if (lat >= 72 && lat < 84) {
+                if (lon >= 0 && lon < 9) zone = 31;
+                else if (lon >= 9 && lon < 21) zone = 33;
+                else if (lon >= 21 && lon < 33) zone = 35;
+                else if (lon >= 33 && lon < 42) zone = 37;
+            }
+
+            const rad = Math.PI / 180;
+            const phi = lat * rad;
+            const lambda = lon * rad;
+            const lambda0 = ((zone - 1) * 6 - 180 + 3) * rad;
+
+            const N = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2);
+            const T = Math.tan(phi) ** 2;
+            const C = ep2 * Math.cos(phi) ** 2;
+            const A2 = Math.cos(phi) * (lambda - lambda0);
+
+            const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * phi
+                - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * phi)
+                + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * phi)
+                - (35 * e2 ** 3 / 3072) * Math.sin(6 * phi));
+
+            const easting = k0 * N * (A2 + (1 - T + C) * A2 ** 3 / 6
+                + (5 - 18 * T + T ** 2 + 72 * C - 58 * ep2) * A2 ** 5 / 120) + 500000;
+            let northing = k0 * (M + N * Math.tan(phi) * (A2 ** 2 / 2
+                + (5 - T + 9 * C + 4 * C ** 2) * A2 ** 4 / 24
+                + (61 - 58 * T + T ** 2 + 600 * C - 330 * ep2) * A2 ** 6 / 720));
+            if (lat < 0) northing += 10000000;
+            return { zone, easting, northing };
+        },
+
+        // 8-degree latitude bands from 80S. I and O are omitted throughout MGRS.
+        _band(lat) {
+            if (lat < -80 || lat > 84) return '';
+            if (lat > 72) return 'X';                       // X spans 12 degrees
+            return 'CDEFGHJKLMNPQRSTUVW'[Math.floor((lat + 80) / 8)];
+        },
+
+        toMGRS(lat, lon, digits = 5) {
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+            const band = this._band(lat);
+            if (!band) return '';                            // polar regions use UPS
+            const { zone, easting, northing } = this._utm(lat, lon);
+
+            const columns = ['ABCDEFGH', 'JKLMNPQR', 'STUVWXYZ'][(zone - 1) % 3];
+            const column = columns[Math.floor(easting / 100000) - 1];
+            const rows = 'ABCDEFGHJKLMNPQRSTUV';
+            const rowOffset = zone % 2 === 0 ? 5 : 0;
+            const row = rows[(Math.floor(northing / 100000) + rowOffset) % 20];
+            if (!column || !row) return '';
+
+            const precision = Math.min(5, Math.max(1, digits));
+            const scale = 10 ** (5 - precision);
+            const pad = value => String(Math.floor((value % 100000) / scale)).padStart(precision, '0');
+            return zone + band + ' ' + column + row + ' ' + pad(easting) + ' ' + pad(northing);
+        },
+
+        // DMS string
         toDMS(lat, lon) {
             const f = (v, hemiPos, hemiNeg) => {
                 const sign = v >= 0 ? hemiPos : hemiNeg;
@@ -16851,6 +16920,8 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
             lines.push('Position: ' + ac.lat.toFixed(4) + ', ' + ac.lon.toFixed(4));
             lines.push('  DMS: ' + coords.toDMS(ac.lat, ac.lon));
             lines.push('  Grid: ' + coords.toMaidenhead(ac.lat, ac.lon));
+            const mgrs = coords.toMGRS(ac.lat, ac.lon);
+            if (mgrs) lines.push('  MGRS: ' + mgrs);
             const sun = sunPosition.compute(ac.lat, ac.lon, new Date());
             lines.push('  Sun: alt ' + sun.altDeg.toFixed(1) + '°, az ' + sun.azDeg.toFixed(1) + '° (' + (sun.altDeg > 0 ? 'above horizon' : 'below horizon') + ')');
         }

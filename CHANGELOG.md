@@ -97,6 +97,10 @@
   nor silhouettes.
 
 ### Added
+- MGRS grid references. The coordinate section's banner had promised them since it was written
+  while the code carried a comment saying they had been skipped, so the file advertised a
+  capability it did not have. A selected aircraft's MGRS reference now appears in the OSINT report
+  alongside its DMS and Maidenhead forms.
 - **LADD is a first-class category.** FAA Limiting Aircraft Data Displayed sits alongside Military,
   Gov and VIP with its own filter, counter and mobile chip, populated from `/v2/ladd` on the sources
   that publish it and from the feed's `dbFlags` bit. adsb.fi answers 400 for that path, so it is not
