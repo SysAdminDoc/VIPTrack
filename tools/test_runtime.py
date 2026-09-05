@@ -1406,6 +1406,72 @@ class VipTrackRuntime(unittest.TestCase):
                 " del.onsuccess = del.onerror = del.onblocked = () => resolve(); })")
             page.close()
 
+    def test_a_share_link_reproduces_the_whole_filter_state(self) -> None:
+        # A link carried the map position and the category filter but none of the
+        # search filters, so handing someone a link did not hand them the view - which
+        # is the reproducible-query requirement an OSINT workflow is built on.
+        with self._page() as (page, crashes):
+            built = page.evaluate(
+                """() => {
+                    searchSystem.filters = {
+                        altMin: 15000, altMax: 41000,
+                        speedMin: 200, speedMax: 550,
+                        airport: 'EGLL', airline: 'RCH',
+                        regex: '^RCH', types: ['military'],
+                        emergency: true, adsbOnly: true
+                    };
+                    settings.filter = 'military';
+                    return { url: shareManager.buildViewUrl(),
+                             filters: JSON.parse(JSON.stringify(searchSystem.filters)) };
+                }"""
+            )
+            url = built["url"]
+            for expected in ("altMin=15000", "altMax=41000", "speedMin=200", "speedMax=550",
+                             "airport=EGLL", "airline=RCH", "regex=%5ERCH", "types=military",
+                             "emergency=1", "adsbOnly=1", "filter=military"):
+                self.assertIn(expected, url, f"{expected} is missing from the share link")
+
+            # A share link must still never name a privacy-protected aircraft.
+            self.assertNotIn("hex=", url.split("?", 1)[1].replace("filter=", ""))
+
+            page.goto(url, wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            restored = page.evaluate(
+                """() => ({
+                    filters: JSON.parse(JSON.stringify(searchSystem.filters || {})),
+                    category: settings.filter,
+                    inputs: {
+                        altMin: document.getElementById('altMin')?.value,
+                        airport: document.getElementById('filterAirport')?.value,
+                        adsbOnly: document.getElementById('filterAdsbOnly')?.checked
+                    }
+                })"""
+            )
+            self.assertEqual(restored["category"], "military")
+            for key, value in built["filters"].items():
+                self.assertEqual(restored["filters"].get(key), value,
+                                 f"{key} did not survive the round trip")
+
+            # The controls must agree with what is being filtered, or the panel lies.
+            self.assertEqual(restored["inputs"]["altMin"], "15000")
+            self.assertEqual(restored["inputs"]["airport"], "EGLL")
+            self.assertTrue(restored["inputs"]["adsbOnly"])
+
+            # And the same filters must select the same aircraft, which is the point.
+            same = page.evaluate(
+                """() => {
+                    const passing = Object.values(aircraftCache)
+                        .filter(ac => searchSystem.passesFilters(ac)).length;
+                    searchSystem.filters = {};
+                    const unfiltered = Object.values(aircraftCache).length;
+                    return { passing, unfiltered };
+                }"""
+            )
+            self.assertLessEqual(same["passing"], same["unfiltered"],
+                                 "the restored filters selected more than the whole cache")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

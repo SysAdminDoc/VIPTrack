@@ -97,6 +97,12 @@
   nor silhouettes.
 
 ### Added
+- Share links carry the whole filter state. A link reproduced the map position and the category
+  filter but none of the search filters, so handing someone a link did not hand them the view -
+  which is the reproducible-query requirement OSINT work depends on. Altitude and speed bands,
+  airport, airline, regex, type categories, the ADS-B-only filter, capture mode and the renderer
+  now round-trip, and the controls are restored to match rather than disagreeing with what is
+  actually being filtered.
 - Capture mode. `?freeze=1` (or the on-screen control) holds aircraft positions at a stated UTC
   time and shows that time on the frame, while pan, zoom and selection stay live - so a screenshot
   cites something that did not move while it was being taken.

@@ -11960,6 +11960,82 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             toast('Showing ' + name + ' flights');
         },
         
+        // The filters that survive a share. Deliberately an allowlist: adding a filter
+        // to this map is the decision to make it shareable, and anything naming an
+        // aircraft must never be on it.
+        URL_FILTERS: {
+            altMin: 'altMin', altMax: 'altMax', speedMin: 'speedMin', speedMax: 'speedMax',
+            airport: 'airport', airline: 'airline', regex: 'regex', types: 'types',
+            emergency: 'emergency', interesting: 'interesting', grounded: 'grounded',
+            noCallsign: 'noCallsign', adsbOnly: 'adsbOnly'
+        },
+
+        writeUrlState(params) {
+            const filters = this.filters || {};
+            for (const [key, name] of Object.entries(this.URL_FILTERS)) {
+                const value = filters[key];
+                if (value === undefined || value === null || value === '') continue;
+                if (Array.isArray(value)) { if (value.length) params.set(name, value.join(',')); }
+                else if (value === true) params.set(name, '1');
+                else params.set(name, String(value));
+            }
+        },
+
+        readUrlState(params) {
+            const filters = {};
+            const number = name => {
+                const raw = params.get(name);
+                if (raw === null) return undefined;
+                const value = Number(raw);
+                return Number.isFinite(value) ? value : undefined;
+            };
+            for (const name of ['altMin', 'altMax', 'speedMin', 'speedMax']) {
+                const value = number(name);
+                if (value !== undefined) filters[name] = value;
+            }
+            for (const name of ['airport', 'airline']) {
+                const raw = (params.get(name) || '').trim().slice(0, 64);
+                if (raw) filters[name] = name === 'airport' ? raw.toUpperCase() : raw;
+            }
+            const regex = (params.get('regex') || '').trim().slice(0, 120);
+            if (regex) filters.regex = regex;
+            const types = (params.get('types') || '').split(',').map(v => v.trim()).filter(Boolean).slice(0, 12);
+            if (types.length) filters.types = types;
+            for (const name of ['emergency', 'interesting', 'grounded', 'noCallsign', 'adsbOnly']) {
+                if (params.get(name) === '1') filters[name] = true;
+            }
+            if (!Object.keys(filters).length) return false;
+            this.filters = filters;
+            this.syncFilterInputs();
+            return true;
+        },
+
+        // Put the restored state back on the controls, or the panel would disagree with
+        // what is actually being filtered.
+        syncFilterInputs() {
+            const filters = this.filters || {};
+            const set = (id, value) => {
+                const element = document.getElementById(id);
+                if (element) element.value = value === undefined ? '' : String(value);
+            };
+            set('altMin', filters.altMin); set('altMax', filters.altMax);
+            set('speedMin', filters.speedMin); set('speedMax', filters.speedMax);
+            set('filterAirport', filters.airport); set('filterAirline', filters.airline);
+            set('filterRegex', filters.regex);
+            const check = (id, on) => {
+                const element = document.getElementById(id);
+                if (element) element.checked = Boolean(on);
+            };
+            check('filterEmergency', filters.emergency);
+            check('filterInteresting', filters.interesting);
+            check('filterGrounded', filters.grounded);
+            check('filterNoCallsign', filters.noCallsign);
+            check('filterAdsbOnly', filters.adsbOnly);
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.classList.toggle('active', (filters.types || []).includes(chip.dataset.type));
+            });
+        },
+
         applyFilters() {
             this.filters = {};
             
@@ -12286,6 +12362,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             // The coverage view is part of what a shared finding means, but it carries
             // no identities: only the mode and the window travel in the link.
             coverageView.writeUrlState(params);
+            // A link that reproduces the map but not the filters does not reproduce the
+            // finding. These are the search filters an analyst actually narrows with;
+            // none of them names an aircraft, so none of them can leak an identity.
+            searchSystem.writeUrlState(params);
+            if (captureMode.frozen) params.set('freeze', '1');
+            if (webglMapManager?.requested) params.set('renderer', 'webgl');
             const base = IS_VIPTRACK_ANDROID_APP
                 ? VIPTRACK_PUBLIC_START_URL
                 : window.location.origin + window.location.pathname;
@@ -12484,6 +12566,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 updateMarkers();
             }
             if (typeof emergencyHistoryManager !== 'undefined') emergencyHistoryManager.applyUrlMode(emergency);
+            if (searchSystem.readUrlState(params)) updateMarkers();
             
             if (hex) {
                 let attempts = 0;
@@ -12537,6 +12620,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     syncFilterButtonAria();
                 }
                 if (typeof emergencyHistoryManager !== 'undefined') emergencyHistoryManager.applyUrlMode(emergency);
+                if (searchSystem.readUrlState(params)) updateMarkers();
                 
                 // Apply selection
                 if (hex && hex !== selectedHex) {
