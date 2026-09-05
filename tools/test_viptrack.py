@@ -701,6 +701,44 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("_pauseAllIntervals", self.source)
         self.assertIn("_resumeAllIntervals", self.source)
 
+    def test_indexeddb_stores_are_pinned_to_the_declared_version(self) -> None:
+        # The store-creation guards only run inside onupgradeneeded, which only fires
+        # when the version increases. Adding a store without bumping dbVersion is
+        # silent: existing users never get it, and every transaction against it throws
+        # NotFoundError. dbVersion has never moved off 1, so nothing has forced the
+        # question yet.
+        version = re.search(r"dbVersion:\s*(\d+)", self.source)
+        self.assertIsNotNone(version, "skytrackDB declares no dbVersion")
+        declared = int(version.group(1))
+        self.assertGreaterEqual(declared, 1)
+
+        stores = sorted(set(re.findall(r"createObjectStore\('([^']+)'", self.source)))
+        self.assertTrue(stores, "no object stores found")
+
+        # The pinned pair. Changing the store set without moving the version fails
+        # here, which is the whole point: the failure message says what to do.
+        EXPECTED_STORES = ["aircraftCache", "databases", "trailHistory", "userData"]
+        EXPECTED_VERSION = 1
+        self.assertEqual(
+            stores, EXPECTED_STORES,
+            f"the object-store set changed to {stores}. Bump skytrackDB.dbVersion above "
+            f"{declared} so onupgradeneeded runs for existing users, then update "
+            "EXPECTED_STORES and EXPECTED_VERSION in this test together.",
+        )
+        self.assertEqual(
+            declared, EXPECTED_VERSION,
+            f"skytrackDB.dbVersion moved to {declared}. Confirm every store in "
+            f"{stores} is created under the new version, then update EXPECTED_VERSION.",
+        )
+
+        # Every store the code opens a transaction against must be one it creates,
+        # or that transaction throws NotFoundError on a database that predates it.
+        opened = set(re.findall(r"transaction\(\['([^']+)'\]", self.source))
+        opened |= set(re.findall(r"objectStore\('([^']+)'\)", self.source))
+        for name in sorted(opened):
+            self.assertIn(name, stores,
+                          f"a transaction opens '{name}', which no upgrade path creates")
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",

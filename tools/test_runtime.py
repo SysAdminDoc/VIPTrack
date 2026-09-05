@@ -1294,6 +1294,106 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_an_older_database_upgrades_to_every_store(self) -> None:
+        # The store guards live inside onupgradeneeded, which only fires when the
+        # version increases. A user carrying an older database must come out of the
+        # upgrade with every store the code opens transactions against, or those
+        # transactions throw NotFoundError forever.
+        with self._page() as (page, crashes):
+            result = page.evaluate(
+                """async () => {
+                    const NAME = 'VIPTrackUpgradeProbe';
+                    // objectStoreNames is a DOMStringList, which is not iterable.
+                    const names = database => {
+                        const out = [];
+                        for (let i = 0; i < database.objectStoreNames.length; i++) {
+                            out.push(database.objectStoreNames[i]);
+                        }
+                        return out.sort();
+                    };
+                    const open = (version, upgrade) => new Promise((resolve, reject) => {
+                        const request = indexedDB.open(NAME, version);
+                        if (upgrade) request.onupgradeneeded = event => upgrade(event.target.result);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
+                    await new Promise(resolve => {
+                        const del = indexedDB.deleteDatabase(NAME);
+                        del.onsuccess = del.onerror = del.onblocked = () => resolve();
+                    });
+
+                    // A database from before trailHistory existed.
+                    let db = await open(1, database => {
+                        database.createObjectStore('databases', { keyPath: 'name' });
+                        database.createObjectStore('userData', { keyPath: 'key' });
+                    });
+                    const before = names(db);
+                    db.close();
+
+                    // Upgrade using the app's own guard shape.
+                    db = await open(2, database => {
+                        if (!database.objectStoreNames.contains('databases')) {
+                            database.createObjectStore('databases', { keyPath: 'name' });
+                        }
+                        if (!database.objectStoreNames.contains('aircraftCache')) {
+                            database.createObjectStore('aircraftCache', { keyPath: 'hex' });
+                        }
+                        if (!database.objectStoreNames.contains('userData')) {
+                            database.createObjectStore('userData', { keyPath: 'key' });
+                        }
+                        if (!database.objectStoreNames.contains('trailHistory')) {
+                            const store = database.createObjectStore('trailHistory',
+                                { keyPath: 'id', autoIncrement: true });
+                            store.createIndex('timestamp', 'timestamp');
+                        }
+                    });
+                    const after = names(db);
+
+                    // And a transaction against the newly added store must work.
+                    let usable = false;
+                    try {
+                        const tx = db.transaction(['trailHistory'], 'readwrite');
+                        tx.objectStore('trailHistory').add({ timestamp: Date.now(), lat: 0, lon: 0 });
+                        await new Promise((resolve, reject) => {
+                            tx.oncomplete = resolve;
+                            tx.onerror = () => reject(tx.error);
+                        });
+                        usable = true;
+                    } catch (error) {
+                        usable = false;
+                    }
+                    db.close();
+                    await new Promise(resolve => {
+                        const del = indexedDB.deleteDatabase(NAME);
+                        del.onsuccess = del.onerror = del.onblocked = () => resolve();
+                    });
+                    return { before: before.sort(), after, usable };
+                }"""
+            )
+            self.assertEqual(result["before"], ["databases", "userData"],
+                             "the older-database fixture was not set up as expected")
+            self.assertEqual(result["after"],
+                             ["aircraftCache", "databases", "trailHistory", "userData"],
+                             "the upgrade did not create every store")
+            self.assertTrue(result["usable"],
+                            "a transaction against the newly created store failed")
+
+            # The shipped database must itself carry every store the code opens.
+            live = page.evaluate(
+                """async () => {
+                    // init() resolves true and stores the handle on the manager.
+                    await skytrackDB.init();
+                    const db = skytrackDB.db;
+                    if (!db) return null;
+                    const out = [];
+                    for (let i = 0; i < db.objectStoreNames.length; i++) out.push(db.objectStoreNames[i]);
+                    return out.sort();
+                }""")
+            if live is not None:
+                for name in ("databases", "userData", "trailHistory"):
+                    self.assertIn(name, live, f"the live database is missing {name}")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.
