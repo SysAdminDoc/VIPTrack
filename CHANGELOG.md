@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Fixed
+- Shipping a new build no longer leaves returning users on the old one. `index.html` is served
+  cache-first with no revalidation and the service-worker cache key hashed only the asset *list*,
+  so a content change did not move it and nothing forced a refresh. The key now carries the app
+  version and a fingerprint of the precached bytes, and the contract suite fails the build if that
+  fingerprint drifts from what is on disk, naming the value to set.
 - The feed's position-source field is no longer rendered as an aircraft type. In the
   tar1090/adsb.lol schema `type` is the position source (`adsb_icao`, `mlat`, `tisb`, `adsr`,
   `mode_s`) and `t` is the ICAO type designator; three surfaces read `ac.t || ac.type`, so an

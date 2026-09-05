@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import re
 import shutil
@@ -882,6 +883,32 @@ class VipTrackContracts(unittest.TestCase):
         self.assertIn("versionName '0.8.2'", build_gradle)
         self.assertIn("versionCode 13", build_gradle)
 
+        # The service worker serves index.html cache-first with no revalidation, so a
+        # cache key that does not move means returning users stay on the old build.
+        # The key carries the app version and a fingerprint of the precached bytes.
+        service_worker = SERVICE_WORKER.read_text(encoding="utf-8")
+        self.assertIn("const APP_VERSION = '0.8.2';", service_worker)
+        self.assertIn("appVersion: APP_VERSION", service_worker)
+        self.assertIn("assetFingerprint: STATIC_ASSET_FINGERPRINT", service_worker)
+
+        listed = re.search(r"const STATIC_ASSETS = \[(.*?)\];", service_worker, re.S)
+        self.assertIsNotNone(listed)
+        assets = [a for a in re.findall(r"'([^']+)'", listed.group(1))
+                  if not a.startswith("http") and a != "sw.js"]
+        self.assertTrue(assets)
+        digest = hashlib.sha256()
+        for asset in assets:
+            digest.update(asset.encode("utf-8"))
+            digest.update((ROOT / asset).read_bytes())
+        expected = digest.hexdigest()[:12]
+        recorded = re.search(r"const STATIC_ASSET_FINGERPRINT = '([0-9a-f]+)';", service_worker)
+        self.assertIsNotNone(recorded, "sw.js carries no STATIC_ASSET_FINGERPRINT")
+        self.assertEqual(
+            recorded.group(1), expected,
+            "a precached asset changed without the service-worker cache key moving. "
+            f"Set STATIC_ASSET_FINGERPRINT = '{expected}' in sw.js.",
+        )
+
     def test_type_photo_catalog_and_resumable_workflow_are_wired(self) -> None:
         downloader = TYPE_PHOTO_DOWNLOADER.read_text(encoding="utf-8")
         workflow = TYPE_PHOTO_WORKFLOW.read_text(encoding="utf-8")
@@ -1240,9 +1267,7 @@ class VipTrackContracts(unittest.TestCase):
     def test_service_worker_hashes_manifest_expires_api_cache_and_evictions_lru_tiles(self) -> None:
         worker = SERVICE_WORKER.read_text(encoding="utf-8")
         for marker in (
-            "const CACHE_SCHEMA_VERSION = '4.29'",
             "const MANIFEST_HASH = fnv1a(JSON.stringify",
-            "const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH",
             "const API_CACHE_TTL_MS = 60000",
             "X-VIPTrack-Cached-At",
             "const TILE_CACHE_LIMIT = 1000",
@@ -1265,7 +1290,22 @@ class VipTrackContracts(unittest.TestCase):
         # when the same URL happens to be requested again.
         activate = worker[worker.index("self.addEventListener('activate'"):worker.index("self.addEventListener('periodicsync'")]
         self.assertIn("evictApiEntries", activate)
-        self.assertIn("const SW_CACHE_SCHEMA = '4.29'", self.source)
+        # Assert the contract - the shell and the worker agree on the schema version -
+        # rather than a literal value, which pinned the constant the version exists to
+        # let move and failed the moment it was bumped.
+        # The cache name has to be derived from the prefix, the app version and the
+        # manifest hash. Pinning its exact expression blocked adding the app version,
+        # which is the whole point of the key moving between releases.
+        cache_name = re.search(r"const CACHE_NAME = (.+);", worker)
+        self.assertIsNotNone(cache_name)
+        for part in ("CACHE_PREFIX", "APP_VERSION", "MANIFEST_HASH"):
+            self.assertIn(part, cache_name.group(1))
+        worker_schema = re.search(r"const CACHE_SCHEMA_VERSION = '([0-9.]+)';", worker)
+        shell_schema = re.search(r"const SW_CACHE_SCHEMA = '([0-9.]+)'", self.source)
+        self.assertIsNotNone(worker_schema)
+        self.assertIsNotNone(shell_schema)
+        self.assertEqual(worker_schema.group(1), shell_schema.group(1),
+                         "index.html and sw.js disagree on the cache schema version")
         self.assertIn("new URL('sw.js', document.baseURI)", self.source)
         self.assertIn("updateViaCache: 'none'", self.source)
         self.assertIn("location.protocol !== 'file:'", self.source)

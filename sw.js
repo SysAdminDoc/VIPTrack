@@ -1,6 +1,13 @@
 'use strict';
 
-const CACHE_SCHEMA_VERSION = '4.29';
+const CACHE_SCHEMA_VERSION = '4.30';
+// The cache key used to hash only the asset *list*, so shipping a new index.html
+// left every returning user on the old build indefinitely: index.html is served
+// cache-first with no revalidation, and nothing forced the key to move. Both of
+// these are now part of the key, and tools/test_viptrack.py fails the build if the
+// fingerprint drifts from the bytes actually on disk.
+const APP_VERSION = '0.8.2';
+const STATIC_ASSET_FINGERPRINT = '6f319c7219ba';
 const PERIODIC_SYNC_TAG = 'viptrack-watchlist-refresh';
 const STATIC_ASSETS = [
     'index.html',
@@ -51,8 +58,8 @@ function fnv1a(value) {
     return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-const MANIFEST_HASH = fnv1a(JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, staticAssets: STATIC_ASSETS, periodicAssets: PERIODIC_REFRESH_ASSETS }));
-const CACHE_NAME = CACHE_PREFIX + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH;
+const MANIFEST_HASH = fnv1a(JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, appVersion: APP_VERSION, assetFingerprint: STATIC_ASSET_FINGERPRINT, staticAssets: STATIC_ASSETS, periodicAssets: PERIODIC_REFRESH_ASSETS }));
+const CACHE_NAME = CACHE_PREFIX + APP_VERSION + '-' + CACHE_SCHEMA_VERSION + '-' + MANIFEST_HASH;
 const TILE_CACHE_NAME = CACHE_NAME + '-tiles';
 
 function isReferenceAsset(url) {
