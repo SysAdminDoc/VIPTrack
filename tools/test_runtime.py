@@ -1124,6 +1124,11 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertLessEqual(
                 measured["calls"], measured["fleet"] // 10,
                 f"analyse() ran {measured['calls']} times for 500 unselected aircraft")
+            # The call count is the contract, but the sweep also has to be fast in
+            # wall-clock terms - a cheap skip that still took 40 ms per tick would
+            # satisfy the count and miss the point.
+            self.assertLess(measured["elapsed"], 250,
+                            f"a 500-aircraft sweep took {measured['elapsed']:.0f} ms")
 
             # And the result is still correct when it is asked for.
             self.assertTrue(measured["hasMetrics"],
@@ -1165,17 +1170,31 @@ class VipTrackRuntime(unittest.TestCase):
             page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
             page.wait_for_timeout(BOOT_SETTLE_MS)
 
-            # Drive the plain-fetch path directly, which is what a browser without OPFS
-            # sync access takes.
+            # Take the path a browser without OPFS sync access takes, by removing the
+            # capability rather than by calling the fallback directly - otherwise the
+            # test proves the fallback works without proving it is what runs.
             loaded = page.evaluate(
                 """async () => {
+                    const realGetDirectory = navigator.storage && navigator.storage.getDirectory;
+                    if (navigator.storage) {
+                        Object.defineProperty(navigator.storage, 'getDirectory',
+                            { configurable: true, value: undefined });
+                    }
+                    registrationOPFSManager.worker = null;
                     registrationDB.aircraft.clear();
                     registrationDB.loaded = false;
                     registrationDB.loading = false;
-                    const ok = await registrationDB.fetchFromSource();
-                    return { ok, size: registrationDB.aircraft.size };
+                    const opfsAvailable = registrationOPFSManager.init();
+                    const ok = await registrationDB.init();
+                    if (navigator.storage && realGetDirectory) {
+                        Object.defineProperty(navigator.storage, 'getDirectory',
+                            { configurable: true, value: realGetDirectory });
+                    }
+                    return { ok, opfsAvailable, size: registrationDB.aircraft.size };
                 }"""
             )
+            self.assertFalse(loaded["opfsAvailable"],
+                             "OPFS was not actually stubbed out, so the fallback path was not taken")
             self.assertTrue(loaded["ok"], "the registration database failed to load")
             self.assertGreater(loaded["size"], 5000,
                                "the compact registry seeded almost nothing")
@@ -1191,7 +1210,11 @@ class VipTrackRuntime(unittest.TestCase):
                 """() => {
                     // Not every catalogued hex has a row in the upstream registration
                     // data, so measure coverage rather than betting on one airframe.
-                    const hexes = [...militaryDB.military.keys()].slice(0, 500);
+                    // Sample evenly across the catalogue: the first few hundred hexes
+                    // are the lowest ICAO allocations and are unrepresentative.
+                    const all = [...militaryDB.military.keys()];
+                    const step = Math.max(1, Math.floor(all.length / 500));
+                    const hexes = all.filter((_, i) => i % step === 0).slice(0, 500);
                     let found = 0, withRegistration = 0;
                     for (const hex of hexes) {
                         const record = registrationDB.aircraft.get(String(hex).toUpperCase());
@@ -1202,8 +1225,12 @@ class VipTrackRuntime(unittest.TestCase):
             )
             self.assertIsNotNone(resolved)
             self.assertGreater(resolved["sampled"], 0, "the military catalogue is empty")
+            # Measured coverage is ~83% of catalogued military hexes; the rest have no
+            # row in the upstream registration data at all, so they were never
+            # resolvable from the CSV either. A 50% floor was loose enough to hide a
+            # real collapse, so hold it just under what the data actually supports.
             self.assertGreater(
-                resolved["found"], resolved["sampled"] * 0.5,
+                resolved["found"], resolved["sampled"] * 0.75,
                 f"only {resolved['found']}/{resolved['sampled']} catalogued military hexes "
                 "resolve in the compact registry")
             self.assertGreater(resolved["withRegistration"], 0)

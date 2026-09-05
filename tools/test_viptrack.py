@@ -624,6 +624,32 @@ class VipTrackContracts(unittest.TestCase):
                          "a source claims to send CORS headers")
         self.assertNotIn("| Yes |", table, "the table claims a source sends CORS headers")
 
+        # The acceptance asks for correct CORS *and endpoint* columns, so check the
+        # endpoints too - and check them against the markdown rows rather than the
+        # whole section, or surrounding prose can satisfy the assertion by accident.
+        rows = [line for line in table.splitlines() if line.startswith("| [")]
+        self.assertEqual(len(rows), len(names), "the table has a row per source")
+        for key, url_field in (("milUrl", "/mil"), ("laddUrl", "/ladd")):
+            for match in re.finditer(r"\{ key: '([^']+)'.*?name: '([^']+)'.*?"
+                                     + key + r": (null|'[^']*')", block, re.S):
+                source_name, value = match.group(2), match.group(3)
+                row = next((r for r in rows if source_name in r), None)
+                self.assertIsNotNone(row, f"{source_name} has no table row")
+                if value == "null":
+                    self.assertNotIn(url_field, row,
+                                     f"{source_name} lists {url_field} but the code sets {key} to null")
+                else:
+                    self.assertIn(url_field, row,
+                                  f"{source_name} polls {url_field} but the table omits it")
+
+        # And the priority column must match the code's own ordering.
+        for match in re.finditer(r"name: '([^']+)'.*?priority: (\d+)", block, re.S):
+            source_name, priority = match.group(1), match.group(2)
+            row = next((r for r in rows if source_name in r), None)
+            self.assertIsNotNone(row)
+            self.assertIn(f"| {priority} ", row.replace("| 9 (disabled) ", "| 9 "),
+                          f"{source_name} is priority {priority} in code but not in the table")
+
         # And the relay must be described as the live-data path, not a file:// aid.
         self.assertNotIn("CORS proxy failover for file:// protocol", readme)
         self.assertIn("Deploy your own data relay", readme)
