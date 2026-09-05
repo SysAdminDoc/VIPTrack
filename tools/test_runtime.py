@@ -175,6 +175,9 @@ class VipTrackRuntime(unittest.TestCase):
         if cls._server:
             cls._server.__exit__(None, None, None)
 
+    # Mirrors relayHealth.AUTH_FAILURE_LIMIT in index.html.
+    RELAY_AUTH_FAILURE_LIMIT = 3
+
     def _route_external(self, page, feed_status=200):
         """Intercept everything that is not the local origin.
 
@@ -410,6 +413,89 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertIn("no source reachable", title)
             self.assertIn("429", title)
             self.assertIn(page.evaluate("relayHealth.name()").lower(), title)
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
+    def test_a_relay_that_refuses_outright_is_dropped_not_retried_forever(self) -> None:
+        # corsproxy.io answered 401 on every request for weeks while relayHealth
+        # reported healthy, because a failure was only recorded once *every* relay
+        # failed. A relay demanding an account key is gone, not having a bad minute.
+        #
+        # Every fetchWithProxy() call below passes skipDirect, exactly as the feed
+        # loop does. Without it the direct attempt succeeds against the base stub and
+        # no relay is contacted at all, so the test passes while proving nothing.
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        host = self.base_url.split("//", 1)[1]
+        attempts: dict[str, int] = {"refusing": 0, "working": 0}
+        poll = ("async (n) => { for (let i = 0; i < n; i++) "
+                "await fetchWithProxy('https://api.adsb.lol/v2/mil', {}, { skipDirect: true }); }")
+        forced_poll = ("async (n) => { for (let i = 0; i < n; i++) { lastSuccessfulProxy = ''; "
+                       "await fetchWithProxy('https://api.adsb.lol/v2/mil', {}, { skipDirect: true }); } }")
+
+        def handler(route):
+            url = route.request.url
+            if host in url or url.startswith("file://"):
+                route.fallback()
+                return
+            if "allorigins.win" in url:
+                attempts["refusing"] += 1
+                route.fulfill(status=401, content_type="application/json",
+                              headers={"Access-Control-Allow-Origin": "*"},
+                              body='{"error":"A valid API key is required"}')
+                return
+            if "corsproxy.io" in url:
+                attempts["working"] += 1
+                if "pia" in url or "ladd" in url:
+                    _json_route(route, PIA_FIXTURE)
+                else:
+                    _json_route(route, MIL_FIXTURE)
+                return
+            route.fallback()
+
+        # Playwright runs routes last-registered-first, so the relay override has to be
+        # registered after the base stub or the base stub answers the relay instead.
+        self._route_external(page)
+        page.route("**/*", handler)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+            self.assertGreater(attempts["working"], 0, "the working relay must carry traffic")
+
+            # Ten polls must not cost ten round-trips to a relay that already refused.
+            before = attempts["refusing"]
+            page.evaluate(poll, 10)
+            self.assertLessEqual(
+                attempts["refusing"] - before, self.RELAY_AUTH_FAILURE_LIMIT,
+                "a relay answering 401 must not be re-tried on every poll")
+
+            # Sticky selection alone keeps the refusing relay out of the way while the
+            # working one holds. Force it back to the front, the way an intermittently
+            # working relay does in production, and the 401s must retire it for good.
+            page.evaluate(forced_poll, 4)
+            self.assertTrue(page.evaluate("relayHealth.isRelayDisabled('allorigins')"),
+                            "three 401s from one relay must disable it for the session")
+            self.assertLessEqual(
+                attempts["refusing"], self.RELAY_AUTH_FAILURE_LIMIT,
+                "the refusing relay must never be attempted more than the strike limit")
+
+            # Once retired it must stay retired, however often the caller cycles back.
+            settled = attempts["refusing"]
+            working_before = attempts["working"]
+            page.evaluate(forced_poll, 5)
+            self.assertEqual(attempts["refusing"], settled,
+                             "no further attempt may reach a disabled relay")
+            # Feeds must keep loading through the relay that still answers.
+            self.assertGreater(attempts["working"], working_before)
+
+            # The health control has to name the relay that refused, rather than
+            # leaving the user to read it out of the console.
+            described = page.evaluate("relayHealth.describe()")
+            self.assertIn("allorigins.win", described)
+            self.assertIn("401/403", described)
+            self.assertEqual(page.evaluate("relayHealth.status()"), "healthy")
             self.assertEqual(crashes, [])
         finally:
             page.close()

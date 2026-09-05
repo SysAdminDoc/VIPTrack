@@ -3419,11 +3419,42 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     };
 
     const relayHealth = {
+        AUTH_FAILURE_LIMIT: 3,
         activeId: '',
         lastError: null,
         lastErrorAt: 0,
         lastSuccessAt: 0,
         throttledUntil: 0,
+        // Per relay, because a failure recorded only when *every* relay fails cannot
+        // describe one relay that is permanently gone. corsproxy.io answered 401 on
+        // 100% of requests for weeks while this indicator stayed green.
+        relays: {},
+
+        _relay(id) {
+            if (!this.relays[id]) this.relays[id] = { authFailures: 0, disabled: false, lastStatus: null };
+            return this.relays[id];
+        },
+
+        // 401/403 is a withdrawal, not a bad minute: the relay wants an account key we
+        // do not have. Retrying it on every failover costs a round-trip per poll and
+        // buries the real reason under console noise.
+        recordRelayResult(id, status) {
+            const relay = this._relay(id);
+            relay.lastStatus = status ?? null;
+            if (status === 401 || status === 403) {
+                relay.authFailures += 1;
+                if (relay.authFailures >= this.AUTH_FAILURE_LIMIT) relay.disabled = true;
+            } else if (Number.isFinite(status) && status < 400) {
+                relay.authFailures = 0;
+                relay.disabled = false;
+            }
+        },
+
+        isRelayDisabled(id) { return Boolean(this.relays[id]?.disabled); },
+
+        disabledRelays() {
+            return Object.keys(this.relays).filter(id => this.relays[id].disabled);
+        },
 
         name(id = this.activeId) {
             return relayRegistry.hostOf(id);
@@ -3434,9 +3465,17 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             this.lastSuccessAt = Date.now();
             this.lastError = null;
             this.throttledUntil = 0;
+            const relay = this._relay(id);
+            relay.authFailures = 0;
+            relay.disabled = false;
+            relay.lastStatus = 200;
         },
         recordFailure(status) {
             this.lastErrorAt = Date.now();
+            if (status === 403 && this.disabledRelays().length && !relayRegistry.list().some(relay => !this.isRelayDisabled(relay.id))) {
+                this.lastError = 'every relay refused this deployment (HTTP 401/403)';
+                return;
+            }
             if (status === 429) {
                 this.lastError = 'rate limited (HTTP 429)';
                 // Back off rather than hammering a relay that is already refusing us.
@@ -3457,9 +3496,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (this.isThrottled()) {
                 return this.name() + ' backing off for ' + Math.ceil((this.throttledUntil - Date.now()) / 1000) + 's (' + this.lastError + ')';
             }
-            if (this.status() === 'healthy') return this.name() + ' relaying';
-            if (this.lastError) return this.name() + ': ' + this.lastError;
-            return 'not used yet';
+            const retired = this.disabledRelays().map(id => relayRegistry.hostOf(id)).join(', ');
+            const note = retired ? ' · ' + retired + ' refused this deployment (HTTP 401/403) and is no longer tried' : '';
+            if (this.status() === 'healthy') return this.name() + ' relaying' + note;
+            if (this.lastError) return this.name() + ': ' + this.lastError + note;
+            return (retired ? retired + ' refused this deployment (HTTP 401/403) and is no longer tried' : 'not used yet');
         }
     };
 
@@ -8541,7 +8582,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             try { const response = await fetchWithTimeout(target.href, options); if (response?.ok) return response; } catch (e) {}
         }
         let lastStatus = null;
-        const relays = relayRegistry.list();
+        // A relay that has already refused this deployment outright is skipped rather
+        // than re-tried: it is not coming back within the session.
+        const relays = relayRegistry.list().filter(relay => !relayHealth.isRelayDisabled(relay.id));
+        if (!relays.length) {
+            relayHealth.recordFailure(403);
+            return null;
+        }
         const startAt = Math.max(0, relays.findIndex(relay => relay.id === lastSuccessfulProxy));
         for (let i = 0; i < relays.length; i++) {
             const relay = relays[(startAt + i) % relays.length];
@@ -8555,8 +8602,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     return response;
                 }
                 lastStatus = response?.status ?? null;
+                relayHealth.recordRelayResult(relay.id, lastStatus);
             } catch (e) {
                 lastStatus = null;
+                relayHealth.recordRelayResult(relay.id, null);
             }
         }
         // Every relay refused: that is a relay fault, not a fault of the upstream host.

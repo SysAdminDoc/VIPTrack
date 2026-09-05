@@ -15,6 +15,10 @@
 - Relays are now an ordered registry rather than a frozen array, so the operator's own relay comes
   first and a closure in the public pool no longer means an outage. `api.allorigins.win` is tried
   before `corsproxy.io`, which currently refuses every request.
+- Relay health is tracked per relay. A relay answering HTTP 401 or 403 three times is retired for
+  the session and named in the feed-health control, instead of being retried on every failover
+  while the indicator stayed green. Previously a failure was only recorded once *every* relay had
+  failed, so a relay that refused 100% of requests was invisible.
 
 ## [v0.8.2] - 2026-08-29
 
