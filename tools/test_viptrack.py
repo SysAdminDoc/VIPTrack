@@ -669,6 +669,38 @@ class VipTrackContracts(unittest.TestCase):
         for repo in set(mirrors):
             self.assertEqual(repo, "VIPTrack", f"a mirror points at {repo}")
 
+    def test_repeating_timers_go_through_the_pausable_registry(self) -> None:
+        # Six timers stored no handle, were never cleared, and bypassed the registry
+        # that exists so a background tab stops polling. They kept running while the
+        # tab was hidden.
+        bare = []
+        for match in re.finditer(r"(?<![.\w])setInterval\(", self.source):
+            start = self.source.rfind("\n", 0, match.start()) + 1
+            line = self.source[start:self.source.find("\n", match.start())]
+            # The registry itself, and the object method named setInterval on the
+            # coverage view, are the legitimate uses.
+            if "_pausableIntervals" in line or "entry.fn" in line:
+                continue
+            if re.search(r"\bsetInterval\(fn, ms\)", line):
+                continue
+            if re.search(r"^\s*setInterval\(seconds\)", line):
+                continue
+            # A timer that stores its handle and is cleared elsewhere manages its own
+            # lifetime; the feed loop, the coverage recorder and the one-shot readiness
+            # poll are all of that shape. What must never exist again is a repeating
+            # timer with no handle at all, which can be neither paused nor stopped.
+            assigned = re.match(r"\s*(?:const |let |var )?([\w.$]+)\s*=\s*setInterval\(", line)
+            if assigned and f"clearInterval({assigned.group(1)})" in self.source:
+                continue
+            bare.append(line.strip()[:110])
+        self.assertEqual(
+            bare, [],
+            "these repeating timers are neither registered as pausable nor ever cleared, "
+            "so they keep running in a background tab: " + "; ".join(bare),
+        )
+        self.assertIn("_pauseAllIntervals", self.source)
+        self.assertIn("_resumeAllIntervals", self.source)
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",

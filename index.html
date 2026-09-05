@@ -3043,6 +3043,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     let _fetchIntervalId = null;
     let _tabPaused = false;
     const _pausableIntervals = []; // {id, fn, ms, name}
+    // Returns the registry entry. Callers keep it only to identify the timer; the
+    // registry owns the handle, because a timer nobody can pause is a timer that
+    // keeps polling in a background tab forever.
     function _setPausableInterval(fn, ms, name) {
         const entry = { id: setInterval(fn, ms), fn, ms, name: name || '' };
         _pausableIntervals.push(entry);
@@ -3208,7 +3211,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 this.handleOffline();
             }
             
-            setInterval(() => this.checkConnection(), 30000);
+            _setPausableInterval(() => this.checkConnection(), 30000, 'connectivity');
             this.loadCachedData();
             this.loadSyncQueue();
         },
@@ -3612,7 +3615,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
 
         init() {
-            this.healthCheckInterval = setInterval(() => this.checkAllSources(), 60000);
+            this.healthCheckInterval = _setPausableInterval(() => this.checkAllSources(), 60000, 'source-health');
             setTimeout(() => this.checkAllSources(), 5000);
 
             const indicator = document.getElementById('dataSourceIndicator');
@@ -3630,7 +3633,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 this.toggleDetail(false);
             });
             // Keep the open panel's ages and errors current between health checks.
-            setInterval(() => this.renderDetail(), 5000);
+            _setPausableInterval(() => this.renderDetail(), 5000, 'source-detail');
         },
         
         async checkAllSources() {
@@ -4357,12 +4360,12 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                 () => {},
                 { enableHighAccuracy: false }
             );
-            setInterval(() => {
+            _setPausableInterval(() => {
                 navigator.geolocation.getCurrentPosition(
                     pos => { this.userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude }; },
                     () => {}
                 );
-            }, 60000);
+            }, 60000, 'user-location');
         },
         
         async saveWatchlist() {
@@ -14103,11 +14106,11 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     dataSourceManager.init();
     
     // Phase 16: Cache positions periodically when online
-    setInterval(() => {
+    _setPausableInterval(() => {
         if (offlineManager.isOnline) {
             offlineManager.cachePositions();
         }
-    }, 60000);
+    }, 60000, 'position-cache');
     
     // Phase 16: Keyboard shortcut for data source stats (Ctrl+Shift+D)
     document.addEventListener('keydown', (e) => {
@@ -16820,7 +16823,7 @@ if (feature.properties?.name) layer.bindTooltip(safeHTML(String(feature.properti
         }
     };
     setTimeout(() => planeAlertSync.run(false), 15000);
-    setInterval(() => planeAlertSync.run(false), 6 * 3600 * 1000);
+    _setPausableInterval(() => planeAlertSync.run(false), 6 * 3600 * 1000, 'plane-alert-sync');
 
     // ============ NEW: MGRS / Maidenhead coord helpers (OSINT) ============
     const coords = {

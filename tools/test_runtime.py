@@ -1226,6 +1226,74 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_a_hidden_tab_stops_polling(self) -> None:
+        # Six repeating timers stored no handle and bypassed the pausable registry, so
+        # a background tab kept probing connectivity, re-checking source health,
+        # re-rendering the detail panel and re-reading geolocation forever.
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        outbound: list[str] = []
+        host = self.base_url.split("//", 1)[1]
+        page.on("request", lambda request: outbound.append(request.url)
+                if host not in request.url and not request.url.startswith("file://") else None)
+        self._route_external(page)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+
+            registered = page.evaluate(
+                "() => _pausableIntervals.map(entry => entry.name).filter(Boolean)")
+            for name in ("connectivity", "source-health", "source-detail",
+                         "position-cache", "plane-alert-sync"):
+                self.assertIn(name, registered, f"the {name} timer is not pausable")
+
+            # Hide the tab the way the browser does, and confirm every registered timer
+            # actually stopped rather than merely being marked.
+            page.evaluate(
+                """() => {
+                    Object.defineProperty(document, 'visibilityState',
+                        { configurable: true, get: () => 'hidden' });
+                    Object.defineProperty(document, 'hidden',
+                        { configurable: true, get: () => true });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                }"""
+            )
+            page.wait_for_timeout(500)
+            live = page.evaluate("() => _pausableIntervals.filter(e => e.id).length")
+            self.assertEqual(live, 0, "a registered timer kept running while the tab was hidden")
+
+            self.assertIsNone(page.evaluate("() => _fetchIntervalId"),
+                              "the feed loop kept running while the tab was hidden")
+
+            # Boot fallbacks can still be completing, and one-shot requests are not
+            # polling. What must not happen is the same URL being fetched again and
+            # again, which is what an unpaused timer looks like.
+            outbound.clear()
+            page.wait_for_timeout(12000)
+            repeated = {url: outbound.count(url) for url in set(outbound)
+                        if outbound.count(url) > 1}
+            self.assertEqual(repeated, {},
+                             f"a hidden tab kept re-fetching: {repeated}")
+
+            # And they must come back, or hiding the tab once would end the session.
+            page.evaluate(
+                """() => {
+                    Object.defineProperty(document, 'visibilityState',
+                        { configurable: true, get: () => 'visible' });
+                    Object.defineProperty(document, 'hidden',
+                        { configurable: true, get: () => false });
+                    document.dispatchEvent(new Event('visibilitychange'));
+                }"""
+            )
+            page.wait_for_timeout(500)
+            resumed = page.evaluate("() => _pausableIntervals.filter(e => e.id).length")
+            self.assertEqual(resumed, page.evaluate("() => _pausableIntervals.length"),
+                             "timers did not resume when the tab came back")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

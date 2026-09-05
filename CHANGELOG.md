@@ -14,6 +14,10 @@
   its integrity hash re-verified against the live CDN.
 
 ### Changed
+- A hidden tab stops polling. Six repeating timers - the connectivity probe, source health checks,
+  the source-detail re-render, the geolocation refresh, the offline position cache and the
+  plane-alert sync - stored no handle, were never cleared, and bypassed the registry that pauses
+  work when the tab goes to the background. They now register with it and stop with everything else.
 - Track-shape analysis runs only for the selected aircraft and watchlist members, computed on
   demand for anything else. It previously ran for every aircraft on every 6-second sweep - roughly
   120,000 trigonometric evaluations a tick at a thousand tracked aircraft - while the result was
