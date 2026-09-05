@@ -540,6 +540,31 @@ class VipTrackContracts(unittest.TestCase):
         fetcher = fetcher[:fetcher.index("async function fetchWithTimeout(")]
         self.assertIn("relayRegistry.list()", fetcher)
 
+    def test_map_attribution_is_not_suppressed(self) -> None:
+        # OSM tiles are ODbL and the CARTO and Stadia terms both require visible
+        # attribution. This rule used to sit outside any media query, hiding the credit
+        # on every raster basemap while the settings help text said it was showing.
+        for rule in re.findall(r"\.leaflet-control-attribution[^{]*\{([^}]*)\}", self.source):
+            self.assertNotIn(
+                "display: none", rule.replace("display:none", "display: none"),
+                "attribution must not be hidden by CSS",
+            )
+        self.assertNotIn("body.embed .leaflet-control-attribution", self.source)
+
+        # The raster lane must actually carry a credit for the tiles it draws.
+        tile_layer = re.search(r"baseMaps\['esri-gray'\] = L\.tileLayer\((.*)\);", self.source)
+        self.assertIsNotNone(tile_layer)
+        self.assertIn("attribution:", tile_layer.group(1))
+        self.assertIn("Esri", tile_layer.group(1))
+
+        # adsb.fi's terms require citing the feed with a link back; the others are
+        # community projects credited the same way.
+        self.assertIn("function setFeedAttribution(src)", self.source)
+        for key in ("adsbone", "adsblol", "airplaneslive"):
+            block = self.source[self.source.index("{ key: '" + key + "'"):]
+            self.assertIn("projectUrl:", block[:block.index("},")],
+                          f"source {key} has no project URL to credit")
+
     def test_i18n_catalogs_share_schema_keys_and_same_origin_loader(self) -> None:
         for marker in (
             "const i18nManager =",

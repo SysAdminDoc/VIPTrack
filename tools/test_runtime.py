@@ -571,6 +571,71 @@ class VipTrackRuntime(unittest.TestCase):
         finally:
             page.close()
 
+    def test_attribution_is_visible_and_credits_the_live_feed(self) -> None:
+        # A static rule outside any media query used to hide the attribution control
+        # entirely, on every raster basemap, while the settings help text told the user
+        # it was still showing. OSM/CARTO/Stadia require it, and adsb.fi's terms
+        # require the feed to be cited with a link back.
+        with self._page() as (page, crashes):
+            for density, compact in (("default", False), ("compact", True)):
+                page.evaluate("(on) => document.body.classList.toggle('compact-mode', on)", compact)
+                page.wait_for_timeout(250)
+                box = page.evaluate(
+                    """() => {
+                        const el = document.querySelector('.leaflet-control-attribution');
+                        if (!el) return null;
+                        const rect = el.getBoundingClientRect();
+                        const style = getComputedStyle(el);
+                        return { w: rect.width, h: rect.height, display: style.display,
+                                 visibility: style.visibility, opacity: style.opacity,
+                                 html: el.innerHTML };
+                    }"""
+                )
+                self.assertIsNotNone(box, f"no attribution control at {density} density")
+                self.assertNotEqual(box["display"], "none", f"attribution hidden at {density} density")
+                self.assertNotEqual(box["visibility"], "hidden", f"attribution hidden at {density} density")
+                self.assertGreater(box["w"], 0, f"attribution has no width at {density} density")
+                self.assertGreater(box["h"], 0, f"attribution has no height at {density} density")
+                self.assertIn("Esri", box["html"], f"the basemap credit is missing at {density} density")
+
+            page.evaluate("() => document.body.classList.remove('compact-mode')")
+
+            # The feed credit is added when a source answers, and must be a real link.
+            feed = page.evaluate(
+                """() => {
+                    const src = dataSourceManager.enabledSources()[0];
+                    setFeedAttribution(src);
+                    const el = document.querySelector('.leaflet-control-attribution');
+                    const link = el ? el.querySelector('a[href^="https://adsb"], a[href^="https://airplanes"]') : null;
+                    return { name: src.name, href: link ? link.getAttribute('href') : null,
+                             text: link ? link.textContent : null };
+                }"""
+            )
+            self.assertTrue(feed["href"], f"the live feed {feed['name']} is not credited with a link")
+            self.assertTrue(feed["href"].startswith("https://"))
+            self.assertEqual(feed["text"], feed["name"])
+
+            # Visible is not the same as unobstructed. The mobile peek card and the
+            # bottom nav are fixed and sit over the map's bottom edge, so check what is
+            # actually painted at the control's centre rather than trusting geometry.
+            page.set_viewport_size({"width": 390, "height": 844})
+            page.wait_for_timeout(900)
+            covered = page.evaluate(
+                """() => {
+                    const el = document.querySelector('.leaflet-control-attribution');
+                    const rect = el.getBoundingClientRect();
+                    const hit = document.elementFromPoint(rect.x + rect.width / 2,
+                                                          rect.y + rect.height / 2);
+                    return { onTop: el.contains(hit), hit: hit ? hit.className : null,
+                             bottom: Math.round(rect.bottom), viewport: window.innerHeight };
+                }"""
+            )
+            self.assertTrue(covered["onTop"],
+                            f"mobile chrome covers the attribution: {covered['hit']}")
+            self.assertLessEqual(covered["bottom"], covered["viewport"],
+                                 "the attribution is pushed off the bottom of the viewport")
+            self.assertEqual(crashes, [])
+
     def test_map_pans_without_a_dragging_movement(self) -> None:
         # WCAG 2.2 SC 2.5.7 (AA): Leaflet only offers drag-to-pan, so every map position
         # must also be reachable with a single pointer and no drag.

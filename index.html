@@ -112,7 +112,12 @@
         .leaflet-tile-container img, .leaflet-tile { outline: 0 !important; border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; image-rendering: -webkit-optimize-contrast; backface-visibility: hidden; }
         .leaflet-tile-pane { will-change: auto !important; }
         .leaflet-tile-pane, .leaflet-container { background: #323232 !important; }
-        .leaflet-control-attribution { display: none !important; }
+        /* Attribution is a licence condition, not decoration: OSM tiles are ODbL and
+           the CARTO and Stadia terms both require it to stay visible. It used to be
+           hidden outright while the settings help text claimed it was showing. */
+        .leaflet-control-attribution { background: rgba(10, 10, 20, 0.72) !important; color: var(--text-dim) !important; font-size: 10px; padding: 2px 6px; border-radius: 3px 0 0 0; }
+        .leaflet-control-attribution a { color: var(--accent) !important; text-decoration: none; }
+        .leaflet-control-attribution a:hover, .leaflet-control-attribution a:focus-visible { text-decoration: underline; }
         .leaflet-top.leaflet-left { top: auto !important; bottom: 145px !important; left: auto !important; right: 15px !important; }
         .leaflet-control-zoom { margin-bottom: 0 !important; }
         /* WCAG 2.2 SC 2.5.7: panning must be reachable without a dragging movement. */
@@ -245,6 +250,8 @@
             /* Clear the mobile nav, and clear the selected-aircraft peek card when one
                is showing -- it is fixed at nav-clearance + 10px and would cover this. */
             .data-source-indicator { bottom: calc(var(--mobile-nav-clearance, 78px) + 6px); z-index: 1390; }
+            .leaflet-control-attribution { margin-bottom: calc(var(--mobile-nav-clearance, 78px) + 6px) !important; }
+            body.mobile-view:has(.mobile-map-peek) .leaflet-control-attribution { margin-bottom: calc(var(--mobile-nav-clearance, 78px) + 132px) !important; }
             .data-source-detail { bottom: calc(var(--mobile-nav-clearance, 78px) + 40px); z-index: 1391; }
             body.mobile-view:has(.mobile-map-peek) .data-source-indicator { bottom: calc(var(--mobile-nav-clearance, 78px) + 132px); }
             body.mobile-view:has(.mobile-map-peek) .data-source-detail { bottom: calc(var(--mobile-nav-clearance, 78px) + 166px); }
@@ -3530,10 +3537,10 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     // ============ PHASE 16: ENHANCED DATA SOURCE MANAGER ============
     const dataSourceManager = {
         sources: [
-            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
-            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
-            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unavailable', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 9, cors: false, disabled: true, disabledReason: 'Airplanes.live now requires approved API access requested by email; the public endpoint returns HTTP 403.', rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
-            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/lat/' + c.lat.toFixed(4) + '/lon/' + c.lng.toFixed(4) + '/dist/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: null, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
+            { key: 'adsbone', name: 'ADSB One', baseUrl: 'https://api.adsb.one/v2', projectUrl: 'https://adsb.one/', buildUrl: (c, r) => 'https://api.adsb.one/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.one/v2/mil', piaUrl: 'https://api.adsb.one/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 3, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'No end-to-end freshness or availability SLA.' },
+            { key: 'adsblol', name: 'ADSB.lol', baseUrl: 'https://api.adsb.lol/v2', projectUrl: 'https://adsb.lol/', buildUrl: (c, r) => 'https://api.adsb.lol/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.adsb.lol/v2/mil', piaUrl: 'https://api.adsb.lol/v2/pia', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 1, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; community receiver coverage varies.', limitations: 'Provider limits are dynamic; no freshness or availability SLA.' },
+            { key: 'airplaneslive', name: 'Airplanes.live', baseUrl: 'https://api.airplanes.live/v2', projectUrl: 'https://airplanes.live/', buildUrl: (c, r) => 'https://api.airplanes.live/v2/point/' + c.lat.toFixed(4) + '/' + c.lng.toFixed(4) + '/' + r, milUrl: 'https://api.airplanes.live/v2/mil', piaUrl: 'https://api.airplanes.live/v2/ladd', parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unavailable', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 9, cors: false, disabled: true, disabledReason: 'Airplanes.live now requires approved API access requested by email; the public endpoint returns HTTP 403.', rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public API has no end-to-end freshness or availability SLA.' },
+            { key: 'adsbfi', name: 'ADSB.fi', baseUrl: 'https://opendata.adsb.fi/api/v2', projectUrl: 'https://adsb.fi/', buildUrl: (c, r) => 'https://opendata.adsb.fi/api/v2/lat/' + c.lat.toFixed(4) + '/lon/' + c.lng.toFixed(4) + '/dist/' + r, milUrl: 'https://opendata.adsb.fi/api/v2/mil', piaUrl: null, parseResponse: d => d?.ac?.length ? d.ac : null, status: 'unknown', lastSuccess: 0, lastError: 0, errorCount: 0, latency: 0, priority: 2, cors: false, rateBudget: { capacity: 1, refillPerSec: 1, label: '1 request/s client budget' }, coverage: 'Public global ADS-B feed; coverage varies by receiver network.', limitations: 'Public OpenData mirror; provider freshness and availability are not guaranteed.' }
         ],
         
         currentSource: null,
@@ -9269,7 +9276,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
     function initMap() {
         map = L.map('map', { center: CONFIG.center, zoom: CONFIG.zoom, zoomControl: true, preferCanvas: true, zoomSnap: 1, zoomDelta: 1, worldCopyJump: true });
         addPanControl(map);
-        baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 });
+        baseMaps['esri-gray'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Tiles &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener noreferrer">Esri</a>' });
         currentBaseMap = 'esri-gray'; baseMaps[currentBaseMap].addTo(map);
         let moveTimeout; map.on('moveend', () => { clearTimeout(moveTimeout); moveTimeout = setTimeout(() => { loadAircraft(); }, 800); saveMapPosition(); });
         map.on('click', () => {
@@ -9293,6 +9300,21 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         }
         return 'No sources';
     }
+    // adsb.fi's terms require citing the feed with a link back, and the other three
+    // are community projects that deserve the same. The active feed is named in the
+    // map's attribution control alongside the basemap credit.
+    let _feedAttribution = null;
+    function setFeedAttribution(src) {
+        if (!map || !map.attributionControl || !src) return;
+        const next = src.projectUrl
+            ? 'Feed: <a href="' + src.projectUrl + '" target="_blank" rel="noopener noreferrer">' + src.name + '</a>'
+            : 'Feed: ' + src.name;
+        if (next === _feedAttribution) return;
+        if (_feedAttribution) map.attributionControl.removeAttribution(_feedAttribution);
+        map.attributionControl.addAttribution(next);
+        _feedAttribution = next;
+    }
+
     async function loadAircraft() {
         if(!map)return;
         if(gridFetch.inProgress)return;
@@ -9328,6 +9350,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                         processAircraftData(allAc, provenance);
                         const n=Object.keys(markers).length;
                         _el('dataSource').textContent=src.name+' - '+n+' aircraft';
+                        setFeedAttribution(src);
                         lastSuccessfulSource=src.key;success=true;
                         statsDashboard.recordSuccess(src, allAc.length, Date.now() - statsStartedAt, provenance);
                         connectionMonitor.recordSuccess();dataSourceManager.recordSuccess(src, sourceLatencyMs, attemptedSources.map(source => source.name));offlineManager.cachePositions();

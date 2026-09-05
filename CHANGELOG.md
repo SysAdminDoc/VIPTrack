@@ -3,6 +3,12 @@
 ## [Unreleased]
 
 ### Fixed
+- Basemap and feed attribution are visible again. A `display: none !important` rule sitting outside
+  any media query hid the Leaflet attribution control on every raster basemap, while the settings
+  help text told the user attribution was still showing. OSM tiles are ODbL and the CARTO and Stadia
+  terms both require visible credit. The raster basemap now carries an Esri credit it never had, the
+  live feed is named with a link to its project page (adsb.fi's terms require citing it with a link
+  back), and on mobile the control clears the bottom nav and the map peek card.
 - The Wikipedia Info setting now actually stops the app contacting `en.wikipedia.org`. The toggle
   was wired end to end and carried in local-state backups, but its only reader had no callers while
   the live photo lookup ran unguarded, so switching it off changed nothing. The dead reader is gone
