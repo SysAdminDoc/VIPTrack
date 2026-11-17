@@ -21,6 +21,11 @@
   viewers asking at the same moment, so a busy site stays inside the feeds' rate limits.
 - Settings > Data Relay explains the hosted relay and how to run your own, in all six languages.
 
+### Changed
+- README reworded throughout so it reads plainly. The Contributing notes no longer call the app a
+  single file, and they say where a new feed host has to be allowed. The allowlist section counts
+  four user-supplied hosts now that the data relay is one of them.
+
 ### Security
 - Diagnostics redaction now also strips callsigns, and the browser console gets the redacted line
   rather than the raw error object. A callsign identifies an aircraft as surely as its hex does, and
