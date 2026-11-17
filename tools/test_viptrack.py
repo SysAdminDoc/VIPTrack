@@ -541,6 +541,47 @@ class VipTrackContracts(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout.strip()), [], "relay allow/deny decisions are wrong")
 
+    def test_cors_relay_names_feed_refusals_and_shares_one_fetch(self) -> None:
+        # adsb.one answers every relay 403 (verified 2026-11-17). Passed through as the
+        # relay's own 403, three of those retire the relay in the page, and every other
+        # feed goes dark with it. And every viewer polls the same URLs, so concurrent
+        # misses have to share one upstream fetch to keep a shared relay inside
+        # adsb.fi's 1 request/second limit.
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("node is required to exercise the relay handler")
+        probe = (
+            "import relay from %s;\n"
+            "let calls = 0;\n"
+            "globalThis.fetch = async (input) => { calls += 1; const url = String(input);\n"
+            "  if (url.includes('adsb.one')) return new Response('<html>blocked</html>', "
+            "{ status: 403, headers: { 'Content-Type': 'text/html' } });\n"
+            "  await new Promise(resolve => setTimeout(resolve, 20));\n"
+            "  return new Response('{\"ac\":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } }); };\n"
+            "const env = { ALLOWED_ORIGINS: 'https://sysadmindoc.github.io' };\n"
+            "const ask = (target, origin = 'https://sysadmindoc.github.io') => relay.fetch(new Request("
+            "'https://relay.test/?url=' + encodeURIComponent(target), { headers: { Origin: origin } }), env);\n"
+            "const refused = await ask('https://api.adsb.one/v2/mil');\n"
+            "const pair = await Promise.all([ask('https://opendata.adsb.fi/api/v2/mil'), ask('https://opendata.adsb.fi/api/v2/mil')]);\n"
+            "const stranger = await ask('https://opendata.adsb.fi/api/v2/mil', 'https://evil.example');\n"
+            "console.log(JSON.stringify({ refused: refused.status, upstream: refused.headers.get('X-Relay-Upstream-Status'),\n"
+            "  exposed: refused.headers.get('Access-Control-Expose-Headers'), ok: pair.map(r => r.status),\n"
+            "  body: await pair[1].text(), stranger: stranger.status, calls }));\n"
+        ) % json.dumps(CORS_RELAY_WORKER.as_uri())
+        with tempfile.TemporaryDirectory() as work:
+            probe_path = Path(work) / "probe.mjs"
+            probe_path.write_bytes(probe.encode("utf-8"))
+            result = subprocess.run([node, str(probe_path)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        seen = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual(seen["refused"], 502, "a feed's 403 must not come back as the relay's own 403")
+        self.assertEqual(seen["upstream"], "403")
+        self.assertIn("X-Relay-Upstream-Status", seen["exposed"] or "", "the page cannot read an unexposed header")
+        self.assertEqual(seen["ok"], [200, 200])
+        self.assertEqual(seen["body"], '{"ac":[]}')
+        self.assertEqual(seen["stranger"], 403, "an origin outside ALLOWED_ORIGINS must be refused")
+        self.assertEqual(seen["calls"], 2, "two concurrent requests for one URL must share one upstream fetch")
+
     def test_relay_list_is_configurable_and_prefers_the_operator_relay(self) -> None:
         # The public relay pool closed once already (corsproxy.io went key-only on
         # 2026-09-04). A hardcoded list means the next closure is another outage.
@@ -551,6 +592,13 @@ class VipTrackContracts(unittest.TestCase):
         registry = self.source[self.source.index("const relayRegistry = {"):self.source.index("const relayHealth = {")]
         self.assertIn("relays.unshift(", registry, "the operator's own relay must be tried first")
         self.assertIn("egressPolicy.validateUrl", registry, "a stored relay URL must be validated")
+
+        # With no relay of the visitor's own, the hosted one has to come before the
+        # public pool, which answered 401/500 to every request on 2026-11-17.
+        relays = self.source[self.source.index("publicRelays: ["):]
+        relays = relays[:relays.index("]")]
+        self.assertLess(relays.index("https://viptrack-relay.getparkerai.com/?url="),
+                        relays.index("https://api.allorigins.win/raw?url="))
 
         # fetchWithProxy must iterate the registry, not a frozen array.
         fetcher = self.source[self.source.index("async function fetchWithProxy("):]
@@ -652,7 +700,8 @@ class VipTrackContracts(unittest.TestCase):
 
         # And the relay must be described as the live-data path, not a file:// aid.
         self.assertNotIn("CORS proxy failover for file:// protocol", readme)
-        self.assertIn("Deploy your own data relay", readme)
+        self.assertIn("### Data relay", readme)
+        self.assertIn("workers/node-relay.mjs", readme)
 
     def test_compact_registration_registry_is_hex_keyed(self) -> None:
         # The OPFS worker seeds the whole registration database from this file. It
@@ -1003,6 +1052,7 @@ class VipTrackContracts(unittest.TestCase):
             self.assertNotIn("https:", tokens, name)
             self.assertIn("'self'", tokens, name)
             for required in ("https://api.adsb.lol", "https://opendata.adsb.fi", "https://corsproxy.io",
+                             "https://viptrack-relay.getparkerai.com",
                              "https://nowcoast.noaa.gov", "https://api.rainviewer.com"):
                 self.assertIn(required, tokens, f"{name}: {required}")
         self.assertIn("object-src 'none'", policy)

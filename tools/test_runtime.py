@@ -379,7 +379,7 @@ class VipTrackRuntime(unittest.TestCase):
             if host in url or url.startswith("file://"):
                 route.fallback()
                 return
-            if "corsproxy.io" in url or "allorigins.win" in url:
+            if "corsproxy.io" in url or "allorigins.win" in url or "viptrack-relay" in url:
                 route.fulfill(status=429, content_type="text/plain",
                               headers={"Access-Control-Allow-Origin": "*"}, body="Too Many Requests")
                 return
@@ -440,6 +440,11 @@ class VipTrackRuntime(unittest.TestCase):
             if host in url or url.startswith("file://"):
                 route.fallback()
                 return
+            # The hosted relay sits ahead of both; out of the way, this test is about
+            # how the two behind it are treated.
+            if "viptrack-relay" in url:
+                route.abort("connectionrefused")
+                return
             if "allorigins.win" in url:
                 attempts["refusing"] += 1
                 route.fulfill(status=401, content_type="application/json",
@@ -496,6 +501,60 @@ class VipTrackRuntime(unittest.TestCase):
             self.assertIn("allorigins.win", described)
             self.assertIn("401/403", described)
             self.assertEqual(page.evaluate("relayHealth.status()"), "healthy")
+            self.assertEqual(crashes, [])
+        finally:
+            page.close()
+
+    def test_a_feed_refusing_the_relay_does_not_retire_the_relay(self) -> None:
+        # adsb.one answers every relay 403. workers/cors-relay.js reports that as 502
+        # with the feed's status in X-Relay-Upstream-Status, and the page must read it
+        # as the feed's refusal: no strike against the relay, and no failover through
+        # the dead public pool, which costs a timeout per poll and fixes nothing.
+        page = self._new_page()
+        crashes: list[str] = []
+        page.on("pageerror", lambda exc: crashes.append(str(exc)))
+        host = self.base_url.split("//", 1)[1]
+        public: list[str] = []
+
+        def handler(route):
+            url = route.request.url
+            if host in url or url.startswith("file://"):
+                route.fallback()
+                return
+            if "viptrack-relay" in url and "adsb.one" in url:
+                route.fulfill(status=502, content_type="application/json",
+                              headers={"Access-Control-Allow-Origin": "*",
+                                       "Access-Control-Expose-Headers": "X-Relay-Upstream-Status",
+                                       "X-Relay-Upstream-Status": "403"},
+                              body='{"error":"Upstream answered HTTP 403"}')
+                return
+            if "allorigins.win" in url or "corsproxy.io" in url:
+                public.append(url)
+            route.fallback()
+
+        self._route_external(page)
+        page.route("**/*", handler)
+        try:
+            page.goto(f"{self.base_url}/index.html", wait_until="load", timeout=60000)
+            page.wait_for_timeout(BOOT_SETTLE_MS)
+            public.clear()
+            seen = page.evaluate(
+                """async () => {
+                    const results = [];
+                    for (let i = 0; i < 5; i++) {
+                        lastSuccessfulProxy = '';
+                        results.push(await fetchWithProxy('https://api.adsb.one/v2/mil', {}, { skipDirect: true }));
+                    }
+                    const other = await fetchWithProxy('https://api.adsb.lol/v2/mil', {}, { skipDirect: true });
+                    return { refusedAll: results.every(r => r === null), otherOk: Boolean(other && other.ok),
+                             disabled: relayHealth.isRelayDisabled('viptrack'), status: relayHealth.status() };
+                }"""
+            )
+            self.assertTrue(seen["refusedAll"], "a refused feed must come back as no data")
+            self.assertFalse(seen["disabled"], "a feed's 403 retired the relay that carries every other feed")
+            self.assertTrue(seen["otherOk"], "the next feed must still load through the same relay")
+            self.assertEqual(seen["status"], "healthy")
+            self.assertEqual(public, [], "a feed's refusal must not fail over through the public relays")
             self.assertEqual(crashes, [])
         finally:
             page.close()

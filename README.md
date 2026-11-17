@@ -159,11 +159,15 @@ The default run processes the first 500 types, resumes existing JPGs and manifes
 | [ADSB One](https://adsb.one) | No | 3 | `/v2/mil`, `/v2/pia`, `/v2/ladd`, `/v2/hex/…` |
 | [Airplanes.live](https://airplanes.live) | No | 9 (disabled) | `/v2/mil`, `/v2/pia`, `/v2/ladd` — the public API now requires approved access and answers HTTP 403 |
 
-**Not one of them sends `Access-Control-Allow-Origin`.** A browser cannot fetch any of these
-directly, so every request goes through a relay — on the hosted origin as much as from `file://`.
-That makes the relay the single hardest dependency in the app, not a local-development
-convenience. See [Deploy your own data relay](#deploy-your-own-data-relay); the free public relays
-are unreliable and one of them now requires an account key.
+**Not one of them sends `Access-Control-Allow-Origin`.** A browser can't fetch any of these
+directly, so every request goes through a relay, on the hosted site as much as from `file://`.
+That makes the relay the hardest dependency in the app. The hosted site uses its own relay at
+`viptrack-relay.getparkerai.com`. See [Data relay](#data-relay) for how it works and how to run
+your own.
+
+On 2026-11-17 ADSB One answered every request with a Cloudflare block page, from a home
+connection and from a server alike, so it contributes nothing for now. The app marks it unhealthy
+after four misses and moves on.
 
 Sources are tried in measured-health order with automatic failover, and data refreshes every 6
 seconds. `/mil`, `/pia` and `/ladd` return every matching aircraft globally in one request each.
@@ -228,30 +232,40 @@ The published tree is roughly 466 MB against the GitHub Pages 1 GB soft limit, w
 
 The archive path must be same-origin. `connect-src` is a real allowlist, so a cross-origin archive is blocked by the app's own CSP; hosting elsewhere means adding that host to both the meta CSP in `index.html` and `_headers`. Note also that `python -m http.server` ignores `Range` headers. Use a static host that answers 206 (GitHub Pages does) when testing locally.
 
-### Deploy your own data relay
+### Data relay
 
-No public ADS-B aggregator sends `Access-Control-Allow-Origin` any more, so a static
-browser-only build cannot read a feed directly. Every request goes through a relay, and the
-free public ones have closed: as of 2026-09-04 `corsproxy.io` answers HTTP 401 without an
-account key, and `api.allorigins.win` has had no upstream commit since 2023-01-11 and returns
-HTTP 522 under load. VIPTrack still falls back to both, but treat that as a last resort.
+No public ADS-B aggregator sends `Access-Control-Allow-Origin`, so a static browser-only build
+can't read a feed directly. The free public relays are no help. `corsproxy.io` answers HTTP 401
+without an account key, and `api.allorigins.win` returns 5xx errors.
 
-The fix is a relay you control. `workers/cors-relay.js` is a Cloudflare Worker that only
-fetches hosts VIPTrack already declares in its own `connect-src`, refuses anything but GET and
-HEAD, and refuses private addresses. The free Workers plan allows 100,000 requests a day.
+The hosted site goes through `https://viptrack-relay.getparkerai.com`, a small Node server
+running `workers/cors-relay.js` behind `workers/node-relay.mjs`. It fetches only the hosts
+VIPTrack already lists in its own `connect-src`, never a private address, and only with GET or
+HEAD. Pages from other origins get a 403. A successful feed response is held for five seconds,
+so any number of viewers cost the feeds one request per URL per five seconds. When a feed itself
+refuses (ADSB One does), the relay says so with a 502 and an `X-Relay-Upstream-Status` header,
+and the app keeps using the relay for the other feeds.
+
+To run your own (a fork, or to stop sharing the hosted one), use a server with an address of its
+own:
 
 ```bash
-npx wrangler deploy workers/cors-relay.js --name viptrack-relay --compatibility-date 2026-01-01
+ALLOWED_ORIGINS=https://you.github.io RELAY_DNS_ORDER=ipv6first node workers/node-relay.mjs
 ```
 
-Paste the resulting `https://viptrack-relay.<subdomain>.workers.dev/` URL into
-**Settings > Data Relay**. It is stored in your browser only, and it is tried before the public
-relays. Add `ALLOWED_ORIGINS` as a Worker variable (a comma-separated list of page origins)
-once you are done testing, otherwise the relay is open to anyone who finds its URL.
+Behind a reverse proxy, set `RELAY_PROXY_ADDRESSES` to the proxy's address so the per-client rate
+limit sees real clients. `RELAY_DNS_ORDER=ipv6first` matters on a host with IPv6, because
+adsb.lol's IPv4 front end accepts connections and then never answers. The header of
+`node-relay.mjs` lists every setting.
 
-Like the webhook, overlay and receiver hosts below, the relay host must also be added to
-`connect-src` in `index.html` and `_headers` — the page's own CSP refuses hosts it has not been
-told about, and the app will name the host it needs when that happens.
+A Cloudflare Worker doesn't work as the host. `cors-relay.js` still exports a Worker handler, but
+adsb.fi and ADSB One answer Worker traffic with a block page, and adsb.lol rate-limits it because
+every Worker shares the same outbound addresses.
+
+Paste your relay's URL into **Settings > Data Relay**. It's stored in your browser only and tried
+before the hosted relay. Like the webhook, overlay and receiver hosts below, the relay host also
+has to be in `connect-src` in `index.html` and `_headers`, since the page's own CSP refuses hosts
+it hasn't been told about. The app names the host it needs when that happens.
 
 ### Allowlisting your own hosts
 
@@ -262,7 +276,7 @@ told about, and the app will name the host it needs when that happens.
 | Alert webhook (Settings > Alert Webhook) | Your webhook host, e.g. `https://discord.com` or your ntfy server |
 | Remote GeoJSON overlay (Settings > Overlays) | The host serving the `.geojson` file |
 | Receiver coverage (Settings > Receiver Coverage) | Your tar1090/readsb feeder host |
-| Data relay (Settings > Data Relay) | Your deployed relay host, e.g. `https://viptrack-relay.example.workers.dev` |
+| Data relay (Settings > Data Relay) | Your relay host, e.g. `https://relay.example.org` |
 
 Add the host to **both** the `Content-Security-Policy` meta tag in `index.html` and the `connect-src` line in `_headers`, then redeploy. Without that, the browser refuses the request before it reaches the network and the feature reports the refusal, naming the host to add.
 

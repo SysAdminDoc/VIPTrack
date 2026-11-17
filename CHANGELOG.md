@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Fixed
+- The hosted site showed no aircraft for anyone. Every feed has to go through a relay, and the
+  public relays it fell back to were dead (corsproxy.io wants a key, allorigins answers 5xx). The
+  site now uses its own relay at viptrack-relay.getparkerai.com first, with the old public ones
+  still behind it.
+- A feed that refuses the relay no longer gets the relay written off. ADSB One answers every
+  client 403, and three of those used to retire the relay for the session, taking adsb.lol and
+  adsb.fi down with it. The relay now reports a feed's refusal as a 502 with
+  `X-Relay-Upstream-Status`, and the app counts that as the relay working.
+- The relay check in Settings probes adsb.fi's `/mil`, which answers in about a second. adsb.lol's
+  `/mil` could take longer than the probe's 8 second limit and fail a healthy relay.
+
+### Added
+- `workers/node-relay.mjs` runs the relay as a plain Node server, with a per-client rate limit,
+  `X-Forwarded-For` from trusted proxies only, a `/healthz` route and an IPv6-first DNS option.
+  The relay holds each successful feed response for five seconds and shares one fetch between
+  viewers asking at the same moment, so a busy site stays inside the feeds' rate limits.
+- Settings > Data Relay explains the hosted relay and how to run your own, in all six languages.
+
 ### Security
 - Diagnostics redaction now also strips callsigns, and the browser console gets the redacted line
   rather than the raw error object. A callsign identifies an aircraft as surely as its hex does, and

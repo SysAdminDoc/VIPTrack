@@ -15,7 +15,7 @@
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
         img-src 'self' data: blob: https: ;
-        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://api.adsbdb.com https://hexdb.io https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://davidmegginson.github.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.stadiamaps.com https://corsproxy.io https://api.allorigins.win https://api.rainviewer.com https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
+        connect-src 'self' blob: https://api.adsb.one https://api.adsb.lol https://api.airplanes.live https://opendata.adsb.fi https://api.adsbdb.com https://hexdb.io https://airport-data.com https://aviationweather.gov https://tfr.faa.gov https://tfr2go.com https://nowcoast.noaa.gov https://en.wikipedia.org https://raw.githubusercontent.com https://davidmegginson.github.io https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.stadiamaps.com https://viptrack-relay.getparkerai.com https://corsproxy.io https://api.allorigins.win https://api.rainviewer.com https://*.rainviewer.com https://auth.opensky-network.org https://opensky-network.org https://services6.arcgis.com https://hub.arcgis.com;
         worker-src 'self' blob: https://cdn.jsdelivr.net;
         frame-src 'self';
         manifest-src 'self' blob:;
@@ -2250,9 +2250,9 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         </div>
         <div class="settings-section">
             <div class="settings-section-title" data-i18n="settings.relay">Data Relay</div>
-            <div class="receiver-coverage-help" data-i18n="settings.relayHelp">No public ADS-B feed sends CORS headers, so every request goes through a relay. The free public relays are unreliable: deploy workers/cors-relay.js to Cloudflare Workers (100,000 requests/day free) and paste its URL here. The host must also be added to connect-src in index.html and _headers before the browser will allow it.</div>
+            <div class="receiver-coverage-help" data-i18n="settings.relayHelp">No public ADS-B feed sends CORS headers, so every request goes through a relay. This site runs a shared one. To use your own, run workers/node-relay.mjs on a server with its own address (the feeds block Cloudflare Workers) and paste its URL here. The host must also be added to connect-src in index.html and _headers before the browser will allow it.</div>
             <div style="display:flex;gap:4px;margin-bottom:6px;">
-                <input type="text" id="relayUrl" placeholder="https://viptrack-relay.example.workers.dev/" data-i18n-placeholder="settings.relayUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
+                <input type="text" id="relayUrl" placeholder="https://relay.example.org/" data-i18n-placeholder="settings.relayUrl" style="flex:1;background:var(--bg-darker);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;">
             </div>
             <div id="relayStatus" role="status" aria-live="polite" style="font-size:10px;color:var(--text-muted);margin-bottom:6px;">No relay configured</div>
             <button class="btn-secondary" id="relaySaveBtn" type="button" style="width:100%;margin-bottom:6px;" data-i18n="settings.saveRelay">Save relay</button>
@@ -2701,10 +2701,14 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // The free public pool has since closed: verified 2026-09-04 from a browser on
         // the live origin, corsproxy.io answers 401 without an account key and
         // api.allorigins.win (no upstream commit since 2023-01-11) returns 522 under
-        // load. Deploy workers/cors-relay.js and set it in Settings > Data Relay; these
-        // two are a last resort, ordered by what still answers. The former codetabs
-        // relay was removed: it no longer answers and only burned the timeout.
+        // load. The hosted build therefore runs its own: workers/cors-relay.js under
+        // workers/node-relay.mjs at viptrack-relay.getparkerai.com, origin-locked to
+        // this site and the Android app. A relay set in Settings > Data Relay still goes
+        // first. The two public ones are a last resort, ordered by what still answers.
+        // The former codetabs relay was removed: it no longer answers and only burned
+        // the timeout.
         publicRelays: [
+            { id: 'viptrack', build: url => 'https://viptrack-relay.getparkerai.com/?url=' + encodeURIComponent(url) },
             { id: 'allorigins', build: url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url) },
             { id: 'corsproxy', build: url => 'https://corsproxy.io/?url=' + encodeURIComponent(url) }
         ],
@@ -3466,11 +3470,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         // did not, so a correctly deployed worker looked simply broken.
         async verify() {
             if (!this.customUrl) return '';
-            const probe = this._buildCustom('https://api.adsb.lol/v2/mil');
+            // adsb.lol's /mil took 20-40 s on 2026-11-17, past this probe's timeout, so a
+            // working relay read as dead. adsb.fi answers the same question in well
+            // under a second.
+            const probe = this._buildCustom('https://opendata.adsb.fi/api/v2/mil');
             let failed = false;
             try {
                 const response = await fetchWithTimeout(probe, { cache: 'no-cache', credentials: 'omit' }, 8000);
-                if (!response?.ok) failed = true;
+                // A relay that names the feed's refusal answered; the feed is another matter.
+                if (!response?.ok && !relayHealth.upstreamStatusOf(response)) failed = true;
             } catch (error) {
                 failed = true;
             }
@@ -3527,7 +3535,7 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
             if (!status) return;
             status.textContent = message || (this.customUrl
                 ? 'Relaying through ' + this.hostOf('custom')
-                : 'No relay configured - falling back to the public pool, which is unreliable');
+                : 'Relaying through the hosted relay, ' + this.hostOf('viptrack') + '. Set your own to stop sharing it.');
         }
     };
 
@@ -3567,6 +3575,13 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
         },
 
         isRelayDisabled(id) { return Boolean(this.relays[id]?.disabled); },
+
+        // The feed's status when the relay answered for a feed that refused or failed,
+        // 0 when the response is the relay's own (or from a relay that never says).
+        upstreamStatusOf(response) {
+            const status = Number(response?.headers?.get?.('X-Relay-Upstream-Status'));
+            return Number.isInteger(status) && status > 0 ? status : 0;
+        },
 
         disabledRelays() {
             return Object.keys(this.relays).filter(id => this.relays[id].disabled);
@@ -8840,6 +8855,15 @@ if ('serviceWorker' in navigator && SW_CONTEXT_SUPPORTED) {
                     lastSuccessfulProxy = relay.id;
                     relayHealth.recordSuccess(relay.id);
                     return response;
+                }
+                // workers/cors-relay.js names a feed's own refusal or failure here. The
+                // relay did its job, so it must not earn a 401/403 strike (adsb.one
+                // answers every relay 403), and another relay will not change the
+                // feed's mind within this poll.
+                if (relayHealth.upstreamStatusOf(response)) {
+                    lastSuccessfulProxy = relay.id;
+                    relayHealth.recordSuccess(relay.id);
+                    return null;
                 }
                 lastStatus = response?.status ?? null;
                 relayHealth.recordRelayResult(relay.id, lastStatus);
